@@ -19,7 +19,7 @@ See `structure.txt` for the fuller target layout.
 |---|---|---|
 | Node.js | 24.x | `node -v`. Anything 20+ should work; 24 is what this was built on. |
 | npm | 11.x | Ships with Node 24. The repo uses **npm workspaces** — don't use yarn or pnpm. |
-| MongoDB | 7.x+ | A local install, or a free MongoDB Atlas cluster. |
+| MongoDB | 7.x+ | *Not needed yet* — see step 3. A local install, or a free Atlas cluster. |
 | Git | any | |
 
 For mobile work you also want the **Expo Go** app on your phone, or Android Studio /
@@ -63,11 +63,20 @@ Create `server/.env`:
 
 ```bash
 PORT=5000
+```
+
+`app.ts` loads this via `import 'dotenv/config'`, so changing `PORT` here changes the
+port the server binds to. The file is gitignored — **never commit it.**
+
+`MONGODB_URI` is not read yet. Mongoose is installed but the server has no connection
+code, so you do **not** need MongoDB running to work on the project today. Once the
+database is wired up, add:
+
+```bash
 MONGODB_URI=mongodb://127.0.0.1:27017/rice-pest-system
 ```
 
-If you're using Atlas instead of a local MongoDB, put your connection string in
-`MONGODB_URI`. **Never commit this file.**
+If you use Atlas instead of a local install, put its connection string there.
 
 ### 4. Verify
 
