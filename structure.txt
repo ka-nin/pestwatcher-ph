@@ -1,0 +1,50 @@
+rice-pest-system/
+├── .github/workflows/         # CI/CD pipelines (linting, tests, automated builds)
+├── .gitignore
+├── package.json               # Root workspace controller (npm/pnpm/yarn workspaces)
+├── README.md
+│
+├── packages/                  # Shared internal packages
+│   └── shared-types/          # TypeScript interfaces shared across web, mobile, and server
+│       ├── src/
+│       │   ├── pest.types.ts  # Risk levels, outbreak parameters
+│       │   ├── user.types.ts  # Admin & farmer roles
+│       │   └── weather.types.ts # Meteorological input schemas
+│       └── package.json
+│
+├── server/                    # Backend API & Machine Learning Integration
+│   ├── src/
+│   │   ├── config/            # Database connections (MongoDB/PostgreSQL)
+│   │   ├── controllers/       # Business logic for users, alerts, and predictions
+│   │   ├── middleware/        # Auth verification, role-based access (Admin vs. Farmer)
+│   │   ├── models/            # Database ORM/ODM schemas
+│   │   ├── routes/            # API routing endpoints
+│   │   ├── services/          # External calls & data processing
+│   │   ├── ml-bridge/         # Python integration (executing or querying your RF/XGBoost models)
+│   │   └── app.ts             # Express/Fastify server initialization
+│   ├── Dockerfile
+│   └── package.json
+│
+├── admin-web/                 # Web Dashboard for Administrators (React + Vite + Tailwind)
+│   ├── src/
+│   │   ├── api/               # Axios/Fetch service hooks for backend communication
+│   │   ├── components/        # Reusable UI elements (Tables, Charts, Modals)
+│   │   ├── context/           # Auth and global dashboard states
+│   │   ├── layouts/           # Sidebar, Navigation header layouts
+│   │   ├── pages/             # Views (Overview, Pest Outbreak Logs, Model Metrics, User Control)
+│   │   ├── router/            # Protected route configurations
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   ├── vite.config.ts
+│   └── package.json
+│
+└── user-mobile/               # Mobile Application for Farmers (React Native / Expo)
+    ├── src/
+    │   ├── api/               # Mobile client API services
+    │   ├── components/        # Mobile-specific UI (Weather widgets, risk indicator cards)
+    │   ├── navigation/        # Expo Router or React Navigation (Bottom Tabs, Stack)
+    │   ├── screens/           # Views (Home/Risk Feed, Weather Outlook, Pest Guide, Profile)
+    │   ├── store/             # Local state (Zustand or Redux Toolkit)
+    │   └── App.tsx
+    ├── app.json
+    └── package.json

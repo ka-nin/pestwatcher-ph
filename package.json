@@ -1,6 +1,13 @@
 {
   "name": "rice-pest-system",
   "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "server",
+    "admin-web",
+    "user-mobile",
+    "packages/*"
+  ],
   "description": "",
   "main": "index.js",
   "scripts": {

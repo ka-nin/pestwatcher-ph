@@ -2,9 +2,9 @@
   "name": "server",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/app.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsx watch src/app.ts"
   },
   "keywords": [],
   "author": "",
@@ -14,7 +14,8 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "mongoose": "^9.9.5"
+    "mongoose": "^9.9.5",
+    "@rice-pest/shared-types": "*"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
