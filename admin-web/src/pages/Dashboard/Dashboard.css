@@ -1,17 +1,11 @@
 .dashboard {
-  min-height: 100svh;
+  height: 100svh;
   display: flex;
   flex-direction: column;
   background: #faf6ef;
   color: #1f2124;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
-}
-
-.dashboard-topbar {
-  background: #1c1d21;
-  color: #9ca0a8;
-  font-size: 13px;
-  padding: 8px 16px;
+  overflow: hidden;
 }
 
 .dashboard-body {
@@ -24,12 +18,14 @@
 .dashboard-sidebar {
   width: 230px;
   flex-shrink: 0;
+  height: 100%;
   background: #fff;
   border-right: 1px solid #e9e6dd;
   display: flex;
   flex-direction: column;
   padding: 20px 16px;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
 .sidebar-brand {
@@ -375,9 +371,13 @@
 }
 
 /* Row 2 */
+.map-row {
+  margin-bottom: 16px;
+}
+
 .row-2 {
   display: grid;
-  grid-template-columns: 1fr 1.1fr;
+  grid-template-columns: 1fr;
   gap: 16px;
   margin-bottom: 16px;
 }
