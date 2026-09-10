@@ -12,18 +12,17 @@ rice-pest-system/
 │       │   └── weather.types.ts # Meteorological input schemas
 │       └── package.json
 │
-├── server/                    # Backend API & Machine Learning Integration
-│   ├── src/
-│   │   ├── config/            # Database connections (MongoDB/PostgreSQL)
-│   │   ├── controllers/       # Business logic for users, alerts, and predictions
-│   │   ├── middleware/        # Auth verification, role-based access (Admin vs. Farmer)
-│   │   ├── models/            # Database ORM/ODM schemas
-│   │   ├── routes/            # API routing endpoints
-│   │   ├── services/          # External calls & data processing
-│   │   ├── ml-bridge/         # Python integration (executing or querying your RF/XGBoost models)
-│   │   └── app.ts             # Express/Fastify server initialization
-│   ├── Dockerfile
-│   └── package.json
+├── server-python/             # Backend API & Machine Learning Integration (FastAPI)
+│   ├── app/
+│   │   ├── config.py          # Settings loaded from .env (pydantic-settings)
+│   │   ├── routers/           # auth.py, weather.py, inference.py
+│   │   ├── data/               # Hardcoded accounts today; swap for a real DB later
+│   │   ├── schemas/            # Pydantic request/response models
+│   │   ├── models/             # ResNet-50 / BiLSTM model wrappers (weights not yet trained)
+│   │   ├── preprocessing/      # Engineered biological features (GDD, CRF, HP)
+│   │   └── main.py             # FastAPI app, CORS, router registration
+│   ├── requirements.txt
+│   └── package.json           # npm workspace shim (dev/setup scripts shell out to Python)
 │
 ├── admin-web/                 # Web Dashboard for Administrators (React + Vite + Tailwind)
 │   ├── src/
