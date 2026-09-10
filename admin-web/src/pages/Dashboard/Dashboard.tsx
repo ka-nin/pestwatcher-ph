@@ -3,6 +3,7 @@ import logo from '../../assets/logo.png'
 import { fetchWeatherForecast, type LguUser, type WeatherForecast } from '../../lib/api'
 import StatusPage from './StatusPage'
 import IpmPage from './IpmPage'
+import ClimateDriversPage from './ClimateDriversPage'
 import './Dashboard.css'
 
 interface DashboardProps {
@@ -169,7 +170,16 @@ function Dashboard({ user, onLogout }: DashboardProps) {
 
           {activePage === 'ipm' && <IpmPage user={user} />}
 
-          {(activePage === 'forecast' || activePage === 'climate') && (
+          {activePage === 'climate' && (
+            <ClimateDriversPage
+              user={user}
+              weather={weather}
+              weatherError={weatherError}
+              climateMetrics={climateMetrics}
+            />
+          )}
+
+          {activePage === 'forecast' && (
             <section className="panel coming-soon-panel">
               <div className="panel-title">{activeLabel}</div>
               <p className="panel-subtitle">This section hasn't been built yet.</p>

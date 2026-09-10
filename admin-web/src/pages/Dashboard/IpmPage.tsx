@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { LguUser } from '../../lib/api'
 import './IpmPage.css'
 
@@ -43,7 +44,7 @@ const pestCards = [
   },
 ]
 
-const advisoryMessage = `PESTWATCHER ALERT - Nueva Ecija
+const defaultAdvisoryMessage = `PESTWATCHER ALERT - Nueva Ecija
 Petsa: May 17, 2026
 Kasalukuyang panganib: MABABA
 Brown Planthopper: mababa ang panganib. Ipagpatuloy ang regular na pagmamanman ng palayan.
@@ -65,7 +66,36 @@ function riskChipLabel(tone: string) {
   return 'HIGH'
 }
 
+type SendStatus = 'idle' | 'sending' | 'sent' | 'failed'
+
+const SMS_SEGMENT_LENGTH = 160
+
 function IpmPage({ user }: IpmPageProps) {
+  const [message, setMessage] = useState(defaultAdvisoryMessage)
+  const [showPreview, setShowPreview] = useState(false)
+  const [sendStatus, setSendStatus] = useState<SendStatus>('idle')
+  const [sentAt, setSentAt] = useState<string | null>(null)
+
+  const segments = Math.max(1, Math.ceil(message.length / SMS_SEGMENT_LENGTH))
+
+  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMessage(e.target.value)
+    // Editing after a send means the indicator no longer reflects what's on screen.
+    if (sendStatus !== 'sending') {
+      setSendStatus('idle')
+    }
+  }
+
+  const handleSend = () => {
+    if (!message.trim()) return
+    setSendStatus('sending')
+    // TODO: wire up to a real SMS gateway endpoint once one exists.
+    setTimeout(() => {
+      setSendStatus('sent')
+      setSentAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+    }, 900)
+  }
+
   return (
     <>
       <section className="ipm-grid">
@@ -128,14 +158,63 @@ function IpmPage({ user }: IpmPageProps) {
             </svg>
           </div>
 
-          <pre className="advisory-message">{advisoryMessage}</pre>
+          <textarea
+            className="advisory-message-input"
+            value={message}
+            onChange={handleMessageChange}
+            rows={7}
+            spellCheck={false}
+          />
+          <div className="advisory-meta">
+            {message.length} characters · {segments} SMS segment{segments === 1 ? '' : 's'}
+          </div>
+
+          {showPreview && (
+            <div className="advisory-preview">
+              <div className="advisory-preview-label">Preview</div>
+              <div className="advisory-preview-bubble">{message}</div>
+            </div>
+          )}
 
           <div className="advisory-actions">
-            <button type="button" className="btn-outline">
-              Preview SMS
+            <div className="advisory-status" aria-live="polite">
+              {sendStatus === 'sending' && (
+                <span className="advisory-status-sending">
+                  <span className="advisory-spinner" /> Sending…
+                </span>
+              )}
+              {sendStatus === 'sent' && (
+                <span className="advisory-status-sent">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Sent{sentAt ? ` at ${sentAt}` : ''}
+                </span>
+              )}
+              {sendStatus === 'failed' && (
+                <span className="advisory-status-failed">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Failed to send
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="btn-outline"
+              onClick={() => setShowPreview((v) => !v)}
+            >
+              {showPreview ? 'Hide Preview' : 'Preview SMS'}
             </button>
-            <button type="button" className="btn-dark">
-              Send SMS
+            <button
+              type="button"
+              className="btn-dark"
+              onClick={handleSend}
+              disabled={sendStatus === 'sending' || !message.trim()}
+            >
+              {sendStatus === 'sending' ? 'Sending…' : 'Send SMS'}
             </button>
           </div>
         </div>
