@@ -1,10 +1,39 @@
+import { useEffect, useState } from 'react'
 import logo from '../../assets/logo.png'
-import type { LguUser } from '../../lib/api'
+import { fetchWeatherForecast, type LguUser, type WeatherForecast } from '../../lib/api'
+import ProvinceMap from './ProvinceMap'
 import './Dashboard.css'
 
 interface DashboardProps {
   user: LguUser
   onLogout: () => void
+}
+
+const GDD_BASE_TEMP_C = 10
+const HUMIDITY_PERSISTENCE_THRESHOLD = 80
+
+function deriveClimateMetrics(weather: WeatherForecast) {
+  const gdd = weather.daily.temperature_2m_max.reduce((total, tMax, i) => {
+    const tMin = weather.daily.temperature_2m_min[i]
+    const meanTemp = (tMax + tMin) / 2
+    return total + Math.max(meanTemp - GDD_BASE_TEMP_C, 0)
+  }, 0)
+
+  const sevenDayRainfall = weather.daily.precipitation_sum
+    .slice(0, 7)
+    .reduce((total, mm) => total + mm, 0)
+
+  const nextWeekHumidity = weather.hourly.relative_humidity_2m.slice(0, 24 * 7)
+  const humidityPersistence =
+    (nextWeekHumidity.filter((rh) => rh >= HUMIDITY_PERSISTENCE_THRESHOLD).length /
+      nextWeekHumidity.length) *
+    100
+
+  return {
+    gdd: Math.round(gdd),
+    sevenDayRainfall: Math.round(sevenDayRainfall),
+    humidityPersistence: Math.round(humidityPersistence),
+  }
 }
 
 const navItems = [
@@ -34,16 +63,6 @@ const navIcons: Record<string, React.ReactNode> = {
 }
 
 const statCards = [
-  {
-    title: 'Crop Context & Climate Drivers',
-    subtitle: 'Current conditions and growth stage',
-    badge: { label: 'Vegetative', tone: 'green' as const },
-    metrics: [
-      { label: 'GDD', value: '485°C-days' },
-      { label: '7-Day Rainfall', value: '42mm' },
-      { label: 'Humidity Persistence', value: '78%' },
-    ],
-  },
   {
     title: 'Peak Pest Day - BPH',
     subtitle: 'Projected peak intensity',
@@ -111,6 +130,27 @@ const riskFactors = [
 const maxRiskFactor = Math.max(...riskFactors.map((f) => Math.abs(f.value)))
 
 function Dashboard({ user, onLogout }: DashboardProps) {
+  const [weather, setWeather] = useState<WeatherForecast | null>(null)
+  const [weatherError, setWeatherError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    fetchWeatherForecast(user.latitude, user.longitude)
+      .then((data) => {
+        if (!cancelled) setWeather(data)
+      })
+      .catch(() => {
+        if (!cancelled) setWeatherError('Unable to load live weather data')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user.latitude, user.longitude])
+
+  const climateMetrics = weather ? deriveClimateMetrics(weather) : null
+
   return (
     <div className="dashboard">
       <div className="dashboard-topbar">Dashboard - Status</div>
@@ -170,7 +210,85 @@ function Dashboard({ user, onLogout }: DashboardProps) {
             </div>
           </header>
 
+          <section className="panel weather-now-panel">
+            <div className="panel-head">
+              <div>
+                <div className="panel-title">Live Weather</div>
+                <div className="panel-subtitle">
+                  {weather
+                    ? `As of ${new Date(weather.current.time).toLocaleString([], {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        timeZone: 'UTC',
+                      })} (${weather.location.timezoneAbbreviation})`
+                    : `${user.municipality}, ${user.province}`}
+                </div>
+              </div>
+              <span className="badge badge-green">LIVE</span>
+            </div>
+
+            {weatherError ? (
+              <p className="stat-card-error">{weatherError}</p>
+            ) : weather ? (
+              <div className="weather-now-grid">
+                <div className="weather-now-item">
+                  <div className="weather-now-label">Temperature</div>
+                  <div className="weather-now-value">
+                    {Math.round(weather.current.temperature_2m)}°C
+                  </div>
+                </div>
+                <div className="weather-now-item">
+                  <div className="weather-now-label">Rainfall</div>
+                  <div className="weather-now-value">
+                    {weather.current.rain.toFixed(1)}mm
+                  </div>
+                </div>
+                <div className="weather-now-item">
+                  <div className="weather-now-label">Relative Humidity</div>
+                  <div className="weather-now-value">
+                    {Math.round(weather.current.relative_humidity_2m)}%
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="stat-card-loading">Loading live weather data…</p>
+            )}
+          </section>
+
           <section className="stat-row">
+            <div className="stat-card">
+              <div className="stat-card-head">
+                <div>
+                  <div className="stat-card-title">Crop Context & Climate Drivers</div>
+                  <div className="stat-card-subtitle">Current conditions and growth stage</div>
+                </div>
+                <span className="badge badge-green">Vegetative</span>
+              </div>
+
+              {weatherError ? (
+                <p className="stat-card-error">{weatherError}</p>
+              ) : climateMetrics ? (
+                <div className="stat-card-metrics">
+                  <div className="stat-metric">
+                    <div className="stat-metric-label">GDD</div>
+                    <div className="stat-metric-value">{climateMetrics.gdd}°C-days</div>
+                  </div>
+                  <div className="stat-metric">
+                    <div className="stat-metric-label">7-Day Rainfall</div>
+                    <div className="stat-metric-value">{climateMetrics.sevenDayRainfall}mm</div>
+                  </div>
+                  <div className="stat-metric">
+                    <div className="stat-metric-label">Humidity Persistence</div>
+                    <div className="stat-metric-value">{climateMetrics.humidityPersistence}%</div>
+                  </div>
+                </div>
+              ) : (
+                <p className="stat-card-loading">Loading live weather data…</p>
+              )}
+            </div>
+
             {statCards.map((card) => (
               <div className="stat-card" key={card.title}>
                 <div className="stat-card-head">
@@ -181,31 +299,18 @@ function Dashboard({ user, onLogout }: DashboardProps) {
                   <span className={`badge badge-${card.badge.tone}`}>{card.badge.label}</span>
                 </div>
 
-                {'metrics' in card && card.metrics ? (
-                  <div className="stat-card-metrics">
-                    {card.metrics.map((m) => (
-                      <div className="stat-metric" key={m.label}>
-                        <div className="stat-metric-label">{m.label}</div>
-                        <div className="stat-metric-value">{m.value}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <>
-                    <div className="stat-card-big">
-                      <span className="stat-card-big-value">{card.big!.value}</span>
-                      <span className="stat-card-big-unit">{card.big!.unit}</span>
-                    </div>
-                    <div className="stat-card-etl">
-                      ETL: <strong>{card.etl}</strong>
-                    </div>
-                    <div className="stat-card-risk-row">
-                      <span className="stat-card-risk-label">Risk</span>
-                      <span className="badge badge-red">{card.risk}</span>
-                    </div>
-                    <div className="stat-card-footer">{card.footer}</div>
-                  </>
-                )}
+                <div className="stat-card-big">
+                  <span className="stat-card-big-value">{card.big.value}</span>
+                  <span className="stat-card-big-unit">{card.big.unit}</span>
+                </div>
+                <div className="stat-card-etl">
+                  ETL: <strong>{card.etl}</strong>
+                </div>
+                <div className="stat-card-risk-row">
+                  <span className="stat-card-risk-label">Risk</span>
+                  <span className="badge badge-red">{card.risk}</span>
+                </div>
+                <div className="stat-card-footer">{card.footer}</div>
               </div>
             ))}
           </section>
@@ -220,18 +325,11 @@ function Dashboard({ user, onLogout }: DashboardProps) {
                 <span className="badge badge-green">LIVE</span>
               </div>
 
-              <div className="map-placeholder">
-                Map placeholder
-                <span className="map-marker map-marker-low" style={{ top: '38%', left: '18%' }}>
-                  L
-                </span>
-                <span className="map-marker map-marker-mid" style={{ top: '48%', left: '46%' }}>
-                  M
-                </span>
-                <span className="map-marker map-marker-high" style={{ top: '68%', left: '68%' }}>
-                  H
-                </span>
-              </div>
+              <ProvinceMap
+                latitude={user.latitude}
+                longitude={user.longitude}
+                label={`${user.municipality}, ${user.province}`}
+              />
 
               <div className="map-legend">
                 <span className="legend-item">

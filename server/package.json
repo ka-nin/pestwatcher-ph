@@ -11,11 +11,12 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@rice-pest/shared-types": "*",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "mongoose": "^9.9.5",
-    "@rice-pest/shared-types": "*"
+    "openmeteo": "^1.2.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

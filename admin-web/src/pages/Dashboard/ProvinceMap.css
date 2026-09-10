@@ -1,0 +1,54 @@
+.province-map {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.province-map-tabs {
+  display: inline-flex;
+  gap: 4px;
+  background: #f4f2ea;
+  border-radius: 8px;
+  padding: 3px;
+  width: fit-content;
+}
+
+.province-map-tab {
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #777;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.province-map-tab:hover {
+  color: #333;
+}
+
+.province-map-tab.active {
+  background: #fff;
+  color: #2f6b32;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.province-map-view {
+  height: 220px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e9e6dd;
+}
+
+.province-map-canvas {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.province-map .leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  font-size: 12px;
+}
