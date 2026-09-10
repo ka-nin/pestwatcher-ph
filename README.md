@@ -62,6 +62,8 @@ You can skip this if you're only touching the backend, but `admin-web` won't bui
 
 ### 3. Set up the Python backend
 
+On Windows:
+
 ```bash
 cd server-python
 npm run setup   # creates .venv and installs requirements.txt
@@ -69,10 +71,31 @@ copy .env.example .env
 cd ..
 ```
 
+On macOS/Linux, `npm run setup` doesn't create the venv for you — do it manually:
+
+```bash
+cd server-python
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+cd ..
+```
+
 See [`server-python/README.md`](server-python/README.md) for what's in `.env`
 and the full folder breakdown (routers, ML model stubs, feature engineering).
 
-### 4. Verify
+### 4. Set up admin-web's env file
+
+```bash
+cp admin-web/.env.example admin-web/.env   # Windows: copy admin-web\.env.example admin-web\.env
+```
+
+This sets `VITE_API_URL` so the dashboard knows where the FastAPI server is
+(`http://localhost:8000` by default — matches step 3). Without this file,
+admin-web will fail to reach the API.
+
+### 5. Verify
 
 ```bash
 npm run dev --workspace=server-python
@@ -138,6 +161,10 @@ close the editor, delete the offending `node_modules`, and reinstall.
 **Expo can't resolve a module / Metro behaves oddly**
 Metro and npm workspaces don't always agree about hoisting. Start with a clear cache:
 `npm start --workspace=user-mobile -- --clear`.
+
+**admin-web can't reach the API / requests go to the wrong URL**
+`admin-web/.env` is missing. Copy it from `admin-web/.env.example` (see step 4
+above) and restart the Vite dev server — Vite only reads `.env` at startup.
 
 **Port 8000 already in use (Windows)**
 `netstat -ano | findstr :8000`, then `taskkill /PID <pid> /F`. Or change `PORT` in
