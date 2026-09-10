@@ -1,5 +1,5 @@
 {
-  "name": "rice-pest-system",
+  "name": "pestwatcher-ph",
   "version": "1.0.0",
   "private": true,
   "workspaces": [
@@ -15,14 +15,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ka-nin/rice-pest-system.git"
+    "url": "git+https://github.com/ka-nin/pestwatcher-ph.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/ka-nin/rice-pest-system/issues"
+    "url": "https://github.com/ka-nin/pestwatcher-ph/issues"
   },
-  "homepage": "https://github.com/ka-nin/rice-pest-system#readme"
+  "homepage": "https://github.com/ka-nin/pestwatcher-ph#readme"
 }

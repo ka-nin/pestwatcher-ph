@@ -5,7 +5,7 @@ deep-learning inference pipeline, a React admin dashboard for LGU technicians,
 an Expo mobile app for farmers, and a shared TypeScript types package.
 
 ```
-rice-pest-system/
+pestwatcher-ph/
 ├── server-python/          # FastAPI API (Python) — auth, weather, ML inference
 ├── admin-web/              # Admin dashboard (React 19 + Vite)
 ├── user-mobile/            # Farmer app (Expo / React Native)
@@ -33,8 +33,8 @@ Xcode if you plan to run an emulator.
 ### 1. Clone and install JS workspaces
 
 ```bash
-git clone https://github.com/ka-nin/rice-pest-system.git
-cd rice-pest-system
+git clone https://github.com/ka-nin/pestwatcher-ph.git
+cd pestwatcher-ph
 npm install
 ```
 
