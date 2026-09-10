@@ -153,8 +153,6 @@ function Dashboard({ user, onLogout }: DashboardProps) {
 
   return (
     <div className="dashboard">
-      <div className="dashboard-topbar">Dashboard - Status</div>
-
       <div className="dashboard-body">
         <aside className="dashboard-sidebar">
           <div className="sidebar-brand">
@@ -315,7 +313,7 @@ function Dashboard({ user, onLogout }: DashboardProps) {
             ))}
           </section>
 
-          <section className="row-2">
+          <section className="map-row">
             <div className="panel map-panel">
               <div className="panel-head">
                 <div>
@@ -343,7 +341,9 @@ function Dashboard({ user, onLogout }: DashboardProps) {
                 </span>
               </div>
             </div>
+          </section>
 
+          <section className="row-2">
             <div className="panel heatmap-panel">
               <div className="panel-head">
                 <div>
