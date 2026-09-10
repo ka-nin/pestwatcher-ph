@@ -44,12 +44,15 @@ const pestCards = [
   },
 ]
 
-const defaultAdvisoryMessage = `PESTWATCHER ALERT - Nueva Ecija
+function buildAdvisoryMessage(user: LguUser) {
+  return `PESTWATCHER ALERT - ${user.province}
+Munisipyo: ${user.municipality}
 Petsa: May 17, 2026
 Kasalukuyang panganib: MABABA
 Brown Planthopper: mababa ang panganib. Ipagpatuloy ang regular na pagmamanman ng palayan.
 Yellow Stem Borer: mababa ang panganib. Mag-check pa rin ng sintomas tulad ng deadheart o whitehead.
 Payo: Mag-monitor ng palayan lingu-linggo. Hindi kailangan ang agarang pag-spray ng pestisidyo. Kumonsulta sa agricultural technician kung may nakitang pagdami ng peste.`
+}
 
 const timeline = [
   { date: 'May 17', bphDensity: '12', bphTone: 'low', bphAction: 'Routine scouting', rsbDamage: '1.5%', rsbTone: 'low', rsbAction: 'Light trap check' },
@@ -71,7 +74,7 @@ type SendStatus = 'idle' | 'sending' | 'sent' | 'failed'
 const SMS_SEGMENT_LENGTH = 160
 
 function IpmPage({ user }: IpmPageProps) {
-  const [message, setMessage] = useState(defaultAdvisoryMessage)
+  const [message, setMessage] = useState(() => buildAdvisoryMessage(user))
   const [showPreview, setShowPreview] = useState(false)
   const [sendStatus, setSendStatus] = useState<SendStatus>('idle')
   const [sentAt, setSentAt] = useState<string | null>(null)
