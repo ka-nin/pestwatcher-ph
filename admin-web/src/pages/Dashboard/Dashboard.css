@@ -233,6 +233,15 @@
   color: #999;
 }
 
+.coming-soon-panel {
+  padding: 40px 18px;
+  text-align: center;
+}
+
+.coming-soon-panel .panel-title {
+  margin-bottom: 4px;
+}
+
 /* Live weather panel */
 .weather-now-panel {
   padding: 22px;
