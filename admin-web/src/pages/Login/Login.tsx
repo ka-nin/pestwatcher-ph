@@ -1,15 +1,31 @@
 import { useState } from 'react'
-import bgImg from '../assets/bg-img.png'
-import logo from '../assets/logo.png'
+import bgImg from '../../assets/bg-img.png'
+import logo from '../../assets/logo.png'
+import { login, type LguUser } from '../../lib/api'
 import './Login.css'
 
-function Login() {
+interface LoginProps {
+  onLoginSuccess: (user: LguUser) => void
+}
+
+function Login({ onLoginSuccess }: LoginProps) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: wire up authentication
+    setError('')
+    setLoading(true)
+    try {
+      const user = await login(username, password)
+      onLoginSuccess(user)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to log in right now')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -55,8 +71,10 @@ function Login() {
               />
             </div>
 
-            <button type="submit" className="login-submit">
-              Log In
+            {error && <p className="login-error">{error}</p>}
+
+            <button type="submit" className="login-submit" disabled={loading}>
+              {loading ? 'Logging in…' : 'Log In'}
             </button>
           </form>
 
