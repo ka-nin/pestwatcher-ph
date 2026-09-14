@@ -74,3 +74,102 @@ export async function fetchWeatherForecast(
 
   return res.json()
 }
+
+export type PestKey = 'BPH' | 'RSB'
+export type GrowthStage =
+  | 'Seedling'
+  | 'Tillering'
+  | 'Elongation'
+  | 'Panicle'
+  | 'Flowering'
+  | 'Ripening'
+export type RiskLevel = 'Low' | 'Medium' | 'High'
+
+export interface PestForecast {
+  status: 'ok' | 'model_not_loaded'
+  predicted_value: number | null
+  unit: 'hoppers_per_hill' | 'pct_damage' | null
+  risk_level: RiskLevel | null
+  message: string
+}
+
+export async function fetchPestForecast(
+  municipality: string,
+  pest: PestKey,
+  growthStage: GrowthStage,
+): Promise<PestForecast> {
+  const params = new URLSearchParams({ municipality, pest, growth_stage: growthStage })
+  const res = await fetch(`${API_BASE_URL}/api/inference/forecast/live?${params}`)
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch pest forecast')
+  }
+
+  return res.json()
+}
+
+export interface TrajectoryPoint {
+  date: string
+  predicted_value: number
+  unit: 'hoppers_per_hill' | 'pct_damage'
+  risk_level: RiskLevel
+}
+
+export interface TrajectoryResponse {
+  status: 'ok' | 'model_not_loaded'
+  points: TrajectoryPoint[]
+  message: string
+}
+
+export async function fetchPestForecastTrajectory(
+  municipality: string,
+  pest: PestKey,
+  growthStage: GrowthStage,
+  days = 13,
+): Promise<TrajectoryResponse> {
+  const params = new URLSearchParams({
+    municipality,
+    pest,
+    growth_stage: growthStage,
+    days: String(days),
+  })
+  const res = await fetch(`${API_BASE_URL}/api/inference/forecast/trajectory?${params}`)
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch pest forecast trajectory')
+  }
+
+  return res.json()
+}
+
+export interface ExplanationFeature {
+  label: string
+  value: number
+}
+
+export interface ExplanationResponse {
+  status: 'ok' | 'model_not_loaded'
+  features: ExplanationFeature[]
+  message: string
+}
+
+export async function fetchPestForecastExplanation(
+  municipality: string,
+  pest: PestKey,
+  growthStage: GrowthStage,
+  topN = 7,
+): Promise<ExplanationResponse> {
+  const params = new URLSearchParams({
+    municipality,
+    pest,
+    growth_stage: growthStage,
+    top_n: String(topN),
+  })
+  const res = await fetch(`${API_BASE_URL}/api/inference/forecast/explain?${params}`)
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch pest forecast explanation')
+  }
+
+  return res.json()
+}

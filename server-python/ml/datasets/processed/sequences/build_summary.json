@@ -1,0 +1,34 @@
+{
+  "BPH": {
+    "num_sequences": 10825,
+    "window_days": 14,
+    "horizon_days": 14,
+    "X_sequence_shape": [
+      10825,
+      14,
+      12
+    ],
+    "X_static_shape": [
+      10825,
+      9
+    ],
+    "target_mean": 4.02595853805542,
+    "target_std": 7.85405969619751
+  },
+  "RSB": {
+    "num_sequences": 10825,
+    "window_days": 14,
+    "horizon_days": 14,
+    "X_sequence_shape": [
+      10825,
+      14,
+      12
+    ],
+    "X_static_shape": [
+      10825,
+      9
+    ],
+    "target_mean": 0.871911883354187,
+    "target_std": 1.4078842401504517
+  }
+}

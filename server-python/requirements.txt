@@ -10,8 +10,15 @@ openmeteo-requests==1.7.4
 retry-requests==2.0.0
 numpy==2.1.3  # required by openmeteo-requests' flatbuffers-backed array access
 
-# Data Science pipeline (uncomment as you build out /models and /preprocessing)
-# tensorflow==2.18.0
+# Data Science pipeline
+pandas==2.2.3
+openpyxl==3.1.5
+tensorflow==2.21.0
+scikit-learn==1.9.1
+h5py==3.14.0
+joblib==1.6.0
+
+# Uncomment as you build out ml/resnet (image classifier) and ml/explainability
 # pillow==11.0.0
-# pandas==2.2.3
-# scikit-learn==1.5.2
+# shap==0.46.0
+# lime==0.2.0.1
