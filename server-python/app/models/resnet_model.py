@@ -10,7 +10,7 @@ Example of what `load()` will eventually look like:
     import tensorflow as tf
 
     def load(self) -> None:
-        self._model = tf.keras.models.load_model("app/models/weights/resnet50_pest.h5")
+        self._model = tf.keras.models.load_model("ml/weights/bph/resnet50_bph.keras")
 
 And `predict()`:
 

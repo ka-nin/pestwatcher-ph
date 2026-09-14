@@ -1,21 +1,34 @@
-import { useState } from 'react'
-import type { LguUser } from '../../lib/api'
+import { useEffect, useState } from 'react'
+import {
+  fetchPestForecast,
+  fetchPestForecastTrajectory,
+  type GrowthStage,
+  type LguUser,
+  type PestForecast,
+  type RiskLevel,
+  type TrajectoryPoint,
+} from '../../lib/api'
+import { ETL_BANDS, RISK_TONE } from '../../lib/etl'
 import './IpmPage.css'
 
 interface IpmPageProps {
   user: LguUser
 }
 
-const pestCards = [
+const ETL_HIGH_LIMIT: Record<'bph' | 'rsb', number> = {
+  bph: ETL_BANDS.bph.highMin,
+  rsb: ETL_BANDS.rsb.highMin,
+}
+
+const riskTone = RISK_TONE
+
+const pestCardMeta = [
   {
-    key: 'bph',
+    key: 'bph' as const,
+    pest: 'BPH' as const,
     title: 'Brown Planthopper',
-    stage: 'Vegetative',
-    big: { value: '12', unit: 'hoppers/hill' },
-    metricLabel: 'Density vs ETL',
-    etlLabel: 'High Risk ETL Limit: 20',
-    percentOfEtl: 60,
-    risk: { label: 'Medium Risk', tone: 'yellow' as const },
+    stage: 'Tillering' as GrowthStage,
+    unit: 'hoppers/hill',
     actionsTitle: 'Recommended Actions',
     actions: [
       'Scout 10 hills per plot weekly',
@@ -25,14 +38,11 @@ const pestCards = [
     ],
   },
   {
-    key: 'rsb',
+    key: 'rsb' as const,
+    pest: 'RSB' as const,
     title: 'Rice Stem Borer',
-    stage: 'Vegetative',
-    big: { value: '1.5%', unit: '% Dead Hearts' },
-    metricLabel: 'Damage vs ETL',
-    etlLabel: 'High Risk ETL Limit: 5%',
-    percentOfEtl: 30,
-    risk: { label: 'Low Risk', tone: 'green' as const },
+    stage: 'Tillering' as GrowthStage,
+    unit: '% Dead Hearts',
     actionsTitle: 'Routine Monitoring',
     actions: [
       'Light trap surveillance',
@@ -54,19 +64,34 @@ Yellow Stem Borer: mababa ang panganib. Mag-check pa rin ng sintomas tulad ng de
 Payo: Mag-monitor ng palayan lingu-linggo. Hindi kailangan ang agarang pag-spray ng pestisidyo. Kumonsulta sa agricultural technician kung may nakitang pagdami ng peste.`
 }
 
-const timeline = [
-  { date: 'May 17', bphDensity: '12', bphTone: 'low', bphAction: 'Routine scouting', rsbDamage: '1.5%', rsbTone: 'low', rsbAction: 'Light trap check' },
-  { date: 'May 19', bphDensity: '15', bphTone: 'low', bphAction: 'Routine scouting', rsbDamage: '1.8%', rsbTone: 'low', rsbAction: 'Light trap check' },
-  { date: 'May 21', bphDensity: '19', bphTone: 'mid', bphAction: 'Apply botanical spray', rsbDamage: '2.2%', rsbTone: 'low', rsbAction: 'Inspect tillers' },
-  { date: 'May 23', bphDensity: '24', bphTone: 'mid', bphAction: 'Apply botanical spray', rsbDamage: '2.6%', rsbTone: 'low', rsbAction: 'Inspect tillers' },
-  { date: 'May 25', bphDensity: '31', bphTone: 'high', bphAction: 'Escalate to LGU advisory', rsbDamage: '3.1%', rsbTone: 'mid', rsbAction: 'Record moth catches' },
-  { date: 'May 27', bphDensity: '38', bphTone: 'high', bphAction: 'Escalate to LGU advisory', rsbDamage: '3.5%', rsbTone: 'mid', rsbAction: 'Record moth catches' },
-]
+const TIMELINE_DAYS = 14
 
-function riskChipLabel(tone: string) {
+const BPH_ACTION_BY_RISK: Record<RiskLevel, string> = {
+  Low: 'Routine scouting',
+  Medium: 'Apply botanical spray',
+  High: 'Escalate to LGU advisory',
+}
+
+const RSB_ACTION_BY_RISK: Record<RiskLevel, string> = {
+  Low: 'Light trap check',
+  Medium: 'Inspect tillers, record moth catches',
+  High: 'Escalate to LGU advisory',
+}
+
+const HEATMAP_TONE: Record<RiskLevel, 'low' | 'mid' | 'high'> = {
+  Low: 'low',
+  Medium: 'mid',
+  High: 'high',
+}
+
+function riskChipLabel(tone: 'low' | 'mid' | 'high') {
   if (tone === 'low') return 'LOW'
   if (tone === 'mid') return 'MED'
   return 'HIGH'
+}
+
+function formatTimelineDate(iso: string) {
+  return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
 type SendStatus = 'idle' | 'sending' | 'sent' | 'failed'
@@ -78,6 +103,58 @@ function IpmPage({ user }: IpmPageProps) {
   const [showPreview, setShowPreview] = useState(false)
   const [sendStatus, setSendStatus] = useState<SendStatus>('idle')
   const [sentAt, setSentAt] = useState<string | null>(null)
+
+  const [forecasts, setForecasts] = useState<Partial<Record<'bph' | 'rsb', PestForecast>>>({})
+  const [forecastError, setForecastError] = useState('')
+
+  const [trajectories, setTrajectories] = useState<Partial<Record<'bph' | 'rsb', TrajectoryPoint[]>>>({})
+  const [timelineError, setTimelineError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    Promise.all(
+      pestCardMeta.map((meta) =>
+        fetchPestForecast(user.municipality, meta.pest, meta.stage).then(
+          (forecast) => [meta.key, forecast] as const,
+        ),
+      ),
+    )
+      .then((results) => {
+        if (cancelled) return
+        setForecasts(Object.fromEntries(results))
+      })
+      .catch(() => {
+        if (!cancelled) setForecastError('Unable to load live pest forecast')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user.municipality])
+
+  useEffect(() => {
+    let cancelled = false
+
+    Promise.all(
+      pestCardMeta.map((meta) =>
+        fetchPestForecastTrajectory(user.municipality, meta.pest, meta.stage, TIMELINE_DAYS).then(
+          (res) => [meta.key, res.status === 'ok' ? res.points : []] as const,
+        ),
+      ),
+    )
+      .then((results) => {
+        if (cancelled) return
+        setTrajectories(Object.fromEntries(results))
+      })
+      .catch(() => {
+        if (!cancelled) setTimelineError('Unable to load live 14-day forecast timeline')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user.municipality])
 
   const segments = Math.max(1, Math.ceil(message.length / SMS_SEGMENT_LENGTH))
 
@@ -101,48 +178,67 @@ function IpmPage({ user }: IpmPageProps) {
 
   return (
     <>
+      {forecastError && <p className="ipm-footnote">{forecastError}</p>}
+
       <section className="ipm-grid">
-        {pestCards.map((pest) => (
-          <div className="panel ipm-card" key={pest.key}>
-            <div className="panel-head">
-              <div>
-                <div className="panel-title">{pest.title}</div>
-                <div className="panel-subtitle">Current Stage: {pest.stage}</div>
+        {pestCardMeta.map((meta) => {
+          const forecast = forecasts[meta.key]
+          const loaded = forecast?.status === 'ok'
+          const value = loaded ? forecast.predicted_value!.toFixed(meta.pest === 'RSB' ? 2 : 0) : '—'
+          const displayUnit = loaded && forecast.unit === 'pct_damage' ? '%' : meta.unit
+          const risk = loaded ? forecast.risk_level! : null
+          const tone = risk ? riskTone[risk] : 'green'
+          const percentOfEtl = loaded
+            ? Math.min(100, (forecast.predicted_value! / ETL_HIGH_LIMIT[meta.key]) * 100)
+            : 0
+
+          return (
+            <div className="panel ipm-card" key={meta.key}>
+              <div className="panel-head">
+                <div>
+                  <div className="panel-title">{meta.title}</div>
+                  <div className="panel-subtitle">Current Stage: {meta.stage}</div>
+                </div>
+                <span className="badge badge-green">{meta.stage}</span>
               </div>
-              <span className="badge badge-green">{pest.stage}</span>
-            </div>
 
-            <div className="stat-card-big">
-              <span className="stat-card-big-value">{pest.big.value}</span>
-              <span className="stat-card-big-unit">{pest.big.unit}</span>
-            </div>
+              <div className="stat-card-big">
+                <span className="stat-card-big-value">{value}</span>
+                <span className="stat-card-big-unit">{displayUnit}</span>
+              </div>
 
-            <div className="ipm-progress-row">
-              <span>{pest.metricLabel}</span>
-              <span className="ipm-progress-limit">{pest.etlLabel}</span>
-            </div>
-            <div className="ipm-progress-track">
-              <div
-                className={`ipm-progress-fill ipm-progress-${pest.risk.tone}`}
-                style={{ width: `${pest.percentOfEtl}%` }}
-              />
-            </div>
+              <div className="ipm-progress-row">
+                <span>{meta.pest === 'BPH' ? 'Density vs ETL' : 'Damage vs ETL'}</span>
+                <span className="ipm-progress-limit">
+                  High Risk ETL Limit: {ETL_HIGH_LIMIT[meta.key]}
+                  {meta.pest === 'RSB' ? '%' : ''}
+                </span>
+              </div>
+              <div className="ipm-progress-track">
+                <div
+                  className={`ipm-progress-fill ipm-progress-${tone}`}
+                  style={{ width: `${percentOfEtl}%` }}
+                />
+              </div>
 
-            <div className="stat-card-risk-row ipm-risk-row">
-              <span className="stat-card-risk-label">Risk</span>
-              <span className={`badge badge-${pest.risk.tone}`}>{pest.risk.label}</span>
-            </div>
+              <div className="stat-card-risk-row ipm-risk-row">
+                <span className="stat-card-risk-label">Risk</span>
+                <span className={`badge badge-${tone}`}>
+                  {risk ? `${risk} Risk` : forecast ? 'Model not loaded' : 'Loading…'}
+                </span>
+              </div>
 
-            <div className="ipm-actions">
-              <div className="ipm-actions-title">{pest.actionsTitle}</div>
-              <ul>
-                {pest.actions.map((action) => (
-                  <li key={action}>{action}</li>
-                ))}
-              </ul>
+              <div className="ipm-actions">
+                <div className="ipm-actions-title">{meta.actionsTitle}</div>
+                <ul>
+                  {meta.actions.map((action) => (
+                    <li key={action}>{action}</li>
+                  ))}
+                </ul>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </section>
 
       <section className="row-2">
@@ -234,6 +330,8 @@ function IpmPage({ user }: IpmPageProps) {
             </div>
           </div>
 
+          {timelineError && <p className="stat-card-error">{timelineError}</p>}
+
           <div className="timeline-table-wrap">
             <table className="timeline-table">
               <thead>
@@ -246,25 +344,33 @@ function IpmPage({ user }: IpmPageProps) {
                 </tr>
               </thead>
               <tbody>
-                {timeline.map((row) => (
-                  <tr key={row.date}>
-                    <td>{row.date}</td>
-                    <td>
-                      <span className="timeline-value">{row.bphDensity}</span>
-                      <span className={`badge badge-chip heatmap-${row.bphTone}`}>
-                        {riskChipLabel(row.bphTone)}
-                      </span>
-                    </td>
-                    <td>{row.bphAction}</td>
-                    <td>
-                      <span className="timeline-value">{row.rsbDamage}</span>
-                      <span className={`badge badge-chip heatmap-${row.rsbTone}`}>
-                        {riskChipLabel(row.rsbTone)}
-                      </span>
-                    </td>
-                    <td>{row.rsbAction}</td>
-                  </tr>
-                ))}
+                {(trajectories.bph ?? []).map((bphPoint, i) => {
+                  const rsbPoint = trajectories.rsb?.[i]
+                  const bphTone = HEATMAP_TONE[bphPoint.risk_level]
+                  const rsbTone = rsbPoint ? HEATMAP_TONE[rsbPoint.risk_level] : null
+
+                  return (
+                    <tr key={bphPoint.date}>
+                      <td>{formatTimelineDate(bphPoint.date)}</td>
+                      <td>
+                        <span className="timeline-value">{Math.round(bphPoint.predicted_value)}</span>
+                        <span className={`badge badge-chip heatmap-${bphTone}`}>{riskChipLabel(bphTone)}</span>
+                      </td>
+                      <td>{BPH_ACTION_BY_RISK[bphPoint.risk_level]}</td>
+                      <td>
+                        {rsbPoint && (
+                          <>
+                            <span className="timeline-value">{rsbPoint.predicted_value.toFixed(1)}%</span>
+                            <span className={`badge badge-chip heatmap-${rsbTone}`}>
+                              {riskChipLabel(rsbTone!)}
+                            </span>
+                          </>
+                        )}
+                      </td>
+                      <td>{rsbPoint ? RSB_ACTION_BY_RISK[rsbPoint.risk_level] : ''}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -272,8 +378,9 @@ function IpmPage({ user }: IpmPageProps) {
       </section>
 
       <p className="ipm-footnote">
-        Advisories are generated for {user.municipality}, {user.province} based on the active
-        forecast model. Placeholder data — not yet wired to the ML pipeline.
+        BPH/RSB forecasts and the 14-day timeline above are live from the trained BiLSTM model
+        for {user.municipality}, {user.province}, with risk levels from the thesis's Table 2 ETL
+        standards. The advisory message below remains placeholder data.
       </p>
     </>
   )

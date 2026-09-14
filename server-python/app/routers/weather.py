@@ -23,6 +23,56 @@ _client = openmeteo_requests.Client(session=_retry_session)
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 
 
+def fetch_recent_daily_weather(latitude: float, longitude: float, days: int) -> list[dict]:
+    """Past `days` days of daily weather ending today, for feeding the
+    BiLSTM's input window (see app/routers/inference.py). Uses the forecast
+    API's `past_days` parameter rather than the separate historical/archive
+    API — the archive API's ERA5 reanalysis data lags several days behind
+    real time, which would make "today" unavailable; `past_days` returns
+    near-real-time GFS-based data instead, at the cost of not being the
+    same reanalysis dataset used for older historical training data.
+    """
+    params = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "daily": [
+            "temperature_2m_max",
+            "temperature_2m_min",
+            "precipitation_sum",
+            "relative_humidity_2m_mean",
+        ],
+        "timezone": "auto",
+        "past_days": days - 1,
+        "forecast_days": 1,
+    }
+
+    try:
+        responses = _client.weather_api(FORECAST_URL, params=params)
+        response = responses[0]
+    except Exception as exc:  # noqa: BLE001 - surface upstream failure as a 502
+        raise HTTPException(status_code=502, detail="Failed to fetch weather data") from exc
+
+    utc_offset = response.UtcOffsetSeconds()
+    daily = response.Daily()
+    daily_times = _time_range(daily.Time() + utc_offset, daily.TimeEnd() + utc_offset, daily.Interval())
+
+    tmax = list(daily.Variables(0).ValuesAsNumpy())
+    tmin = list(daily.Variables(1).ValuesAsNumpy())
+    rainfall = list(daily.Variables(2).ValuesAsNumpy())
+    humidity = list(daily.Variables(3).ValuesAsNumpy())
+
+    return [
+        {
+            "date": date.split("T")[0],
+            "tmax": float(tmax[i]),
+            "tmin": float(tmin[i]),
+            "relative_humidity": float(humidity[i]),
+            "rainfall": float(rainfall[i]),
+        }
+        for i, date in enumerate(daily_times)
+    ]
+
+
 def _time_range(start_epoch: int, end_epoch: int, interval_seconds: int) -> list[str]:
     start = datetime.fromtimestamp(start_epoch, tz=timezone.utc)
     end = datetime.fromtimestamp(end_epoch, tz=timezone.utc)

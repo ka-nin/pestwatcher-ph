@@ -1,0 +1,108 @@
+.forecast-summary-panel {
+  padding: 18px;
+  margin-bottom: 12px;
+}
+
+.forecast-chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.forecast-chart-panel,
+.forecast-breakdown-panel {
+  padding: 18px;
+}
+
+.forecast-chart-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+
+.forecast-chart-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.forecast-breakdown-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.forecast-chart-note {
+  font-size: 11px;
+  color: #999;
+}
+
+.trajectory-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.trajectory-axis-label {
+  font-size: 8px;
+  fill: #999;
+}
+
+.trajectory-etl-label {
+  font-size: 8px;
+  fill: #a5761f;
+}
+
+.forecast-breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.forecast-breakdown-row {
+  display: grid;
+  grid-template-columns: 56px 1fr 56px;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.forecast-breakdown-date {
+  color: #777;
+}
+
+.forecast-breakdown-track {
+  height: 10px;
+  border-radius: 999px;
+  background: #f0eee6;
+  overflow: hidden;
+}
+
+.forecast-breakdown-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.forecast-breakdown-green {
+  background: #4b9e5f;
+}
+
+.forecast-breakdown-yellow {
+  background: #e0b23b;
+}
+
+.forecast-breakdown-red {
+  background: #d3564f;
+}
+
+.forecast-breakdown-value {
+  text-align: right;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .forecast-chart-grid {
+    grid-template-columns: 1fr;
+  }
+}

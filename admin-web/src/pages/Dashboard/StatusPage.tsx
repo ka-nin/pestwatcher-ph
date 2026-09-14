@@ -1,4 +1,13 @@
-import type { LguUser, WeatherForecast } from '../../lib/api'
+import { useEffect, useState } from 'react'
+import {
+  fetchPestForecastTrajectory,
+  type GrowthStage,
+  type LguUser,
+  type RiskLevel,
+  type TrajectoryPoint,
+  type WeatherForecast,
+} from '../../lib/api'
+import { ETL_BANDS, RISK_TONE } from '../../lib/etl'
 import ProvinceMap from './ProvinceMap'
 
 interface ClimateMetrics {
@@ -14,53 +23,77 @@ interface StatusPageProps {
   climateMetrics: ClimateMetrics | null
 }
 
-const statCards = [
+const TRAJECTORY_DAYS = 14
+const ACTIVE_GROWTH_STAGE: GrowthStage = 'Tillering'
+
+const peakCardMeta = [
   {
+    key: 'bph' as const,
+    pest: 'BPH' as const,
     title: 'Peak Pest Day - BPH',
-    subtitle: 'Projected peak intensity',
-    badge: { label: 'Day 11', tone: 'blue' as const },
-    big: { value: '65', unit: 'hoppers/hill' },
-    etl: '20 hoppers/hill',
-    risk: 'CRITICAL',
-    footer: 'May 25 · Projected BPH',
+    unit: 'hoppers/hill',
+    etlSuffix: ' hoppers/hill',
+    format: (v: number) => Math.round(v).toString(),
   },
   {
+    key: 'rsb' as const,
+    pest: 'RSB' as const,
     title: 'Peak Pest Day - RSB',
-    subtitle: 'Projected peak intensity',
-    badge: { label: 'Day 13', tone: 'blue' as const },
-    big: { value: '12%', unit: '% Dead Hearts' },
-    etl: '5%',
-    risk: 'CRITICAL',
-    footer: 'May 27 · Projected RSB',
+    unit: '% Dead Hearts',
+    etlSuffix: '%',
+    format: (v: number) => `${v.toFixed(1)}%`,
   },
 ]
 
-const bphForecast = {
-  title: 'Brown Planthopper',
-  note: '(Date as of 6:00 am)',
-  rows: [
-    { range: 'May 17-23', values: [12, 15, 19, 24, 31, 38, 44] },
-    { range: 'May 24-30', values: [51, 58, 62, 61, 54, 47, null] },
-  ],
+const heatmapMeta = [
+  { key: 'bph' as const, pest: 'BPH' as const, title: 'Brown Planthopper', formatValue: (v: number) => Math.round(v).toString() },
+  { key: 'rsb' as const, pest: 'RSB' as const, title: 'Rice Stem Borer', formatValue: (v: number) => `${v.toFixed(1)}%` },
+]
+
+function daysFromToday(iso: string) {
+  const target = new Date(iso)
+  const today = new Date()
+  target.setHours(0, 0, 0, 0)
+  today.setHours(0, 0, 0, 0)
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000)
 }
 
-const rsbForecast = {
-  title: 'Rice Stem Borer',
-  note: 'ETL: 5% Dead Hearts',
-  rows: [
-    { range: 'May 17-23', values: [8, 9, 11, 13, 16, 20, 25] },
-    { range: 'May 24-30', values: [29, 33, 37, 38, 35, 31, null] },
-  ],
+function formatDateLabel(iso: string) {
+  return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
-const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+function findPeak(points: TrajectoryPoint[]): TrajectoryPoint | null {
+  if (points.length === 0) return null
+  return points.reduce((max, p) => (p.predicted_value > max.predicted_value ? p : max), points[0])
+}
 
-function riskTone(value: number | null) {
-  if (value === null) return 'empty'
-  if (value < 20) return 'low'
-  if (value < 40) return 'mid'
-  if (value < 55) return 'high'
-  return 'critical'
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+const HEATMAP_TONE: Record<RiskLevel, 'low' | 'mid' | 'high'> = {
+  Low: 'low',
+  Medium: 'mid',
+  High: 'high',
+}
+
+function buildWeeklyRows(points: TrajectoryPoint[]): { range: string; cells: (TrajectoryPoint | null)[] }[] {
+  if (points.length === 0) return []
+
+  const cells: (TrajectoryPoint | null)[] = []
+  const leadingBlanks = new Date(points[0].date).getDay() // 0=Sun..6=Sat
+  for (let i = 0; i < leadingBlanks; i++) cells.push(null)
+  cells.push(...points)
+  while (cells.length % 7 !== 0) cells.push(null)
+
+  const rows = []
+  for (let i = 0; i < cells.length; i += 7) {
+    const week = cells.slice(i, i + 7)
+    const known = week.filter((c): c is TrajectoryPoint => c !== null)
+    const range = known.length
+      ? `${formatDateLabel(known[0].date)} - ${formatDateLabel(known[known.length - 1].date)}`
+      : ''
+    rows.push({ range, cells: week })
+  }
+  return rows
 }
 
 const surveillance = [
@@ -82,6 +115,37 @@ const riskFactors = [
 const maxRiskFactor = Math.max(...riskFactors.map((f) => Math.abs(f.value)))
 
 function StatusPage({ user, weather, weatherError, climateMetrics }: StatusPageProps) {
+  const [trajectories, setTrajectories] = useState<Partial<Record<'bph' | 'rsb', TrajectoryPoint[]>>>({})
+  const [forecastError, setForecastError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    Promise.all(
+      peakCardMeta.map((meta) =>
+        fetchPestForecastTrajectory(user.municipality, meta.pest, ACTIVE_GROWTH_STAGE, TRAJECTORY_DAYS).then(
+          (res) => [meta.key, res.status === 'ok' ? res.points : []] as const,
+        ),
+      ),
+    )
+      .then((results) => {
+        if (cancelled) return
+        setTrajectories(Object.fromEntries(results))
+      })
+      .catch(() => {
+        if (!cancelled) setForecastError('Unable to load live pest forecast')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user.municipality])
+
+  const peaks: Partial<Record<'bph' | 'rsb', TrajectoryPoint>> = {
+    bph: findPeak(trajectories.bph ?? []) ?? undefined,
+    rsb: findPeak(trajectories.rsb ?? []) ?? undefined,
+  }
+
   return (
     <>
       <section className="panel weather-now-panel">
@@ -189,30 +253,40 @@ function StatusPage({ user, weather, weatherError, climateMetrics }: StatusPageP
           )}
         </div>
 
-        {statCards.map((card) => (
-          <div className="stat-card" key={card.title}>
-            <div className="stat-card-head">
-              <div>
-                <div className="stat-card-title">{card.title}</div>
-                <div className="stat-card-subtitle">{card.subtitle}</div>
-              </div>
-              <span className={`badge badge-${card.badge.tone}`}>{card.badge.label}</span>
-            </div>
+        {forecastError && <p className="stat-card-error">{forecastError}</p>}
+        {peakCardMeta.map((meta) => {
+          const peak = peaks[meta.key]
+          const tone = peak ? RISK_TONE[peak.risk_level] : 'blue'
 
-            <div className="stat-card-big">
-              <span className="stat-card-big-value">{card.big.value}</span>
-              <span className="stat-card-big-unit">{card.big.unit}</span>
+          return (
+            <div className="stat-card" key={meta.key}>
+              <div className="stat-card-head">
+                <div>
+                  <div className="stat-card-title">{meta.title}</div>
+                  <div className="stat-card-subtitle">Projected peak intensity</div>
+                </div>
+                <span className="badge badge-blue">{peak ? `Day ${daysFromToday(peak.date)}` : '…'}</span>
+              </div>
+
+              <div className="stat-card-big">
+                <span className="stat-card-big-value">{peak ? meta.format(peak.predicted_value) : '—'}</span>
+                <span className="stat-card-big-unit">{meta.unit}</span>
+              </div>
+              <div className="stat-card-etl">
+                ETL: <strong>{ETL_BANDS[meta.key].highMin}{meta.etlSuffix}</strong>
+              </div>
+              <div className="stat-card-risk-row">
+                <span className="stat-card-risk-label">Risk</span>
+                <span className={`badge badge-${tone}`}>
+                  {peak ? peak.risk_level.toUpperCase() : 'LOADING…'}
+                </span>
+              </div>
+              <div className="stat-card-footer">
+                {peak ? `${formatDateLabel(peak.date)} · Projected ${meta.pest}` : 'Loading forecast…'}
+              </div>
             </div>
-            <div className="stat-card-etl">
-              ETL: <strong>{card.etl}</strong>
-            </div>
-            <div className="stat-card-risk-row">
-              <span className="stat-card-risk-label">Risk</span>
-              <span className="badge badge-red">{card.risk}</span>
-            </div>
-            <div className="stat-card-footer">{card.footer}</div>
-          </div>
-        ))}
+          )
+        })}
       </section>
 
       <section className="map-row">
@@ -251,42 +325,55 @@ function StatusPage({ user, weather, weatherError, climateMetrics }: StatusPageP
             <div>
               <div className="panel-title">14-Day Forecasting Heatmap</div>
               <div className="panel-subtitle">
-                Aggregated {user.municipality} forecast · Source: DOST-PAGASA CLSU + BPI-CPMD
+                {user.municipality} forecast · Source: DOST-PAGASA CLSU + BPI-CPMD
               </div>
             </div>
-            <span className="badge badge-neutral">ETL: 50/hill</span>
+            <span className="badge badge-green">LIVE</span>
           </div>
 
-          {[bphForecast, rsbForecast].map((forecast) => (
-            <div className="heatmap-block" key={forecast.title}>
-              <div className="heatmap-block-head">
-                <span className="heatmap-block-title">{forecast.title}</span>
-                <span className="heatmap-block-note">{forecast.note}</span>
-              </div>
-              <table className="heatmap-table">
-                <thead>
-                  <tr>
-                    <th />
-                    {days.map((d) => (
-                      <th key={d}>{d}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {forecast.rows.map((row) => (
-                    <tr key={row.range}>
-                      <td className="heatmap-range">{row.range}</td>
-                      {row.values.map((v, i) => (
-                        <td key={i} className={`heatmap-cell heatmap-${riskTone(v)}`}>
-                          {v === null ? '-' : `${v}${forecast === rsbForecast ? '%' : ''}`}
-                        </td>
+          {heatmapMeta.map((meta) => {
+            const rows = buildWeeklyRows(trajectories[meta.key] ?? [])
+            return (
+              <div className="heatmap-block" key={meta.key}>
+                <div className="heatmap-block-head">
+                  <span className="heatmap-block-title">{meta.title}</span>
+                  <span className="heatmap-block-note">
+                    ETL: {ETL_BANDS[meta.key].highMin}
+                    {meta.pest === 'RSB' ? '% Dead Hearts' : ' hoppers/hill'}
+                  </span>
+                </div>
+                {rows.length === 0 ? (
+                  <p className="stat-card-loading">Loading forecast…</p>
+                ) : (
+                  <table className="heatmap-table">
+                    <thead>
+                      <tr>
+                        <th />
+                        {WEEKDAY_LABELS.map((d) => (
+                          <th key={d}>{d}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((row, rowIndex) => (
+                        <tr key={rowIndex}>
+                          <td className="heatmap-range">{row.range}</td>
+                          {row.cells.map((cell, i) => (
+                            <td
+                              key={i}
+                              className={`heatmap-cell heatmap-${cell ? HEATMAP_TONE[cell.risk_level] : 'empty'}`}
+                            >
+                              {cell ? meta.formatValue(cell.predicted_value) : '-'}
+                            </td>
+                          ))}
+                        </tr>
                       ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )
+          })}
         </div>
       </section>
 

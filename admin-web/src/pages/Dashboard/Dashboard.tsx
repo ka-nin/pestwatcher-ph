@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import logo from '../../assets/logo.png'
 import { fetchWeatherForecast, type LguUser, type WeatherForecast } from '../../lib/api'
 import StatusPage from './StatusPage'
+import PestForecastPage from './PestForecastPage'
 import IpmPage from './IpmPage'
 import ClimateDriversPage from './ClimateDriversPage'
 import './Dashboard.css'
@@ -179,12 +180,7 @@ function Dashboard({ user, onLogout }: DashboardProps) {
             />
           )}
 
-          {activePage === 'forecast' && (
-            <section className="panel coming-soon-panel">
-              <div className="panel-title">{activeLabel}</div>
-              <p className="panel-subtitle">This section hasn't been built yet.</p>
-            </section>
-          )}
+          {activePage === 'forecast' && <PestForecastPage user={user} />}
         </main>
       </div>
     </div>

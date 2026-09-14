@@ -1,4 +1,11 @@
-import type { LguUser, WeatherForecast } from '../../lib/api'
+import { useEffect, useState } from 'react'
+import {
+  fetchPestForecastExplanation,
+  type ExplanationFeature,
+  type GrowthStage,
+  type LguUser,
+  type WeatherForecast,
+} from '../../lib/api'
 import './ClimateDriversPage.css'
 
 interface ClimateMetrics {
@@ -15,18 +22,8 @@ interface ClimateDriversPageProps {
 }
 
 const GDD_BASE_TEMP_C = 10
-
-// Static placeholder — SHAP values require a trained model, not weather data.
-const shapFeatures = [
-  { label: 'Day -4 High Humidity Persistence', value: 0.34 },
-  { label: 'Day -7 GDD Spike', value: 0.22 },
-  { label: 'Day -2 Night Temperature > 25°C', value: 0.18 },
-  { label: 'Day -10 CRF Surge (>30mm)', value: 0.12 },
-  { label: 'Day -1 Wind Speed > 15 km/h', value: -0.08 },
-  { label: 'Day -5 Solar Radiation Drop', value: -0.15 },
-  { label: 'Day -3 Rainfall Break (dry spell)', value: -0.19 },
-]
-const maxShap = Math.max(...shapFeatures.map((f) => Math.abs(f.value)))
+const SHAP_PEST = 'BPH' as const
+const SHAP_GROWTH_STAGE: GrowthStage = 'Tillering'
 
 const CHART_WIDTH = 340
 const CHART_HEIGHT = 130
@@ -165,6 +162,30 @@ function CrfBarChart({ points }: { points: number[] }) {
 }
 
 function ClimateDriversPage({ user, weather, weatherError, climateMetrics }: ClimateDriversPageProps) {
+  const [shapFeatures, setShapFeatures] = useState<ExplanationFeature[]>([])
+  const [shapError, setShapError] = useState('')
+  const [shapStatus, setShapStatus] = useState<'ok' | 'model_not_loaded' | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    fetchPestForecastExplanation(user.municipality, SHAP_PEST, SHAP_GROWTH_STAGE)
+      .then((res) => {
+        if (cancelled) return
+        setShapStatus(res.status)
+        setShapFeatures(res.features)
+      })
+      .catch(() => {
+        if (!cancelled) setShapError('Unable to load live SHAP explanation')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user.municipality])
+
+  const maxShap = Math.max(1e-6, ...shapFeatures.map((f) => Math.abs(f.value)))
+
   const dailyGdd = weather
     ? weather.daily.temperature_2m_max.map((tMax, i) => {
         const tMin = weather.daily.temperature_2m_min[i]
@@ -298,25 +319,36 @@ function ClimateDriversPage({ user, weather, weatherError, climateMetrics }: Cli
             </div>
           </div>
 
-          <div className="feature-bars">
-            {shapFeatures.map((f) => (
-              <div className="feature-bar-row" key={f.label}>
-                <div className="feature-bar-label">{f.label}</div>
-                <div className="feature-bar-track">
-                  <div
-                    className={`feature-bar-fill ${f.value >= 0 ? 'feature-bar-up' : 'feature-bar-down'}`}
-                    style={{ width: `${(Math.abs(f.value) / maxShap) * 100}%` }}
-                  />
+          {shapError ? (
+            <p className="stat-card-error">{shapError}</p>
+          ) : shapStatus === 'model_not_loaded' ? (
+            <p className="stat-card-error">BiLSTM model for {SHAP_PEST} not loaded yet.</p>
+          ) : shapFeatures.length === 0 ? (
+            <p className="stat-card-loading">Computing live SHAP explanation…</p>
+          ) : (
+            <div className="feature-bars">
+              {shapFeatures.map((f) => (
+                <div className="feature-bar-row" key={f.label}>
+                  <div className="feature-bar-label">{f.label}</div>
+                  <div className="feature-bar-track">
+                    <div
+                      className={`feature-bar-fill ${f.value >= 0 ? 'feature-bar-up' : 'feature-bar-down'}`}
+                      style={{ width: `${(Math.abs(f.value) / maxShap) * 100}%` }}
+                    />
+                  </div>
+                  <div className={`feature-bar-value ${f.value >= 0 ? 'feature-bar-up-text' : 'feature-bar-down-text'}`}>
+                    {f.value >= 0 ? '+' : ''}
+                    {f.value.toFixed(2)}
+                  </div>
                 </div>
-                <div className={`feature-bar-value ${f.value >= 0 ? 'feature-bar-up-text' : 'feature-bar-down-text'}`}>
-                  {f.value >= 0 ? '+' : ''}
-                  {f.value.toFixed(2)}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
-          <p className="ipm-footnote">Placeholder SHAP values — not yet wired to a trained model.</p>
+          <p className="ipm-footnote">
+            Live SHAP attributions from the trained BiLSTM for {SHAP_PEST} in {user.municipality} —
+            positive values pushed the forecast up, negative values pulled it down.
+          </p>
         </div>
       </section>
     </>

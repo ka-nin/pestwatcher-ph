@@ -17,15 +17,6 @@ lgu_users: list[LguUser] = [
         longitude=120.9167,
     ),
     LguUser(
-        username="cabanatuan_tech",
-        password="PestWatch!Cab2026",
-        role_level="LGU_Tech",
-        province="Nueva Ecija",
-        municipality="Cabanatuan City",
-        latitude=15.4864,
-        longitude=120.9689,
-    ),
-    LguUser(
         username="concepcion_tech",
         password="PestWatch!Con2026",
         role_level="LGU_Tech",
@@ -53,3 +44,14 @@ lgu_users: list[LguUser] = [
         longitude=120.7333,
     ),
 ]
+
+
+def municipality_coordinates(municipality: str) -> tuple[float, float] | None:
+    """Looks up (latitude, longitude) for a municipality from the LGU
+    accounts above, so live weather fetches don't need their own separate
+    coordinate table. Replace with a real municipalities table once
+    persistence is wired up (see module docstring)."""
+    for user in lgu_users:
+        if user.municipality == municipality:
+            return user.latitude, user.longitude
+    return None
