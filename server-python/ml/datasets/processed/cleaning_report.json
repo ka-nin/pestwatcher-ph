@@ -1,0 +1,21 @@
+{
+  "weather_exact_duplicates_dropped": 21,
+  "pest_exact_duplicates_dropped": 21,
+  "growth_stage_labels_normalized": 43,
+  "growth_stage_unrecognized_after_cleanup": 0,
+  "weather_tmin_gt_tmax_rows_nulled": 18,
+  "weather_rh_out_of_range_nulled": 18,
+  "weather_negative_rainfall_nulled": 18,
+  "pest_negative_bph_nulled": 0,
+  "pest_rsb_dead_hearts_pct_out_of_range_nulled": 0,
+  "pest_rsb_white_ears_pct_out_of_range_nulled": 0,
+  "weather_missing_values_interpolated": 2136,
+  "weather_missing_values_remaining": 0,
+  "pest_missing_values_interpolated": 906,
+  "pest_missing_values_remaining": 0,
+  "weather_rows": 10960,
+  "pest_rows": 10960,
+  "merged_rows": 10960,
+  "weather_rows_unmatched": 0,
+  "pest_rows_unmatched": 0
+}
