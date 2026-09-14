@@ -11,9 +11,11 @@ import {
   ChevronRight,
   ChevronDown,
   LogOut,
+  AlertTriangle,
+  Camera,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell } from 'recharts';
-import { currentLocation, dashboardSummary } from '../data/mockData';
+import { currentLocation, dashboardSummary, regionalAlerts } from '../data/mockData';
 import { fetchWeatherForecast, fetchPestForecast, fetchPestForecastTrajectory } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import logoImg from '../assets/logo.png';
@@ -26,33 +28,21 @@ const LEVEL_COLOR = {
 };
 
 const RISK_META = {
-  low: {
-    icon: ShieldCheck,
-    accent: '#3f7d3a',
-    accentSoft: 'rgba(63, 125, 58, 0.12)',
-    gradient:
-      'radial-gradient(120% 140% at 100% 0%, #6ba362 0%, #3f7d3a 32%, #2f5f2c 68%, #1f4020 100%)',
-  },
-  medium: {
-    icon: ShieldAlert,
-    accent: '#b8791f',
-    accentSoft: 'rgba(184, 121, 31, 0.14)',
-    gradient:
-      'radial-gradient(120% 140% at 100% 0%, #ddc066 0%, #c9a227 32%, #9a7a1c 68%, #6b5312 100%)',
-  },
-  high: {
-    icon: ShieldX,
-    accent: '#b23a2f',
-    accentSoft: 'rgba(178, 58, 47, 0.14)',
-    gradient:
-      'radial-gradient(120% 140% at 100% 0%, #e37c6e 0%, #d64545 32%, #a3312f 68%, #6e211f 100%)',
-  },
+  low: { icon: ShieldCheck, accent: '#3f7d3a', accentSoft: 'rgba(63, 125, 58, 0.1)' },
+  medium: { icon: ShieldAlert, accent: '#b8791f', accentSoft: 'rgba(184, 121, 31, 0.12)' },
+  high: { icon: ShieldX, accent: '#b23a2f', accentSoft: 'rgba(178, 58, 47, 0.12)' },
 };
 
 const RISK_MESSAGE_FIL = {
-  low: 'Mababa ang posibilidad ng pagtaas ng peste sa loob ng dalawang linggo. Ipagpatuloy ang normal na pagmamanman.',
+  low: 'Mababa ang posibilidad ng pagtaas ng peste sa loob ng dalawang linggo. Ipagpatuloy ang normal na pagmamanman. Hindi kinakailangan ang agarang pag-iispray ng pestisidyo.',
   medium: 'May pagtaas ng panganib na inaasahan sa loob ng dalawang linggo. Bantayan ang bukid at maghanda ng aksyon.',
   high: 'Mataas ang inaasahang panganib sa loob ng dalawang linggo. Inirerekomenda ang agarang interbensyon.',
+};
+
+const RISK_LABEL_FIL = {
+  low: 'Mababang Panganib',
+  medium: 'Katamtamang Panganib',
+  high: 'Mataas na Panganib',
 };
 
 const GROWTH_STAGES = ['Seedling', 'Tillering', 'Elongation', 'Panicle', 'Flowering', 'Ripening'];
@@ -63,6 +53,25 @@ const PEST_LABEL_FIL = {
 };
 
 const RISK_RANK = { Low: 0, Medium: 1, High: 2 };
+
+// Nearby-zones banner is derived from the same mock regionalAlerts used on
+// the Alerts screen — no separate "nearby zones" endpoint exists yet.
+function shortLocation(location) {
+  const stripped = location.replace(/\s+CITY$/i, '');
+  return stripped
+    .toLowerCase()
+    .split(' ')
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function parseKm(distance) {
+  const match = distance.match(/(\d+(\.\d+)?)/);
+  return match ? Number(match[1]) : 0;
+}
+
+const nearbyZones = regionalAlerts.filter((a) => a.risk === 'high' || a.risk === 'medium');
+const nearbyZonesKm = Math.ceil(Math.max(0, ...nearbyZones.map((a) => parseKm(a.distance))) / 5) * 5;
 
 export default function Home() {
   const navigate = useNavigate();
@@ -126,25 +135,32 @@ export default function Home() {
   const RiskIcon = risk.icon;
   const today = new Date();
   const dateLabel = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const timeLabel = today.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   const trendData = trend || dashboardSummary.trend;
 
   return (
     <div className="home-screen">
-      <div className="home-topbar">
-        <span className="home-brand">
-          <img src={logoImg} alt="" className="home-brand-logo" /> PESTWATCHER<sup>PH</sup>
-        </span>
-        <span className="home-topbar-right">
-          <span className="home-datetime">{dateLabel}</span>
-          <button className="home-logout" onClick={() => { logout(); navigate('/'); }} aria-label="Logout">
-            <LogOut size={13} />
-          </button>
-        </span>
-      </div>
+      <div className="home-hero">
+        <div className="home-hero-top">
+          <span className="home-brand">
+            <img src={logoImg} alt="" className="home-brand-logo" />
+            PESTWATCHER
+            <span className="home-brand-badge">PH</span>
+          </span>
+          <span className="home-hero-top-right">
+            <span className="home-datetime">
+              {dateLabel}, {timeLabel}
+            </span>
+            <button className="home-logout" onClick={() => { logout(); navigate('/'); }} aria-label="Logout">
+              <LogOut size={13} />
+            </button>
+          </span>
+        </div>
 
-      <div className="home-location">
-        <h1>{user?.municipality || currentLocation.province}</h1>
-        <p>{user?.province || currentLocation.region}</p>
+        <div className="home-hero-location">
+          <h1>{(user?.municipality || currentLocation.province).toUpperCase()}</h1>
+          <p>{user?.province || currentLocation.region}</p>
+        </div>
       </div>
 
       <div className="home-body">
@@ -164,80 +180,88 @@ export default function Home() {
 
         {error && <p className="home-error">{error}</p>}
 
-        <section
-          className="hero-risk-card"
-          style={{
-            borderColor: risk.accent,
-            '--risk-glow': risk.accentSoft,
-            background: `linear-gradient(180deg, ${risk.accentSoft} 0%, var(--color-surface) 70%)`,
-          }}
-        >
-          <div className="hero-risk-top">
-            <div className="hero-risk-icon" style={{ background: risk.gradient }}>
-              <RiskIcon size={24} strokeWidth={2} color="#fff" />
+        <section className="risk-card">
+          <div className="risk-card-top">
+            <div className="risk-card-icon" style={{ borderColor: risk.accent, color: risk.accent }}>
+              <RiskIcon size={22} strokeWidth={2.2} />
             </div>
-            <div className="hero-risk-top-text">
-              <span className="hero-risk-chip" style={{ background: risk.accentSoft, color: risk.accent }}>
-                {loading ? 'Kinakalkula...' : forecast?.risk_level || 'Walang Datos'}
+            <div className="risk-card-top-text">
+              <span className="risk-card-chip" style={{ borderColor: risk.accent, color: risk.accent }}>
+                {loading ? 'Kinakalkula...' : (forecast ? RISK_LABEL_FIL[riskLevel] : 'Walang Datos').toUpperCase()}
               </span>
-              <span className="hero-risk-window">2-Linggong Forecast</span>
+              <h2>{forecast ? PEST_LABEL_FIL[forecast.pest] : dashboardSummary.pestFil}</h2>
             </div>
           </div>
-          <h2>{forecast ? PEST_LABEL_FIL[forecast.pest] : dashboardSummary.pestFil}</h2>
-          <p>
+
+          <p className="risk-card-message">
             {loading
               ? 'Kinukuha ang pinakabagong forecast mula sa BiLSTM na modelo...'
               : forecast
                 ? RISK_MESSAGE_FIL[riskLevel]
                 : 'Hindi pa available ang modelo para sa lugar na ito.'}
           </p>
+
+          <div className="risk-card-divider" />
+
+          <div className="risk-card-tip">
+            <Lightbulb size={18} color="var(--color-accent-orange)" />
+            <p>
+              <strong>Payo sa Magsasaka:</strong> {dashboardSummary.tip}
+            </p>
+          </div>
         </section>
 
-        <section className="tip-strip">
-          <Lightbulb size={18} color="var(--color-accent-orange)" />
-          <p>
-            <strong>Payo:</strong> {dashboardSummary.tip}
-          </p>
-        </section>
+        <section className="weather-cards">
+          <div className="weather-card">
+            <div className="weather-card-head">
+              <span>TEMP</span>
+              <span className="weather-card-icon weather-card-icon-red">
+                <Thermometer size={13} />
+              </span>
+            </div>
+            <div className="weather-card-value">
+              {weather ? Math.round(weather.current.temperature_2m) : '--'}
+              <small>°C</small>
+            </div>
+            <div className="weather-card-sub">
+              Feels {weather ? Math.round(weather.current.temperature_2m) + 6 : '--'}°C
+            </div>
+          </div>
 
-        <section className="weather-strip">
-          <div className="weather-strip-item">
-            <Thermometer size={17} color="var(--color-accent-red)" />
-            <div>
-              <strong>
-                {weather ? Math.round(weather.current.temperature_2m) : '--'}
-                <small>°C</small>
-              </strong>
-              <span>Temp</span>
+          <div className="weather-card">
+            <div className="weather-card-head">
+              <span>RAINFALL</span>
+              <span className="weather-card-icon weather-card-icon-blue">
+                <CloudRain size={13} />
+              </span>
             </div>
-          </div>
-          <div className="weather-strip-divider" />
-          <div className="weather-strip-item">
-            <CloudRain size={17} color="#5b7fbf" />
-            <div>
-              <strong>
-                {weather ? weather.current.precipitation : '--'}
-                <small>mm</small>
-              </strong>
-              <span>Ulan</span>
+            <div className="weather-card-value">
+              {weather ? weather.current.precipitation : '--'}
+              <small>mm</small>
             </div>
+            <div className="weather-card-sub">Last 24h</div>
           </div>
-          <div className="weather-strip-divider" />
-          <div className="weather-strip-item">
-            <Droplets size={17} color="var(--color-accent-yellow)" />
-            <div>
-              <strong>
-                {weather ? Math.round(weather.current.relative_humidity_2m) : '--'}
-                <small>%</small>
-              </strong>
-              <span>Halumigmig</span>
+
+          <div className="weather-card">
+            <div className="weather-card-head">
+              <span>HUMIDITY</span>
+              <span className="weather-card-icon weather-card-icon-yellow">
+                <Droplets size={13} />
+              </span>
+            </div>
+            <div className="weather-card-value">
+              {weather ? Math.round(weather.current.relative_humidity_2m) : '--'}
+              <small>%</small>
+            </div>
+            <div className="weather-card-sub">
+              {weather && weather.current.relative_humidity_2m >= 80 ? 'Very High' : 'Normal'}
             </div>
           </div>
         </section>
 
         <section className="trend-card">
           <div className="trend-header">
-            <h3>Pest Risk Trend</h3>
+            <h3>Spore &amp; Pest Level Trend</h3>
             <button className="trend-more" onClick={() => navigate('/alerts')}>
               Tingnan lahat <ChevronRight size={13} />
             </button>
@@ -264,6 +288,34 @@ export default function Home() {
             </BarChart>
           </ResponsiveContainer>
         </section>
+
+        {nearbyZones.length > 0 && (
+          <button className="nearby-banner" onClick={() => navigate('/alerts')}>
+            <AlertTriangle size={20} color="var(--color-accent-orange)" />
+            <span className="nearby-banner-text">
+              <strong>{nearbyZones.length} High Risk Zones Nearby</strong>
+              <span>
+                {nearbyZones.map((z) => shortLocation(z.location)).join(' & ')} - within {nearbyZonesKm}km
+              </span>
+            </span>
+          </button>
+        )}
+
+        <button className="scan-row-card" onClick={() => navigate('/scan')}>
+          <span className="scan-row-icon">
+            <Camera size={20} />
+          </span>
+          <span className="scan-row-text">
+            <strong>AI Pest Scan</strong>
+            <span>Magsuri ng peste gamit ang iyong camera</span>
+          </span>
+          <ChevronRight size={18} color="var(--color-text-muted)" />
+        </button>
+
+        <button className="report-btn" onClick={() => navigate('/report')}>
+          Report Sighting Manually
+        </button>
+        <p className="report-btn-hint">No photo? Report what you see · 30 seconds</p>
       </div>
     </div>
   );
