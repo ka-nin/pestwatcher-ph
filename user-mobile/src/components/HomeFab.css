@@ -1,0 +1,16 @@
+.home-fab {
+  position: absolute;
+  right: 20px;
+  bottom: 96px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 16px rgba(63, 125, 58, 0.4);
+  z-index: 9;
+}

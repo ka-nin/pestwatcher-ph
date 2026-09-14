@@ -1,0 +1,138 @@
+.guide-detail-screen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+}
+
+.guide-detail-hero {
+  flex-shrink: 0;
+  height: 200px;
+  background: linear-gradient(150deg, #6b8f42 0%, #3c5626 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Darkens the bottom of a real photo hero so the sheet's rounded top edge
+   and the close button stay legible against a busy image. */
+.guide-detail-hero-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.15) 0%,
+    rgba(0, 0, 0, 0.05) 40%,
+    rgba(20, 30, 10, 0.55) 100%
+  );
+  pointer-events: none;
+}
+
+.guide-detail-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.guide-detail-sheet {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border-radius: 24px 24px 0 0;
+  margin-top: -20px;
+  padding: 20px 20px 24px;
+  position: relative;
+}
+
+.guide-detail-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.guide-detail-category {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+}
+
+.guide-detail-danger {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.guide-detail-sheet h1 {
+  margin: 0 0 2px;
+  font-size: 20px;
+}
+
+.guide-detail-fil {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--color-primary-dark);
+}
+
+.guide-detail-sheet section {
+  margin-bottom: 16px;
+}
+
+.guide-detail-sheet h2 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--color-primary-dark);
+}
+
+.guide-detail-sheet p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--color-text);
+}
+
+.guide-detail-sheet ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+.guide-detail-footer {
+  flex-shrink: 0;
+  background: var(--color-surface);
+  padding: 12px 20px max(12px, env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 16px rgba(30, 30, 15, 0.08);
+}
+
+.guide-detail-report {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  padding: 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+}

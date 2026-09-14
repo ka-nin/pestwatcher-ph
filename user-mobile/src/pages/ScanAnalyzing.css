@@ -1,0 +1,111 @@
+.analyzing-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-bg);
+}
+
+.analyzing-body {
+  flex: 1;
+  padding: 18px 20px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.analyzing-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1.05;
+  background: repeating-linear-gradient(135deg, #24361a 0px, #24361a 10px, #1c2a15 10px, #1c2a15 20px);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.analyzing-target {
+  width: 70px;
+  height: 70px;
+  border: 3px solid var(--color-accent-orange);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.analyzing-pulse {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-accent-orange);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(0.8); opacity: 0.7; }
+  50% { transform: scale(1.4); opacity: 1; }
+}
+
+.analyzing-badge {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.4px;
+}
+
+.analyzing-body h2 {
+  font-size: 15px;
+  margin: 0 0 6px;
+}
+
+.analyzing-body > p {
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin: 0 0 18px;
+  max-width: 280px;
+}
+
+.analyzing-server-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 12px 14px;
+  margin-bottom: 20px;
+}
+
+.analyzing-server-card strong {
+  display: block;
+  font-size: 12.5px;
+}
+
+.analyzing-server-card span {
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+}
+
+.analyzing-cancel {
+  margin-top: auto;
+  width: 100%;
+  padding: 13px;
+  border-radius: 999px;
+  border: 1px solid var(--color-primary);
+  background: transparent;
+  color: var(--color-primary-dark);
+  font-weight: 700;
+  font-size: 13px;
+}

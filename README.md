@@ -3,14 +3,15 @@
 Monorepo for a rice pest risk monitoring system: a FastAPI backend serving a
 trained BiLSTM outbreak-forecasting model (live weather in, 14-day BPH/RSB
 risk forecasts out) plus a ResNet-50 image classifier stub, a React admin
-dashboard for LGU technicians wired end-to-end to that live pipeline, an Expo
-mobile app for farmers, and a shared TypeScript types package.
+dashboard for LGU technicians wired end-to-end to that live pipeline, a React
++ Vite mobile-shell web app for farmers (also wired end-to-end, minus the
+still-unimplemented image classifier), and a shared TypeScript types package.
 
 ```
 pestwatcher-ph/
 ├── server-python/          # FastAPI API (Python) — auth, weather, ML inference
 ├── admin-web/              # Admin dashboard (React 19 + Vite)
-├── user-mobile/            # Farmer app (Expo / React Native)
+├── user-mobile/            # Farmer app (React 19 + Vite, mobile-shell web app)
 └── packages/shared-types/  # TypeScript interfaces shared by admin-web/user-mobile
 ```
 
@@ -28,8 +29,10 @@ endpoints.
 | Python | 3.11+ | `python --version`. Needed for `server-python`. |
 | Git | any | |
 
-For mobile work you also want the **Expo Go** app on your phone, or Android Studio /
-Xcode if you plan to run an emulator.
+`user-mobile` is a browser-based (Vite) app, not a native build — no Expo/Android
+Studio/Xcode needed. To test its camera-based AI Pest Scan screen on a real
+phone, you just need the phone and your computer on the same Wi-Fi network
+(see [`user-mobile/README.md`](user-mobile/README.md#6-camera-testing-on-a-real-phone)).
 
 ## Setup after cloning
 
@@ -88,15 +91,17 @@ cd ..
 See [`server-python/README.md`](server-python/README.md) for what's in `.env`
 and the full folder breakdown (routers, ML model stubs, feature engineering).
 
-### 4. Set up admin-web's env file
+### 4. Set up admin-web's and user-mobile's env files
 
 ```bash
-cp admin-web/.env.example admin-web/.env   # Windows: copy admin-web\.env.example admin-web\.env
+cp admin-web/.env.example admin-web/.env     # Windows: copy admin-web\.env.example admin-web\.env
+cp user-mobile/.env.example user-mobile/.env # Windows: copy user-mobile\.env.example user-mobile\.env
 ```
 
-This sets `VITE_API_URL` so the dashboard knows where the FastAPI server is
-(`http://localhost:8000` by default — matches step 3). Without this file,
-admin-web will fail to reach the API.
+Both set `VITE_API_URL` so the app knows where the FastAPI server is
+(`http://localhost:8000` by default — matches step 3). Without these files,
+each app falls back to `http://localhost:8000` anyway, but copying them
+explicitly is what you'd change if pointing at a non-default backend URL.
 
 ### 5. Verify
 
@@ -120,13 +125,18 @@ All commands run from the repository root.
 | What | Command | Where it runs |
 |---|---|---|
 | API server | `npm run dev --workspace=server-python` | http://localhost:8000 |
-| Admin dashboard | `npm run dev --workspace=admin-web` | http://localhost:5173 |
-| Mobile app | `npm start --workspace=user-mobile` | Expo dev server; scan the QR with Expo Go |
+| Admin dashboard | `npm run dev --workspace=admin-web` | http://localhost:5173 (plain HTTP) |
+| Mobile app | `npm run dev --workspace=user-mobile` | https://localhost:5173 (self-signed HTTPS, needed for camera access) |
 
-Uvicorn auto-reloads on save (`--reload` in the `dev` script). Vite hot-reloads.
-Expo reloads on save.
+Both `admin-web` and `user-mobile` default to Vite's port 5173 — if you run
+them at the same time, Vite auto-bumps the second one to 5174/5175, which
+the backend's default `CORS_ORIGINS` already covers (see
+`server-python/.env.example`).
 
-`admin-web` needs the backend running to log in or load weather/dashboard
+Uvicorn auto-reloads on save (`--reload` in the `dev` script). Vite hot-reloads
+both frontends.
+
+Both frontends need the backend running to log in or load weather/dashboard
 data — if you see "Failed to fetch", the FastAPI server (`server-python`) isn't
 up.
 
@@ -134,6 +144,7 @@ Type-check / build without running:
 
 ```bash
 npm run build --workspace=admin-web
+npm run build --workspace=user-mobile
 ```
 
 ## Shared types
@@ -161,12 +172,15 @@ from the command palette, or reload the window.
 A dev server or editor is holding a `.node` binary open. Stop every running dev server,
 close the editor, delete the offending `node_modules`, and reinstall.
 
-**Expo can't resolve a module / Metro behaves oddly**
-Metro and npm workspaces don't always agree about hoisting. Start with a clear cache:
-`npm start --workspace=user-mobile -- --clear`.
+**user-mobile shows a blank white page / "Incompatible React versions" in the console**
+`react` and `react-dom` drifted to different versions in `node_modules` (can happen
+after installing from inside a workspace subfolder instead of the root, or a partial
+install). Run `npm install` from the repository root; if it persists, delete
+`node_modules/.vite` and `user-mobile/node_modules/.vite` to force Vite to
+re-bundle dependencies, then restart `npm run dev`.
 
-**admin-web can't reach the API / requests go to the wrong URL**
-`admin-web/.env` is missing. Copy it from `admin-web/.env.example` (see step 4
+**admin-web or user-mobile can't reach the API / requests go to the wrong URL**
+The app's `.env` is missing. Copy it from `.env.example` in that workspace (see step 4
 above) and restart the Vite dev server — Vite only reads `.env` at startup.
 
 **Port 8000 already in use (Windows)**

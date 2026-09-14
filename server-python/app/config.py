@@ -11,10 +11,17 @@ class Settings(BaseSettings):
     port: int = 8000
 
     # Comma-separated list of origins allowed to call this API.
-    # Includes the Vite dev server (admin-web) and Expo's default dev ports (user-mobile).
+    # Includes the Vite dev servers for admin-web and user-mobile (both default
+    # to :5173; user-mobile also uses basicSsl, hence the https:// entries).
+    # If you run both apps at once, Vite will bump one of them to :5174/:5175 —
+    # those are included too so either ordering works without editing .env.
     cors_origins: str = (
         "http://localhost:5173,"
+        "https://localhost:5173,"
         "http://localhost:5174,"
+        "https://localhost:5174,"
+        "http://localhost:5175,"
+        "https://localhost:5175,"
         "http://localhost:19006,"
         "exp://localhost:19000"
     )

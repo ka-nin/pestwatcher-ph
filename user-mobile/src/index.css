@@ -1,0 +1,147 @@
+:root {
+  --color-primary: #3f7d3a;
+  --color-primary-dark: #2f5f2c;
+  --color-primary-light: #eef3e6;
+  --color-accent-orange: #d97b29;
+  --color-accent-red: #d64545;
+  --color-accent-yellow: #c9a227;
+  --color-bg: #f4efe4;
+  --color-surface: rgba(255, 255, 255, 0.92);
+  --color-surface-border: rgba(255, 255, 255, 0.6);
+  --color-text: #2a2a22;
+  --color-text-muted: #6b6a5f;
+  --color-border: #e4ddc9;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+  --shadow-card: 0 4px 18px rgba(40, 40, 20, 0.1);
+  --font-base: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* Every card/surface in the app uses var(--color-surface) as its
+   background. On browsers that support backdrop-filter we lower its
+   opacity and blur what's behind it, turning every card into a frosted
+   glass panel over the gradient backdrop. Browsers without support keep
+   the near-opaque fallback above so text stays legible either way. */
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  :root {
+    --color-surface: rgba(255, 255, 255, 0.4);
+    --color-bg: transparent;
+  }
+
+  .risk-card,
+  .stat-card,
+  .trend-card,
+  .alert-card,
+  .guide-card,
+  .guide-detail-sheet,
+  .report-select select,
+  .report-static-field,
+  .report-field textarea,
+  .analyzing-server-card,
+  .gallery-footer {
+    backdrop-filter: blur(18px) saturate(180%);
+    -webkit-backdrop-filter: blur(18px) saturate(180%);
+    border: 1px solid var(--color-surface-border);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-base);
+  background: #1b1b17;
+  color: var(--color-text);
+}
+
+button {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Desktop preview frame: centers a phone-sized viewport so the app
+   can be judged the way it will actually be used, on a phone screen. */
+.device-frame-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 12px;
+}
+
+.device-frame {
+  width: 390px;
+  max-width: 100%;
+  height: 844px;
+  max-height: 92vh;
+  /* Ambient backdrop mixed from the app's own palette (--color-primary,
+     --color-accent-yellow, --color-accent-orange, --color-bg) rather than
+     one-off colors, so it reads as the same brand as every button/badge. */
+  background:
+    radial-gradient(480px 360px at 8% 4%, rgba(63, 125, 58, 0.22), transparent 60%),
+    radial-gradient(560px 440px at 100% 24%, rgba(201, 162, 39, 0.4), transparent 58%),
+    radial-gradient(620px 500px at 15% 84%, rgba(217, 123, 41, 0.26), transparent 62%),
+    radial-gradient(560px 460px at 95% 108%, rgba(63, 125, 58, 0.22), transparent 60%),
+    linear-gradient(175deg, #f8f4e9 0%, #f4efe4 50%, #efe4cf 100%);
+  background-attachment: fixed;
+  border-radius: 40px;
+  border: 10px solid #0d0d0b;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-screen {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.app-screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* Rendered once in App.jsx, outside .app-screen, so it never scrolls away
+   with page content on any screen. Its background matches whatever sits at
+   the very top of the current route: transparent over the light gradient
+   pages (Home/Alerts/Guide/Welcome), or brand green over pages whose top
+   content is a solid-color hero/header (Scan flow, Guide/Scan detail,
+   expanded map). */
+.global-status-bar {
+  flex-shrink: 0;
+}
+
+.global-status-bar.on-brand {
+  background: var(--color-primary);
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px 4px;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.status-bar-icons {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}

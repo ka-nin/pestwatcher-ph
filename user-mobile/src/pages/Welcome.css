@@ -1,0 +1,137 @@
+.welcome-screen {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: var(--color-text);
+  overflow: hidden;
+}
+
+.welcome-screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.97) 0%,
+    rgba(255, 255, 255, 0.9) 22%,
+    rgba(255, 255, 255, 0.45) 45%,
+    rgba(255, 255, 255, 0.08) 62%,
+    rgba(20, 30, 10, 0.05) 100%
+  );
+  pointer-events: none;
+}
+
+.welcome-screen .status-bar {
+  position: relative;
+  z-index: 1;
+  color: var(--color-text);
+}
+
+.welcome-content {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 60px 28px 48px;
+  z-index: 1;
+}
+
+.welcome-brand-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-top: 40px;
+}
+
+.welcome-logo-img {
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
+  margin-bottom: 14px;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.12));
+}
+
+.welcome-brand-block h1 {
+  margin: 0 0 10px;
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--color-primary);
+  letter-spacing: 0.3px;
+}
+
+.welcome-brand-block h1 sup {
+  font-size: 12px;
+  color: var(--color-primary-dark);
+}
+
+.welcome-brand-block p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 260px;
+  color: var(--color-text-muted);
+}
+
+.welcome-cta {
+  margin-top: auto;
+  width: 100%;
+  padding: 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 6px 18px rgba(20, 40, 10, 0.15);
+}
+
+.welcome-cta:active {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.welcome-cta:disabled {
+  opacity: 0.7;
+}
+
+.welcome-login-form {
+  margin-top: auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.welcome-login-input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--color-text);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.welcome-login-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.welcome-login-error {
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(214, 69, 69, 0.15);
+  color: #8a231f;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: center;
+}
