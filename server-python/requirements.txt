@@ -17,8 +17,8 @@ tensorflow==2.21.0
 scikit-learn==1.9.1
 h5py==3.14.0
 joblib==1.6.0
+shap==0.51.0  # ml/explainability/shap_report.py, imported unconditionally by app/routers/inference.py
 
-# Uncomment as you build out ml/resnet (image classifier) and ml/explainability
+# Uncomment as you build out ml/resnet (image classifier)
 # pillow==11.0.0
-# shap==0.46.0
 # lime==0.2.0.1

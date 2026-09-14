@@ -1,8 +1,10 @@
 # Rice Pest System
 
-Monorepo for a rice pest risk monitoring system: a FastAPI backend built for a
-deep-learning inference pipeline, a React admin dashboard for LGU technicians,
-an Expo mobile app for farmers, and a shared TypeScript types package.
+Monorepo for a rice pest risk monitoring system: a FastAPI backend serving a
+trained BiLSTM outbreak-forecasting model (live weather in, 14-day BPH/RSB
+risk forecasts out) plus a ResNet-50 image classifier stub, a React admin
+dashboard for LGU technicians wired end-to-end to that live pipeline, an Expo
+mobile app for farmers, and a shared TypeScript types package.
 
 ```
 pestwatcher-ph/
@@ -14,7 +16,8 @@ pestwatcher-ph/
 
 See `structure.txt` for the fuller target layout, and
 [`server-python/README.md`](server-python/README.md) for backend-specific
-setup, folder structure, and where to drop in trained ML models.
+setup, the full folder structure, the ML training pipeline, and API
+endpoints.
 
 ## Prerequisites
 
