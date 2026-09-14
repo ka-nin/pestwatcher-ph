@@ -1,8 +1,8 @@
-# PestWatcher PH — Frontend
+# PestWatcher PH — Farmer Mobile App
 
 Mobile-shell web app for the thesis *"An Explainable Multimodal Temporal Deep Learning Framework with Biologically-Informed Climate Feature Engineering for Early Rice Pest Outbreak Prediction."*
 
-This is the farmer-facing client only: a React + Vite single-page app that simulates a phone screen in the browser. It has **no real backend yet** — all pest detection, risk levels, and forecasts are mock data in [`src/data/mockData.js`](src/data/mockData.js), standing in for the future FastAPI/TensorFlow service described in [`../backend/README.md`](../backend/README.md).
+This is the farmer-facing client only: a React + Vite single-page app that simulates a phone screen in the browser. It is wired up to the real FastAPI backend ([`../server-python`](../server-python)) for login, weather, and BiLSTM pest-risk forecasts — see [Section 8](#8-backend-integration) for what's real vs. still mocked.
 
 ---
 
@@ -17,7 +17,7 @@ This is the farmer-facing client only: a React + Vite single-page app that simul
 
 ## 2. Install
 
-From the `frontend/` folder:
+From the repository root (this is an npm workspace — installing from inside `user-mobile/` directly will not resolve correctly):
 
 ```bash
 npm install
@@ -27,23 +27,42 @@ This installs React 19, React Router 7, Recharts, Lucide icons, and the Vite dev
 
 ---
 
-## 3. Run it locally (desktop browser)
+## 3. Point it at the backend
+
+Copy the example env file:
+
+```bash
+cp .env.example .env   # Windows: copy .env.example .env
+```
+
+This sets `VITE_API_URL=http://localhost:8000`. The backend ([`../server-python`](../server-python)) must be running for login, weather, and forecasts to work — see that folder's README for setup. Without `.env`, the app falls back to `http://localhost:8000` anyway (see [`src/api/client.js`](src/api/client.js)), but copying it explicitly makes the URL easy to change (e.g. pointing at a deployed backend).
+
+---
+
+## 4. Run it locally (desktop browser)
 
 ```bash
 npm run dev
 ```
 
-Vite will print a local URL, and the dev server is also configured to auto-open your browser. Because HTTPS is enabled by default (see [Section 5](#5-camera-testing-on-a-real-phone)), your browser will show a certificate warning the first time — this is expected for a locally-generated self-signed cert. Click **Advanced → Proceed** (wording varies by browser) to continue.
+Vite will print a local URL, and the dev server is also configured to auto-open your browser. Because HTTPS is enabled by default (see [Section 6](#6-camera-testing-on-a-real-phone)), your browser will show a certificate warning the first time — this is expected for a locally-generated self-signed cert. Click **Advanced → Proceed** (wording varies by browser) to continue.
 
-The app opens on the **Welcome** screen. Use the bottom navigation to reach **Home**, **Regional Alerts**, and **Farmer's Guide**; tap the green camera FAB on Home to reach **AI Pest Scan**.
+The app opens on the **Welcome** screen with a login form. Use the seeded demo farmer account (prefilled by default):
+
+- Username: `farmer_demo`
+- Password: `RicePest!Demo2026`
+
+(Defined in `server-python/app/data/farmer_users.py` — this is the only account with real municipality coordinates, so it's the one guaranteed to return live weather/forecast data.)
+
+After logging in, use the bottom navigation to reach **Home**, **Regional Alerts**, and **Farmer's Guide**; tap the green camera FAB on Home to reach **AI Pest Scan**.
 
 Stop the server anytime with `Ctrl+C` in the terminal.
 
 ---
 
-## 4. Available scripts
+## 5. Available scripts
 
-Run these from inside `frontend/`:
+Run these from inside `user-mobile/`:
 
 | Command | What it does |
 |---|---|
@@ -54,7 +73,7 @@ Run these from inside `frontend/`:
 
 ---
 
-## 5. Camera testing on a real phone
+## 6. Camera testing on a real phone
 
 The **AI Pest Scan** screen uses the browser's real camera (`getUserMedia`), not a mock. Mobile browsers only allow camera access on secure origins (`https://` or `localhost`), so the dev server is pre-configured for this:
 
@@ -81,12 +100,14 @@ If the camera doesn't start, check that:
 - No other app/tab is already using the camera
 - You allowed the camera permission prompt (check the site's permissions if you accidentally denied it)
 
+Note: when testing on a phone this way, `VITE_API_URL` (see [Section 3](#3-point-it-at-the-backend)) still points at `localhost:8000`, which means "the phone itself" — not your computer. Login/weather/forecast calls will fail unless you change `.env` to your computer's LAN IP (e.g. `VITE_API_URL=http://192.168.1.138:8000`) and restart `npm run dev`, and add that same origin to the backend's `CORS_ORIGINS` (see `server-python/.env`).
+
 ---
 
-## 6. Project structure
+## 7. Project structure
 
 ```
-frontend/
+user-mobile/
 ├── src/
 │   ├── main.jsx                # App entry point, mounts <App /> with HashRouter
 │   ├── App.jsx                 # Central router; hosts global fixed UI
@@ -116,32 +137,53 @@ frontend/
 │   │   └── WeatherMap.jsx/.css          # Windy.com embedded weather map iframe
 │   │
 │   ├── data/
-│   │   ├── mockData.js                  # ALL mock content + thesis ETL logic (see below)
+│   │   ├── mockData.js                  # Pest guide content + thesis ETL logic (see below)
 │   │   └── pestIcons.jsx                # Maps pest IDs to real photos or fallback icons
+│   │
+│   ├── api/
+│   │   └── client.js             # fetch wrappers for every backend endpoint this app calls
+│   │
+│   ├── context/
+│   │   └── AuthContext.jsx       # Logged-in user + selected growth stage, persisted to localStorage
 │   │
 │   └── assets/                   # Images (logo, rice field photo, pest photos)
 │
 ├── vite.config.js                # Dev server config (HTTPS + LAN exposure)
+├── .env.example                  # VITE_API_URL
 ├── package.json
 └── index.html
 ```
 
 ---
 
-## 7. How the mock prediction data works
+## 8. Backend integration
 
-Since there's no real ML backend yet, [`src/data/mockData.js`](src/data/mockData.js) hardcodes everything the future `/api/predict` endpoint would return, grounded in the thesis's actual Table 2 Economic Threshold Level (ETL) values for **Brown Planthopper (BPH)** and **Rice Stem Borer (RSB)** — the only two pests the thesis's model targets.
+All backend calls live in [`src/api/client.js`](src/api/client.js), which mirrors the pattern already used by `admin-web/src/lib/api.ts`. What's real vs. still a stub, per screen:
 
-Key pieces:
+| Screen | Endpoint | Status |
+|---|---|---|
+| Welcome (login) | `POST /api/auth/login` | Real |
+| Home (weather strip) | `GET /api/weather/forecast` | Real |
+| Home (risk hero card + trend chart) | `GET /api/inference/forecast/live`, `GET /api/inference/forecast/trajectory` | Real — BiLSTM models for BPH and RSB, whichever currently reports the higher risk is shown |
+| Scan → AI Pest Scan | `POST /api/inference/image` | Wired up and uploads the real captured/selected photo, but the backend's ResNet-50 image classifier is still an unimplemented stub (`server-python/app/models/resnet_model.py`) — every real scan currently lands on a "model hindi pa handa" screen instead of a result. The image is still saved server-side for future training. |
+| Manual Report | `POST /api/reports` | Real — appends to `server-python/reports.json` |
+
+Two things every forecast call needs, both sourced from app state rather than the backend:
+
+- **`municipality`** — comes from the logged-in user (`AuthContext`). Only municipalities with coordinates in `server-python/app/data/lgu_users.py` will return real forecasts; today that's just `farmer_demo`'s "Science City of Muñoz".
+- **`growth_stage`** — there's no way for weather data to infer this, so Home has a dropdown for it (Seedling/Tillering/Elongation/Panicle/Flowering/Ripening), persisted to `localStorage` and reused for every forecast call.
+
+### The pest guide / ETL reference data is still local, on purpose
+
+[`src/data/mockData.js`](src/data/mockData.js) still hardcodes the **Farmer's Guide** content (pest descriptions, signs, prevention tips) and the thesis's Table 2 Economic Threshold Level (ETL) values for **Brown Planthopper (BPH)** and **Rice Stem Borer (RSB)** — this is reference/encyclopedia content, not a prediction, so there's no backend endpoint for it (and doesn't need one).
 
 - **`etlThresholds`** — the exact low/medium boundary numbers per pest, per crop growth stage (Vegetative vs. Reproductive), taken directly from the thesis.
 - **`classifyRisk(pestId, cropStage, measurement)`** — applies those thresholds to return `'low' | 'medium' | 'high'`.
-- **`buildForecast(startRisk, peakRisk, peakDayIndex)`** — generates a 14-day array of daily risk levels, simulating a BiLSTM-style trajectory (risk builds toward a peak day) instead of one flat number.
-- **`scanDetectionByRisk`** — three ready-made scenarios (`low`, `medium`, `high`), each with a pest, crop stage, measurement, confidence score, and a full 14-day forecast.
+- **`scanDetectionByRisk`** — three ready-made scenarios (`low`, `medium`, `high`) used only as a design-preview fallback on Scan Result (see below), not as real prediction data anymore.
 
-### Previewing each risk state
+### Previewing each Scan Result risk state (design-only)
 
-The **Scan Result** screen normally always shows the `medium` scenario (there's no real prediction to react to yet). To preview any of the three states without going through the camera flow, add a `?risk=` query parameter to the URL's hash route:
+Since the real image classifier isn't trained yet, `ScanResult.jsx` still supports a `?risk=` override to preview all three risk states without a real detection:
 
 ```
 #/scan/result?risk=low
@@ -149,11 +191,11 @@ The **Scan Result** screen normally always shows the `medium` scenario (there's 
 #/scan/result?risk=high
 ```
 
-This is a **development-only convenience**. In production, the risk level will come directly from the backend's prediction response instead of this URL parameter.
+This only applies when the screen is opened directly (no real inference result in navigation state). A real scan through the camera flow always shows the actual backend response — currently the "model not ready" screen, until the ResNet-50 classifier is trained and wired up.
 
 ---
 
-## 8. Design system notes
+## 9. Design system notes
 
 - The whole app renders inside a fixed **390×844px `.device-frame`** centered in the browser, simulating a phone viewport regardless of actual window size.
 - Colors, spacing, and radii are all CSS custom properties defined in [`src/index.css`](src/index.css) under `:root` (`--color-primary`, `--color-accent-yellow`, `--color-accent-red`, `--radius-lg`, etc.) — reuse these variables rather than hardcoding new colors.
@@ -162,13 +204,13 @@ This is a **development-only convenience**. In production, the risk level will c
 
 ---
 
-## 9. Known gaps vs. the thesis (by design, at this stage)
+## 10. Known gaps vs. the thesis (by design, at this stage)
 
 This frontend intentionally does **not** yet include:
 
-- A real image classification or BiLSTM forecasting model (mock data only)
-- Real weather/climate feature ingestion (Home's weather strip is static mock data)
-- An explainability (SHAP/LIME) visualization layer
-- A live backend of any kind — see [`../backend/README.md`](../backend/README.md) for the planned API contract
+- A real image classification model behind AI Pest Scan — the request/response plumbing is real, but the backend's ResNet-50 classifier is still an unimplemented stub (see [`../server-python/README.md`](../server-python/README.md#adding-the-resnet-50-image-model))
+- An explainability (SHAP/LIME) visualization layer — the backend already exposes `GET /api/inference/forecast/explain`, this app just doesn't render it anywhere yet
+- Real persistence for manual reports beyond a flat JSON file (`server-python/reports.json`)
+- Any municipality other than "Science City of Muñoz" returning real forecasts, since that's the only one with coordinates on file today
 
-These are expected to be built server-side in a future phase and consumed by this same frontend through the documented `/api/predict` contract.
+These are expected to be finished in a future phase; the mobile app's API layer ([`src/api/client.js`](src/api/client.js)) already matches the contract each of these will use once ready.

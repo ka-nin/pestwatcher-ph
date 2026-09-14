@@ -50,7 +50,8 @@ server-python/
 │   ├── routers/
 │   │   ├── auth.py             # POST /api/auth/login (LGU techs + farmers)
 │   │   ├── weather.py          # GET /api/weather/forecast (Open-Meteo forward forecast)
-│   │   └── inference.py        # see "API endpoints" below
+│   │   ├── inference.py        # see "API endpoints" below
+│   │   └── reports.py          # POST /api/reports (user-mobile manual sighting reports)
 │   ├── data/                    # Hardcoded accounts (swap for a real DB later)
 │   │   ├── lgu_users.py          # also the coordinate lookup for live weather fetches
 │   │   └── farmer_users.py
@@ -100,6 +101,7 @@ server-python/
 | `GET /api/inference/forecast/live` | Same, but fetches the real past 14 days for a municipality itself |
 | `GET /api/inference/forecast/trajectory` | Up to 14 sequential daily forecasts (for charting a curve) — works from only past weather, since horizon ≥ days requested |
 | `GET /api/inference/forecast/explain` | SHAP feature attributions for the same live prediction `/forecast/live` would return |
+| `POST /api/reports` | Farmer manual pest-sighting report (user-mobile) — appends to a flat `reports.json` file, same placeholder-storage pattern as the hardcoded accounts below |
 
 All forecast endpoints return a **continuous value** (hoppers/hill or %
 damage) as the primary output, with the Low/Medium/High risk level as a
@@ -134,7 +136,12 @@ steps 2–4 in order — each stage's output feeds the next.
   `http://localhost:8000` instead of `:5000`.
 - `/api/auth/login` now also matches against `farmer_users.py` and returns
   `account_type: "lgu" | "farmer"` in the response, since the mobile app
-  will use the same endpoint.
+  uses the same endpoint.
+- `user-mobile` (React + Vite, migrated off Expo) is a live consumer of this
+  API now too — see its own README for the mobile-specific setup. Its dev
+  server runs over HTTPS on `:5173`+ (`@vitejs/plugin-basic-ssl`, needed for
+  camera access), which is why `CORS_ORIGINS` in `.env.example` lists both
+  `http://` and `https://` variants of `:5173`–`:5175`.
 - Mongoose was installed in the old Node server but never actually wired to
   a database — there's nothing to port there. `lgu_users.py`/`farmer_users.py`
   are still hardcoded lists; swapping in real persistence (Postgres via
