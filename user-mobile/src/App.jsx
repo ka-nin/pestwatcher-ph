@@ -1,7 +1,6 @@
 import { HashRouter, Routes, Route, Navigate, useLocation, matchPath } from 'react-router-dom';
 import BottomNav from './components/BottomNav';
 import AlertsFab from './components/AlertsFab';
-import HomeFab from './components/HomeFab';
 import StatusBar from './components/StatusBar';
 import Welcome from './pages/Welcome';
 import Home from './pages/Home';
@@ -22,6 +21,7 @@ const TABS_WITH_NAV = ['/home', '/alerts', '/guide'];
 // needs white status bar text. Everything else sits on the app's light
 // gradient background and uses dark text (the StatusBar default).
 const DARK_STATUS_BAR_PATTERNS = [
+  '/home',
   '/guide/:id',
   '/alerts/map',
   '/scan/result',
@@ -65,7 +65,6 @@ function AppShell() {
             <Route path="/alerts/map" element={<RequireAuth><MapExpanded /></RequireAuth>} />
           </Routes>
         </div>
-        {location.pathname === '/home' && user && <HomeFab />}
         {location.pathname === '/alerts' && user && <AlertsFab />}
         {showNav && <BottomNav />}
       </div>

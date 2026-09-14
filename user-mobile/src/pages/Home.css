@@ -4,35 +4,56 @@
   height: 100%;
 }
 
-.home-topbar {
+/* Green gradient hero — brand row + big location title, rounded bottom
+   corners so the cream body appears to "tuck under" it. */
+.home-hero {
   flex-shrink: 0;
+  background: linear-gradient(160deg, #4f8f49 0%, var(--color-primary) 45%, var(--color-primary-dark) 100%);
+  border-radius: 0 0 28px 28px;
+  padding: 10px 20px 22px;
+  color: #fff;
+}
+
+.home-hero-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
-  color: var(--color-text-muted);
-  letter-spacing: 0.3px;
+  letter-spacing: 0.4px;
 }
 
 .home-brand {
   display: flex;
   align-items: center;
-  gap: 5px;
-  color: var(--color-primary-dark);
+  gap: 6px;
+  color: #fff;
 }
 
 .home-brand-logo {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   object-fit: contain;
 }
 
-.home-topbar-right {
+.home-brand-badge {
+  font-size: 8.5px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.22);
+  padding: 1px 5px;
+  border-radius: 5px;
+  letter-spacing: 0.2px;
+}
+
+.home-hero-top-right {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.home-datetime {
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
 }
 
 .home-logout {
@@ -40,36 +61,34 @@
   height: 20px;
   border-radius: 50%;
   border: none;
-  background: var(--color-surface);
-  color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow-card);
 }
 
-.home-location {
-  flex-shrink: 0;
-  padding: 4px 20px 14px;
+.home-hero-location {
+  margin-top: 20px;
 }
 
-.home-location h1 {
+.home-hero-location h1 {
   margin: 0;
-  font-size: 26px;
+  font-size: 25px;
   font-weight: 800;
-  color: var(--color-text);
-  letter-spacing: -0.3px;
+  letter-spacing: -0.2px;
+  color: #fff;
 }
 
-.home-location p {
-  margin: 1px 0 0;
+.home-hero-location p {
+  margin: 2px 0 0;
   font-size: 12.5px;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .home-body {
   flex: 1;
-  padding: 0 16px 116px;
+  padding: 16px 16px 130px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -122,139 +141,165 @@
   font-weight: 600;
 }
 
-/* Hero risk card — white body with a soft tinted wash at the top, framed by
-   a shaded border matched to the current risk color, plus an outer glow. */
-.hero-risk-card {
-  position: relative;
-  border-radius: 22px;
-  border: 2px solid var(--color-primary);
-  box-shadow:
-    var(--shadow-card),
-    0 0 0 6px var(--risk-glow, transparent);
-  padding: 18px 20px 20px;
+/* Risk card — white card, outline icon + outline chip, message, divider,
+   tip row folded into the same card. */
+.risk-card {
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 18px 18px 16px;
 }
 
-.hero-risk-top {
+.risk-card-top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
-.hero-risk-icon {
+.risk-card-icon {
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
+  border: 2px solid;
+  background: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 14px -4px rgba(20, 50, 15, 0.4);
 }
 
-.hero-risk-top-text {
+.risk-card-top-text {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 
-.hero-risk-chip {
+.risk-card-chip {
   display: inline-block;
   width: fit-content;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 11px;
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border: 1.5px solid;
   border-radius: 999px;
   letter-spacing: 0.3px;
+  background: #fff;
 }
 
-.hero-risk-window {
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-}
-
-.hero-risk-card h2 {
-  margin: 0 0 8px;
-  font-size: 18px;
+.risk-card-top-text h2 {
+  margin: 0;
+  font-size: 17px;
   font-weight: 800;
   line-height: 1.25;
   color: var(--color-text);
 }
 
-.hero-risk-card p {
+.risk-card-message {
   margin: 0;
   font-size: 13px;
-  line-height: 1.55;
+  line-height: 1.6;
   color: var(--color-text-muted);
 }
 
-/* Tip strip — a slim, distinct callout instead of a boxed card */
-.tip-strip {
+.risk-card-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 14px 0 12px;
+}
+
+.risk-card-tip {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 2px 4px;
 }
 
-.tip-strip p {
+.risk-card-tip p {
   margin: 0;
   font-size: 12px;
   line-height: 1.5;
   color: var(--color-text-muted);
 }
 
-.tip-strip strong {
+.risk-card-tip strong {
   color: var(--color-text);
   font-weight: 700;
 }
 
-/* Weather strip — compact horizontal row, not three separate boxes */
-.weather-strip {
-  display: flex;
-  align-items: center;
+/* Weather cards — three equal cards instead of one compact strip */
+.weather-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.weather-card {
   background: var(--color-surface);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
-  padding: 12px 6px;
+  padding: 12px 12px 13px;
+  min-width: 0;
 }
 
-.weather-strip-item {
-  flex: 1;
+.weather-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.weather-card-head span:first-child {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--color-text-muted);
+  letter-spacing: 0.3px;
+}
+
+.weather-card-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  flex-shrink: 0;
 }
 
-.weather-strip-item div {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.15;
+.weather-card-icon-red {
+  background: rgba(214, 69, 69, 0.14);
+  color: var(--color-accent-red);
 }
 
-.weather-strip-item strong {
-  font-size: 15px;
+.weather-card-icon-blue {
+  background: rgba(91, 127, 191, 0.16);
+  color: #5b7fbf;
+}
+
+.weather-card-icon-yellow {
+  background: rgba(201, 162, 39, 0.16);
+  color: var(--color-accent-yellow);
+}
+
+.weather-card-value {
+  font-size: 19px;
+  font-weight: 800;
   color: var(--color-text);
+  line-height: 1;
 }
 
-.weather-strip-item strong small {
-  font-size: 10px;
-  font-weight: 500;
+.weather-card-value small {
+  font-size: 11px;
+  font-weight: 600;
   margin-left: 1px;
 }
 
-.weather-strip-item span {
-  font-size: 9.5px;
+.weather-card-sub {
+  margin-top: 4px;
+  font-size: 10px;
   color: var(--color-text-muted);
   font-weight: 600;
-}
-
-.weather-strip-divider {
-  width: 1px;
-  height: 30px;
-  background: var(--color-border);
 }
 
 .trend-card {
@@ -308,3 +353,93 @@
   display: inline-block;
 }
 
+/* Nearby high-risk zones banner */
+.nearby-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(217, 123, 41, 0.12);
+  border: 1px solid rgba(217, 123, 41, 0.25);
+  border-radius: var(--radius-md);
+  padding: 13px 15px;
+  text-align: left;
+}
+
+.nearby-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nearby-banner-text strong {
+  font-size: 13px;
+  color: var(--color-text);
+  font-weight: 800;
+}
+
+.nearby-banner-text span {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+/* AI Pest Scan row-style entry point */
+.scan-row-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 13px 15px;
+  text-align: left;
+}
+
+.scan-row-icon {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scan-row-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.scan-row-text strong {
+  font-size: 13.5px;
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.scan-row-text span {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.report-btn {
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 15px;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 6px 16px rgba(63, 125, 58, 0.3);
+}
+
+.report-btn-hint {
+  margin: -4px 0 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
