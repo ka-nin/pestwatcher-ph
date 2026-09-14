@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.models.bilstm_model import bilstm_forecaster
-from app.routers import auth, inference, weather
+from app.routers import auth, inference, reports, weather
 from ml.config import PEST_PARAMS
 
 settings = get_settings()
@@ -47,3 +47,4 @@ def health_check() -> dict[str, str]:
 app.include_router(auth.router)
 app.include_router(weather.router)
 app.include_router(inference.router)
+app.include_router(reports.router)

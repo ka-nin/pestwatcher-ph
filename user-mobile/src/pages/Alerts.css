@@ -1,0 +1,137 @@
+.alerts-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+}
+
+.alerts-header {
+  flex-shrink: 0;
+  padding: 4px 16px 12px 20px;
+}
+
+.alerts-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: -0.3px;
+}
+
+.alerts-header p {
+  margin: 1px 0 0;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.alerts-body {
+  flex: 1;
+  padding: 16px 16px 116px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.alerts-map {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.alerts-map-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.alerts-map-footer button {
+  background: none;
+  border: none;
+  color: var(--color-primary-dark);
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.alerts-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.alerts-list-header h2 {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+
+.alerts-list-header span {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alert-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 14px;
+  border-left: 4px solid transparent;
+}
+
+.alert-card.risk-high {
+  border-left-color: var(--color-accent-red);
+}
+
+.alert-card.risk-medium {
+  border-left-color: var(--color-accent-orange);
+}
+
+.alert-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.alert-distance {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.alert-date {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-left: auto;
+}
+
+.alert-card h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+.alert-location {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin: 0 0 8px;
+}
+
+.alert-desc {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-text);
+}
