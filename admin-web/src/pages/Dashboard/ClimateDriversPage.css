@@ -103,8 +103,6 @@
   border-radius: 999px;
   background: #f0eee6;
   overflow: hidden;
-  display: flex;
-  justify-content: flex-end;
 }
 
 .feature-bar-fill {

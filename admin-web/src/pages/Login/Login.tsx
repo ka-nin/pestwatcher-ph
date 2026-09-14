@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import bgImg from '../../assets/bg-img.png'
 import logo from '../../assets/logo.png'
-import { login, type LguUser } from '../../lib/api'
+import { login, type Session } from '../../lib/api'
 import './Login.css'
 
 interface LoginProps {
-  onLoginSuccess: (user: LguUser) => void
+  onLoginSuccess: (session: Session) => void
 }
 
 function Login({ onLoginSuccess }: LoginProps) {
@@ -20,8 +20,8 @@ function Login({ onLoginSuccess }: LoginProps) {
     setError('')
     setLoading(true)
     try {
-      const user = await login(username, password)
-      onLoginSuccess(user)
+      const session = await login(username, password)
+      onLoginSuccess(session)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to log in right now')
     } finally {

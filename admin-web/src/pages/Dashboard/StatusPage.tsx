@@ -8,6 +8,7 @@ import {
   type WeatherForecast,
 } from '../../lib/api'
 import { ETL_BANDS, RISK_TONE } from '../../lib/etl'
+import DayDetailModal from '../../components/DayDetailModal'
 import ProvinceMap from './ProvinceMap'
 
 interface ClimateMetrics {
@@ -46,17 +47,21 @@ const peakCardMeta = [
 ]
 
 const heatmapMeta = [
-  { key: 'bph' as const, pest: 'BPH' as const, title: 'Brown Planthopper', formatValue: (v: number) => Math.round(v).toString() },
-  { key: 'rsb' as const, pest: 'RSB' as const, title: 'Rice Stem Borer', formatValue: (v: number) => `${v.toFixed(1)}%` },
+  {
+    key: 'bph' as const,
+    pest: 'BPH' as const,
+    title: 'Brown Planthopper',
+    unitLabel: 'hoppers/hill',
+    formatValue: (v: number) => Math.round(v).toString(),
+  },
+  {
+    key: 'rsb' as const,
+    pest: 'RSB' as const,
+    title: 'Rice Stem Borer',
+    unitLabel: '% Dead Hearts',
+    formatValue: (v: number) => `${v.toFixed(1)}%`,
+  },
 ]
-
-function daysFromToday(iso: string) {
-  const target = new Date(iso)
-  const today = new Date()
-  target.setHours(0, 0, 0, 0)
-  today.setHours(0, 0, 0, 0)
-  return Math.round((target.getTime() - today.getTime()) / 86_400_000)
-}
 
 function formatDateLabel(iso: string) {
   return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' })
@@ -117,6 +122,10 @@ const maxRiskFactor = Math.max(...riskFactors.map((f) => Math.abs(f.value)))
 function StatusPage({ user, weather, weatherError, climateMetrics }: StatusPageProps) {
   const [trajectories, setTrajectories] = useState<Partial<Record<'bph' | 'rsb', TrajectoryPoint[]>>>({})
   const [forecastError, setForecastError] = useState('')
+  const [selectedCell, setSelectedCell] = useState<{
+    key: 'bph' | 'rsb'
+    point: TrajectoryPoint
+  } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -265,7 +274,7 @@ function StatusPage({ user, weather, weatherError, climateMetrics }: StatusPageP
                   <div className="stat-card-title">{meta.title}</div>
                   <div className="stat-card-subtitle">Projected peak intensity</div>
                 </div>
-                <span className="badge badge-blue">{peak ? `Day ${daysFromToday(peak.date)}` : '…'}</span>
+                <span className="badge badge-blue">{peak ? formatDateLabel(peak.date) : '…'}</span>
               </div>
 
               <div className="stat-card-big">
@@ -361,7 +370,22 @@ function StatusPage({ user, weather, weatherError, climateMetrics }: StatusPageP
                           {row.cells.map((cell, i) => (
                             <td
                               key={i}
-                              className={`heatmap-cell heatmap-${cell ? HEATMAP_TONE[cell.risk_level] : 'empty'}`}
+                              className={`heatmap-cell heatmap-${cell ? HEATMAP_TONE[cell.risk_level] : 'empty'}${
+                                cell ? ' heatmap-cell-clickable' : ''
+                              }`}
+                              role={cell ? 'button' : undefined}
+                              tabIndex={cell ? 0 : undefined}
+                              onClick={cell ? () => setSelectedCell({ key: meta.key, point: cell }) : undefined}
+                              onKeyDown={
+                                cell
+                                  ? (e) => {
+                                      if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault()
+                                        setSelectedCell({ key: meta.key, point: cell })
+                                      }
+                                    }
+                                  : undefined
+                              }
                             >
                               {cell ? meta.formatValue(cell.predicted_value) : '-'}
                             </td>
@@ -429,6 +453,25 @@ function StatusPage({ user, weather, weatherError, climateMetrics }: StatusPageP
           </div>
         </div>
       </section>
+
+      {selectedCell &&
+        (() => {
+          const meta = heatmapMeta.find((m) => m.key === selectedCell.key)!
+          return (
+            <DayDetailModal
+              key={`${selectedCell.key}-${selectedCell.point.date}`}
+              municipality={user.municipality}
+              pestKey={meta.key}
+              pestCode={meta.pest}
+              pestLabel={meta.title}
+              growthStage={ACTIVE_GROWTH_STAGE}
+              unitLabel={meta.unitLabel}
+              point={selectedCell.point}
+              formatValue={meta.formatValue}
+              onClose={() => setSelectedCell(null)}
+            />
+          )
+        })()}
     </>
   )
 }
