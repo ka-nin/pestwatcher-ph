@@ -4,114 +4,54 @@
   right: 0;
   bottom: 0;
   z-index: 10;
-  padding: 0 20px max(10px, env(safe-area-inset-bottom));
-  background: transparent;
-  pointer-events: none;
+  background: #fff;
+  box-shadow: 0 -4px 18px rgba(30, 30, 15, 0.1);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .bottom-nav-pill {
-  pointer-events: auto;
   display: flex;
   justify-content: space-around;
   align-items: center;
-  background: rgba(255, 255, 255, 0.88);
-  border-radius: 999px;
-  height: 56px;
-  padding: 0 6px;
-  box-shadow:
-    0 8px 24px rgba(30, 30, 15, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  overflow: visible;
-}
-
-@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-  .bottom-nav-pill {
-    background: rgba(255, 255, 255, 0.35);
-    backdrop-filter: blur(28px) saturate(200%);
-    -webkit-backdrop-filter: blur(28px) saturate(200%);
-    border: 1px solid rgba(255, 255, 255, 0.65);
-  }
+  height: 58px;
 }
 
 .bottom-nav-item {
-  position: relative;
-  z-index: 1;
   flex: 1;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 3px;
   color: var(--color-text-muted);
-  overflow: visible;
+  transition: color 0.2s ease;
 }
 
-.bottom-nav-item.active {
-  z-index: 2;
-  color: var(--color-primary);
+.bottom-nav-icon-wrap svg {
+  transition: transform 0.2s ease;
+}
+
+.bottom-nav-item.active .bottom-nav-icon-wrap svg {
+  transform: scale(1.08);
 }
 
 .bottom-nav-icon-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
 }
 
 .bottom-nav-label {
   font-size: 10px;
   font-weight: 700;
   line-height: 1;
-  margin-top: 2px;
 }
 
-/* Inactive tabs: plain icon, no label shown (matches reference density) */
-.bottom-nav-item:not(.active) .bottom-nav-label {
-  display: none;
+.bottom-nav-item.active {
+  color: var(--color-primary);
 }
 
-.bottom-nav-item:not(.active) .bottom-nav-icon-wrap {
+.bottom-nav-item:not(.active) {
   color: var(--color-text-muted);
-}
-
-/* Active tab: icon + label pop up together above the pill as one unit */
-.bottom-nav-item.active .bottom-nav-icon-wrap,
-.bottom-nav-item.active .bottom-nav-label {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.bottom-nav-item.active .bottom-nav-icon-wrap {
-  top: -16px;
-  width: 44px;
-  height: 44px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 2.5px solid var(--color-primary);
-  color: var(--color-primary);
-  box-shadow:
-    0 4px 10px rgba(63, 125, 58, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  z-index: 5;
-}
-
-@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-  .bottom-nav-item.active .bottom-nav-icon-wrap {
-    background: rgba(255, 255, 255, 0.45);
-    backdrop-filter: blur(20px) saturate(200%);
-    -webkit-backdrop-filter: blur(20px) saturate(200%);
-  }
-}
-
-.bottom-nav-item.active .bottom-nav-icon-wrap svg {
-  width: 22px;
-  height: 22px;
-}
-
-.bottom-nav-item.active .bottom-nav-label {
-  top: 30px;
-  color: var(--color-primary);
-  white-space: nowrap;
 }

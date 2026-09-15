@@ -4,131 +4,85 @@
   height: 100%;
 }
 
-/* Green gradient hero — brand row + big location title, rounded bottom
-   corners so the cream body appears to "tuck under" it. */
+/* Green hero header — full-bleed, rounded bottom corners */
 .home-hero {
   flex-shrink: 0;
-  background: linear-gradient(160deg, #4f8f49 0%, var(--color-primary) 45%, var(--color-primary-dark) 100%);
+  background: linear-gradient(160deg, #4a8a45 0%, var(--color-primary) 55%, var(--color-primary-dark) 100%);
   border-radius: 0 0 28px 28px;
-  padding: 10px 20px 22px;
-  color: #fff;
+  padding: 18px 20px 22px;
+  box-shadow: 0 10px 24px -10px rgba(20, 40, 15, 0.4);
 }
 
-.home-hero-top {
+.home-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
 }
 
 .home-brand {
   display: flex;
   align-items: center;
-  gap: 6px;
-  color: #fff;
+  gap: 5px;
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .home-brand-logo {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   object-fit: contain;
 }
 
-.home-brand-badge {
-  font-size: 8.5px;
-  font-weight: 800;
-  background: rgba(255, 255, 255, 0.22);
-  padding: 1px 5px;
-  border-radius: 5px;
-  letter-spacing: 0.2px;
-}
-
-.home-hero-top-right {
+.home-topbar-right {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .home-datetime {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.75);
   font-weight: 600;
 }
 
 .home-logout {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   border: none;
   background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  color: rgba(255, 255, 255, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.home-hero-location {
-  margin-top: 20px;
+.home-location {
+  padding-top: 14px;
 }
 
-.home-hero-location h1 {
+.home-location h1 {
   margin: 0;
-  font-size: 25px;
+  font-size: 27px;
   font-weight: 800;
-  letter-spacing: -0.2px;
   color: #fff;
+  letter-spacing: -0.3px;
+  text-transform: uppercase;
 }
 
-.home-hero-location p {
+.home-location p {
   margin: 2px 0 0;
   font-size: 12.5px;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .home-body {
   flex: 1;
-  padding: 16px 16px 130px;
+  padding: 16px 16px 116px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.growth-stage-select {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.growth-stage-select > span {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-text-muted);
-}
-
-.growth-stage-select-control {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.growth-stage-select-control select {
-  width: 100%;
-  appearance: none;
-  padding: 11px 34px 11px 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.growth-stage-select-control svg {
-  position: absolute;
-  right: 12px;
-  pointer-events: none;
-  color: var(--color-text-muted);
+  gap: 14px;
 }
 
 .home-error {
@@ -141,163 +95,147 @@
   font-weight: 600;
 }
 
-/* Risk card — white card, outline icon + outline chip, message, divider,
-   tip row folded into the same card. */
-.risk-card {
+/* Risk summary card — plain white card with an outlined status icon,
+   a pill badge, headline, message, then a divided tip section. */
+.hero-risk-card {
   background: var(--color-surface);
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
   padding: 18px 18px 16px;
 }
 
-.risk-card-top {
+.hero-risk-top {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
   margin-bottom: 12px;
 }
 
-.risk-card-icon {
+.hero-risk-icon {
   flex-shrink: 0;
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  border: 2px solid;
-  background: #fff;
+  border: 2px solid currentColor;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.risk-card-top-text {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.risk-card-chip {
+.hero-risk-chip {
   display: inline-block;
   width: fit-content;
-  font-size: 10.5px;
-  font-weight: 800;
-  padding: 3px 10px;
-  border: 1.5px solid;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 12px;
   border-radius: 999px;
   letter-spacing: 0.3px;
-  background: #fff;
+  text-transform: uppercase;
 }
 
-.risk-card-top-text h2 {
-  margin: 0;
-  font-size: 17px;
+.hero-risk-card h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
   font-weight: 800;
   line-height: 1.25;
   color: var(--color-text);
 }
 
-.risk-card-message {
+.hero-risk-card p {
   margin: 0;
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.55;
   color: var(--color-text-muted);
 }
 
-.risk-card-divider {
+.hero-risk-divider {
   height: 1px;
   background: var(--color-border);
   margin: 14px 0 12px;
 }
 
-.risk-card-tip {
+.hero-risk-tip {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 8px;
 }
 
-.risk-card-tip p {
+.hero-risk-tip p {
   margin: 0;
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.5;
   color: var(--color-text-muted);
 }
 
-.risk-card-tip strong {
+.hero-risk-tip strong {
   color: var(--color-text);
   font-weight: 700;
 }
 
-/* Weather cards — three equal cards instead of one compact strip */
-.weather-cards {
+/* Weather — three individual stat tiles */
+.weather-tiles-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.weather-tiles-live {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  letter-spacing: 0.2px;
+  padding-left: 2px;
+}
+
+.weather-tiles-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(63, 125, 58, 0.18);
+}
+
+.weather-tiles {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
 }
 
-.weather-card {
+.weather-tile {
   background: var(--color-surface);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
   padding: 12px 12px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   min-width: 0;
 }
 
-.weather-card-head {
+.weather-tile-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
 }
 
-.weather-card-head span:first-child {
+.weather-tile-top span {
   font-size: 9px;
-  font-weight: 800;
-  color: var(--color-text-muted);
+  font-weight: 700;
   letter-spacing: 0.3px;
+  color: var(--color-text-muted);
 }
 
-.weather-card-icon {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.weather-card-icon-red {
-  background: rgba(214, 69, 69, 0.14);
-  color: var(--color-accent-red);
-}
-
-.weather-card-icon-blue {
-  background: rgba(91, 127, 191, 0.16);
-  color: #5b7fbf;
-}
-
-.weather-card-icon-yellow {
-  background: rgba(201, 162, 39, 0.16);
-  color: var(--color-accent-yellow);
-}
-
-.weather-card-value {
-  font-size: 19px;
+.weather-tile strong {
+  font-size: 17px;
   font-weight: 800;
   color: var(--color-text);
-  line-height: 1;
 }
 
-.weather-card-value small {
-  font-size: 11px;
-  font-weight: 600;
-  margin-left: 1px;
-}
-
-.weather-card-sub {
-  margin-top: 4px;
-  font-size: 10px;
+.weather-tile-caption {
+  font-size: 10.5px;
   color: var(--color-text-muted);
   font-weight: 600;
 }
@@ -313,7 +251,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
 }
 
 .trend-header h3 {
@@ -321,21 +261,9 @@
   font-size: 13.5px;
 }
 
-.trend-more {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  background: none;
-  border: none;
-  color: var(--color-primary-dark);
-  font-size: 11px;
-  font-weight: 700;
-}
-
 .trend-legend {
   display: flex;
-  gap: 12px;
-  margin-bottom: 4px;
+  gap: 10px;
 }
 
 .trend-legend span {
@@ -353,53 +281,58 @@
   display: inline-block;
 }
 
-/* Nearby high-risk zones banner */
-.nearby-banner {
+/* Nearby high-risk zones — flat warning strip, tappable */
+.nearby-zones-strip {
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
+  text-align: left;
   background: rgba(217, 123, 41, 0.12);
   border: 1px solid rgba(217, 123, 41, 0.25);
   border-radius: var(--radius-md);
-  padding: 13px 15px;
-  text-align: left;
+  padding: 13px 14px;
 }
 
-.nearby-banner-text {
+.nearby-zones-text {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 0;
 }
 
-.nearby-banner-text strong {
+.nearby-zones-text strong {
   font-size: 13px;
   color: var(--color-text);
-  font-weight: 800;
 }
 
-.nearby-banner-text span {
-  font-size: 11.5px;
+.nearby-zones-text small {
+  font-size: 11px;
   color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* AI Pest Scan row-style entry point */
-.scan-row-card {
+/* AI Pest Scan — flat white strip, tappable */
+.scan-strip {
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
+  text-align: left;
   background: var(--color-surface);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
-  padding: 13px 15px;
-  text-align: left;
+  padding: 13px 14px;
 }
 
-.scan-row-icon {
+.scan-strip-icon {
   flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  border-radius: var(--radius-sm);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
   background: var(--color-primary);
   color: #fff;
   display: flex;
@@ -407,39 +340,46 @@
   justify-content: center;
 }
 
-.scan-row-text {
+.scan-strip-text {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 0;
 }
 
-.scan-row-text strong {
+.scan-strip-text strong {
   font-size: 13.5px;
   color: var(--color-text);
-  font-weight: 700;
 }
 
-.scan-row-text span {
+.scan-strip-text small {
   font-size: 11.5px;
   color: var(--color-text-muted);
 }
 
-.report-btn {
-  background: var(--color-primary);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-md);
-  padding: 15px;
-  font-size: 14px;
-  font-weight: 800;
-  box-shadow: 0 6px 16px rgba(63, 125, 58, 0.3);
+/* Report sighting — full-width solid CTA */
+.report-manual-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 
-.report-btn-hint {
-  margin: -4px 0 0;
-  text-align: center;
+.report-manual-cta {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 14.5px;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(63, 125, 58, 0.35);
+}
+
+.report-manual-block p {
+  margin: 0;
   font-size: 11px;
   color: var(--color-text-muted);
 }

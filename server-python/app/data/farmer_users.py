@@ -1,8 +1,11 @@
 """Placeholder B2C farmer accounts for the Expo mobile app.
 
-Replace with a real database table (with hashed passwords) before launch.
-These exist only so the unified /api/auth/login endpoint has something to
-authenticate against while the mobile app is being built.
+Replace with a real database table before launch. These exist only so the
+unified /api/auth/login endpoint has something to authenticate against
+while the mobile app is being built.
+
+Passwords are bcrypt hashes (see app/security.py). Plaintext dev credential:
+    farmer_demo / RicePest!Demo2026
 """
 
 from app.schemas.auth import FarmerUser
@@ -10,7 +13,7 @@ from app.schemas.auth import FarmerUser
 farmer_users: list[FarmerUser] = [
     FarmerUser(
         username="farmer_demo",
-        password="RicePest!Demo2026",
+        password_hash="$2b$12$WDtaPhz4iJdo06tmQ1sXyOhRJ3zBLxQ5Y4vhdG.SVZVBIDTJqpg/S",
         full_name="Demo Farmer",
         municipality="Science City of Muñoz",
         province="Nueva Ecija",

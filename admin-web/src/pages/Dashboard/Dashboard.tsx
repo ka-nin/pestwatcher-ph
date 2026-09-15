@@ -5,6 +5,7 @@ import StatusPage from './StatusPage'
 import PestForecastPage from './PestForecastPage'
 import IpmPage from './IpmPage'
 import ClimateDriversPage from './ClimateDriversPage'
+import ReportsPage from './ReportsPage'
 import './Dashboard.css'
 
 interface DashboardProps {
@@ -39,13 +40,14 @@ function deriveClimateMetrics(weather: WeatherForecast) {
   }
 }
 
-type PageKey = 'status' | 'forecast' | 'ipm' | 'climate'
+type PageKey = 'status' | 'forecast' | 'ipm' | 'climate' | 'reports'
 
 const navItems: { key: PageKey; label: string }[] = [
   { key: 'status', label: 'Status' },
   { key: 'forecast', label: 'Pest Forecast' },
   { key: 'ipm', label: 'IPM Recommendation' },
   { key: 'climate', label: 'Climate Drivers' },
+  { key: 'reports', label: 'Farmer Reports' },
 ]
 
 const navIcons: Record<PageKey, React.ReactNode> = {
@@ -61,6 +63,13 @@ const navIcons: Record<PageKey, React.ReactNode> = {
   climate: (
     <path
       d="M6 14a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.5A4.5 4.5 0 0 1 18 14H6Z"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
+  reports: (
+    <path
+      d="M9 12h6M9 16h6M9 8h1M4 6a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Z"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
@@ -181,6 +190,8 @@ function Dashboard({ user, onLogout }: DashboardProps) {
           )}
 
           {activePage === 'forecast' && <PestForecastPage user={user} />}
+
+          {activePage === 'reports' && <ReportsPage user={user} />}
         </main>
       </div>
     </div>

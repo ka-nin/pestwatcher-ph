@@ -15,14 +15,9 @@ async function parseJsonOrThrow(res, fallbackMessage) {
   return data;
 }
 
-export async function login(username, password) {
-  const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
-  });
-  const data = await parseJsonOrThrow(res, 'Login failed');
-  return data.user;
+export async function fetchMunicipalities() {
+  const res = await fetch(`${API_BASE_URL}/api/locations/municipalities`);
+  return parseJsonOrThrow(res, 'Failed to fetch municipality list');
 }
 
 export async function fetchWeatherForecast(latitude, longitude) {
@@ -69,11 +64,28 @@ export async function submitImageInference(imageBlob) {
   return parseJsonOrThrow(res, 'Failed to submit image for inference');
 }
 
-export async function submitReport(report) {
+export async function fetchReports(province) {
+  const params = province ? `?${new URLSearchParams({ province })}` : '';
+  const res = await fetch(`${API_BASE_URL}/api/reports${params}`);
+  return parseJsonOrThrow(res, 'Failed to fetch reports');
+}
+
+// multipart/form-data, not JSON — a report can optionally carry a photo
+// (`photoFile`, a File/Blob from a camera/gallery input), so the whole
+// submission goes through the same shape /api/inference/image already
+// uses for images. `fields` values are coerced to strings by FormData;
+// the backend parses them back with the right types (see
+// app/routers/reports.py:submit_report).
+export async function submitReport(fields, photoFile) {
+  const formData = new FormData();
+  Object.entries(fields).forEach(([key, value]) => {
+    if (value != null && value !== '') formData.append(key, value);
+  });
+  if (photoFile) formData.append('file', photoFile, photoFile.name || 'sighting.jpg');
+
   const res = await fetch(`${API_BASE_URL}/api/reports`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(report),
+    body: formData,
   });
   return parseJsonOrThrow(res, 'Failed to submit report');
 }

@@ -22,8 +22,10 @@ const TABS_WITH_NAV = ['/home', '/alerts', '/guide'];
 // gradient background and uses dark text (the StatusBar default).
 const DARK_STATUS_BAR_PATTERNS = [
   '/home',
-  '/guide/:id',
+  '/alerts',
   '/alerts/map',
+  '/guide',
+  '/guide/:id',
   '/scan/result',
   '/scan',
   '/scan/analyzing',
@@ -51,19 +53,21 @@ function AppShell() {
           <StatusBar dark={needsDarkStatusBar} />
         </div>
         <div className="app-screen">
-          <Routes>
-            <Route path="/" element={<Welcome />} />
-            <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
-            <Route path="/alerts" element={<RequireAuth><Alerts /></RequireAuth>} />
-            <Route path="/guide" element={<RequireAuth><Guide /></RequireAuth>} />
-            <Route path="/guide/:id" element={<RequireAuth><GuideDetail /></RequireAuth>} />
-            <Route path="/scan" element={<RequireAuth><ScanCapture /></RequireAuth>} />
-            <Route path="/scan/analyzing" element={<RequireAuth><ScanAnalyzing /></RequireAuth>} />
-            <Route path="/scan/gallery" element={<RequireAuth><ScanGallery /></RequireAuth>} />
-            <Route path="/scan/result" element={<RequireAuth><ScanResult /></RequireAuth>} />
-            <Route path="/report" element={<RequireAuth><ManualReport /></RequireAuth>} />
-            <Route path="/alerts/map" element={<RequireAuth><MapExpanded /></RequireAuth>} />
-          </Routes>
+          <div className="route-transition" key={location.pathname}>
+            <Routes>
+              <Route path="/" element={<Welcome />} />
+              <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
+              <Route path="/alerts" element={<RequireAuth><Alerts /></RequireAuth>} />
+              <Route path="/guide" element={<RequireAuth><Guide /></RequireAuth>} />
+              <Route path="/guide/:id" element={<RequireAuth><GuideDetail /></RequireAuth>} />
+              <Route path="/scan" element={<RequireAuth><ScanCapture /></RequireAuth>} />
+              <Route path="/scan/analyzing" element={<RequireAuth><ScanAnalyzing /></RequireAuth>} />
+              <Route path="/scan/gallery" element={<RequireAuth><ScanGallery /></RequireAuth>} />
+              <Route path="/scan/result" element={<RequireAuth><ScanResult /></RequireAuth>} />
+              <Route path="/report" element={<RequireAuth><ManualReport /></RequireAuth>} />
+              <Route path="/alerts/map" element={<RequireAuth><MapExpanded /></RequireAuth>} />
+            </Routes>
+          </div>
         </div>
         {location.pathname === '/alerts' && user && <AlertsFab />}
         {showNav && <BottomNav />}

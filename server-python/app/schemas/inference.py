@@ -48,6 +48,12 @@ class ForecastInferenceResponse(BaseModel):
     unit: Literal["hoppers_per_hill", "pct_damage"] | None = None
     risk_level: Literal["Low", "Medium", "High"] | None = None
     message: str
+    # True when risk_level was bumped one tier by verified farmer reports —
+    # see app/decision/report_signal.py. Only set on /forecast/live, which
+    # is the only forecast endpoint that knows the municipality to look
+    # reports up by.
+    adjusted_by_reports: bool = False
+    verified_report_count: int = 0
 
 
 class TrajectoryPoint(BaseModel):
@@ -58,6 +64,7 @@ class TrajectoryPoint(BaseModel):
     predicted_value: float
     unit: Literal["hoppers_per_hill", "pct_damage"]
     risk_level: Literal["Low", "Medium", "High"]
+    adjusted_by_reports: bool = False
 
 
 class TrajectoryResponse(BaseModel):

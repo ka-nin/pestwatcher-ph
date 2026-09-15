@@ -38,7 +38,7 @@ export default function Guide() {
 
   return (
     <div className="guide-screen">
-      <div className="guide-header">
+      <div className="guide-hero">
         <span className="guide-eyebrow">FARMER ENCYCLOPEDIA</span>
         <h1>Pest &amp; Disease Guide</h1>
         <p>Alamin ang tamang solusyon sa peste at sakit sa palay.</p>

@@ -68,21 +68,25 @@ a {
   text-decoration: none;
 }
 
-/* Desktop preview frame: centers a phone-sized viewport so the app
-   can be judged the way it will actually be used, on a phone screen. */
+/* Fills the real viewport — no phone-bezel decoration. (Previously a fixed
+   390x844px frame with a rounded black border simulated a phone on desktop;
+   removed so the app fills whatever window/webview it's actually rendered
+   in, which also avoids a "phone inside a phone" look when previewed inside
+   a tool that already adds its own device frame.) A max-width is kept so
+   content doesn't stretch edge-to-edge on a wide desktop window — this app
+   was designed as a single mobile-width column, not a responsive layout. */
 .device-frame-wrapper {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
-  align-items: center;
   justify-content: center;
-  padding: 24px 12px;
 }
 
 .device-frame {
-  width: 390px;
-  max-width: 100%;
-  height: 844px;
-  max-height: 92vh;
+  width: 100%;
+  max-width: 480px;
+  height: 100vh;
+  height: 100dvh;
   /* Ambient backdrop mixed from the app's own palette (--color-primary,
      --color-accent-yellow, --color-accent-orange, --color-bg) rather than
      one-off colors, so it reads as the same brand as every button/badge. */
@@ -93,35 +97,18 @@ a {
     radial-gradient(560px 460px at 95% 108%, rgba(63, 125, 58, 0.22), transparent 60%),
     linear-gradient(175deg, #f8f4e9 0%, #f4efe4 50%, #efe4cf 100%);
   background-attachment: fixed;
-  border-radius: 40px;
-  border: 10px solid #0d0d0b;
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
   overflow: hidden;
   position: relative;
   display: flex;
   flex-direction: column;
 }
 
-.app-screen {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.app-screen::-webkit-scrollbar {
-  display: none;
-}
-
 /* Rendered once in App.jsx, outside .app-screen, so it never scrolls away
    with page content on any screen. Its background matches whatever sits at
    the very top of the current route: transparent over the light gradient
-   pages (Home/Alerts/Guide/Welcome), or brand green over pages whose top
-   content is a solid-color hero/header (Scan flow, Guide/Scan detail,
-   expanded map). */
+   pages (Welcome), or brand green over pages whose top content is a
+   solid-color hero/header (Home/Alerts/Guide, Scan flow, detail/expanded
+   views). */
 .global-status-bar {
   flex-shrink: 0;
 }
@@ -145,3 +132,68 @@ a {
   align-items: center;
   gap: 5px;
 }
+
+.app-screen {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.app-screen::-webkit-scrollbar {
+  display: none;
+}
+
+/* Every route mounts into this wrapper, keyed by pathname (see App.jsx) —
+   forcing a remount on navigation so this fade+rise plays every time,
+   rather than only on first load. */
+.route-transition {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  animation: route-enter 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes route-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-transition {
+    animation: none;
+  }
+}
+
+/* Tap feedback on every interactive control, app-wide. */
+button,
+a {
+  transition: transform 0.15s ease;
+}
+
+button:active,
+a:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  a {
+    transition: none;
+  }
+  button:active,
+  a:active {
+    transform: none;
+  }
+}
+

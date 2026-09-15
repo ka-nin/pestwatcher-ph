@@ -5,6 +5,75 @@
   background: var(--color-bg);
 }
 
+.report-mode-row {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 20px 4px;
+}
+
+.report-mode-photo {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 15px;
+  border-radius: 999px;
+  border: none;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 14.5px;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(63, 125, 58, 0.35);
+}
+
+.report-mode-manual {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 4px;
+}
+
+.report-photo-preview {
+  position: relative;
+  flex-shrink: 0;
+  margin: 4px 20px 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  height: 160px;
+}
+
+.report-photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.report-photo-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .report-body {
   flex: 1;
   overflow-y: auto;
