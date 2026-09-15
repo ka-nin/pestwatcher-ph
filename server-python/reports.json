@@ -8,7 +8,7 @@
     "notes": "test from curl",
     "id": "dc1728164643431eb73f6e764a557745",
     "submitted_at": "2026-09-14T09:09:33.747961+00:00",
-    "municipality": "Science City of Munoz"
+    "municipality": "Science City of Muñoz"
   },
   {
     "username": "farmer_demo",
@@ -34,7 +34,7 @@
     "longitude": 120.9167,
     "id": "a43a0b32704d479dbb536b02507856e3",
     "submitted_at": "2026-09-15T03:36:57.551867+00:00",
-    "municipality": "Science City of MuÃ±oz"
+    "municipality": "Science City of Muñoz"
   },
   {
     "username": "Anonymous Farmer",

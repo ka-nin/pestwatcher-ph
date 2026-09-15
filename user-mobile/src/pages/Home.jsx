@@ -39,7 +39,7 @@ const RISK_LABEL_FIL = {
 };
 
 const RISK_MESSAGE_FIL = {
-  low: 'Mababa ang posibilidad ng pagtaas ng peste sa loob ng dalawang linggo. Ipagpatuloy ang normal na pagmamanman. Hindi kinakailangan ang agarang pag-ispray ng pestisidyo.',
+  low: 'Mababa ang posibilidad ng pagtaas ng peste sa loob ng dalawang linggo. Ipagpatuloy ang normal na pagmamanman. Hindi kinakailangan ang agarang pag-iispray ng pestisidyo.',
   medium: 'May pagtaas ng panganib na inaasahan sa loob ng dalawang linggo. Bantayan ang bukid at maghanda ng aksyon.',
   high: 'Mataas ang inaasahang panganib sa loob ng dalawang linggo. Inirerekomenda ang agarang interbensyon.',
 };

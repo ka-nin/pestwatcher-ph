@@ -28,6 +28,13 @@ class Settings(BaseSettings):
 
     upload_dir: str = "uploads"
 
+    # HS256 signing secret for admin/LGU auth tokens (app/security.py). The
+    # default below is fine for local dev only — .env.example generates a
+    # real random one via `openssl rand -base64 48` and every deployment
+    # should set its own so tokens can't be forged across environments.
+    jwt_secret: str = "dev-only-insecure-secret-change-me"
+    jwt_expire_minutes: int = 60 * 12
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.models.bilstm_model import bilstm_forecaster
-from app.routers import auth, inference, locations, reports, weather
+from app.routers import admin, auth, inference, locations, reports, weather
 from ml.config import PEST_PARAMS
 
 settings = get_settings()
@@ -48,6 +48,7 @@ def health_check() -> dict[str, str]:
 
 
 app.include_router(auth.router)
+app.include_router(admin.router)
 app.include_router(weather.router)
 app.include_router(inference.router)
 app.include_router(reports.router)
@@ -55,8 +56,10 @@ app.include_router(locations.router)
 
 # Serves farmer-uploaded report photos (app/routers/reports.py) so
 # admin-web can render them directly as <img src>. Photos aren't behind
-# auth — same posture as everything else in this API, which has no
-# token/session layer yet (see app/data/farmer_users.py).
+# auth — the mobile app's report submissions never carry a token (see
+# app/data/farmer_users.py), so gating the photo itself wouldn't add
+# real protection while admin-web's JWT layer (app/security.py) still
+# needs to read them.
 _uploads_dir = Path(settings.upload_dir)
 _uploads_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=_uploads_dir), name="uploads")

@@ -1,6 +1,7 @@
 export const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 export interface LguUser {
+  accountType: 'lgu'
   username: string
   roleLevel: string
   province: string
@@ -9,15 +10,29 @@ export interface LguUser {
   longitude: number
 }
 
+export interface SuperAdminUser {
+  accountType: 'superadmin'
+  username: string
+  fullName: string
+}
+
+export type AuthUser = LguUser | SuperAdminUser
+
+export interface Session {
+  user: AuthUser
+  accessToken: string
+}
+
 interface LoginSuccess {
-  user: LguUser
+  user: AuthUser
+  accessToken: string
 }
 
 interface LoginFailure {
   message: string
 }
 
-export async function login(username: string, password: string): Promise<LguUser> {
+export async function login(username: string, password: string): Promise<Session> {
   const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -30,7 +45,28 @@ export async function login(username: string, password: string): Promise<LguUser
     throw new Error((data as LoginFailure).message ?? 'Login failed')
   }
 
-  return (data as LoginSuccess).user
+  const success = data as LoginSuccess
+  if (success.user.accountType !== 'lgu' && success.user.accountType !== 'superadmin') {
+    throw new Error('This account type cannot access the admin dashboard')
+  }
+
+  return { user: success.user, accessToken: success.accessToken }
+}
+
+async function authFetch(token: string, path: string, init?: RequestInit): Promise<Response> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      ...init?.headers,
+      Authorization: `Bearer ${token}`,
+    },
+  })
+
+  if (res.status === 401 || res.status === 403) {
+    throw new Error(res.status === 401 ? 'Session expired — please log in again' : 'Not authorized')
+  }
+
+  return res
 }
 
 export interface WeatherForecast {
@@ -230,5 +266,108 @@ export async function fetchPestForecastExplanation(
     throw new Error('Failed to fetch pest forecast explanation')
   }
 
+  return res.json()
+}
+
+// --- SuperAdmin: LGU account management + cross-municipality overview ---
+
+export interface LguAccountAdmin {
+  username: string
+  roleLevel: string
+  province: string
+  municipality: string
+  latitude: number
+  longitude: number
+  isActive: boolean
+}
+
+export interface CreateLguUserPayload {
+  username: string
+  password: string
+  roleLevel?: string
+  province: string
+  municipality: string
+  latitude: number
+  longitude: number
+}
+
+export interface UpdateLguUserPayload {
+  password?: string
+  roleLevel?: string
+  province?: string
+  municipality?: string
+  latitude?: number
+  longitude?: number
+  isActive?: boolean
+}
+
+export async function fetchLguUsers(token: string): Promise<LguAccountAdmin[]> {
+  const res = await authFetch(token, '/api/admin/lgu-users')
+  if (!res.ok) throw new Error('Failed to fetch LGU accounts')
+  return res.json()
+}
+
+export async function createLguUser(token: string, payload: CreateLguUserPayload): Promise<LguAccountAdmin> {
+  const res = await authFetch(token, '/api/admin/lgu-users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => null)
+    throw new Error(data?.message ?? 'Failed to create LGU account')
+  }
+  return res.json()
+}
+
+export async function updateLguUser(
+  token: string,
+  username: string,
+  payload: UpdateLguUserPayload,
+): Promise<LguAccountAdmin> {
+  const res = await authFetch(token, `/api/admin/lgu-users/${encodeURIComponent(username)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => null)
+    throw new Error(data?.message ?? 'Failed to update LGU account')
+  }
+  return res.json()
+}
+
+export async function deleteLguUser(token: string, username: string): Promise<void> {
+  const res = await authFetch(token, `/api/admin/lgu-users/${encodeURIComponent(username)}`, {
+    method: 'DELETE',
+  })
+  if (!res.ok) throw new Error('Failed to delete LGU account')
+}
+
+export interface MunicipalityOverview {
+  province: string
+  municipality: string
+  bph: PestForecast
+  rsb: PestForecast
+}
+
+export interface OverviewResponse {
+  growthStageUsed: string
+  municipalities: MunicipalityOverview[]
+}
+
+export async function fetchAdminOverview(token: string): Promise<OverviewResponse> {
+  const res = await authFetch(token, '/api/admin/overview')
+  if (!res.ok) throw new Error('Failed to fetch municipality overview')
+  return res.json()
+}
+
+export interface EtlThresholdsResponse {
+  thresholds: Record<string, Record<string, { lowMax: number; highMin: number }>>
+}
+
+export async function fetchEtlThresholds(token: string): Promise<EtlThresholdsResponse> {
+  const res = await authFetch(token, '/api/admin/etl-thresholds')
+  if (!res.ok) throw new Error('Failed to fetch ETL thresholds')
   return res.json()
 }

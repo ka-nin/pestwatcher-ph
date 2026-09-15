@@ -134,25 +134,9 @@ def infer_forecast(payload: ForecastInferenceRequest) -> ForecastInferenceRespon
     return _run_forecast(payload.pest, window, payload.municipality)
 
 
-@router.get("/forecast/live", response_model=ForecastInferenceResponse)
-def infer_forecast_live(
-    municipality: str = Query(..., description="Must match a municipality in app/data/lgu_users.py"),
-    pest: str = Query(..., pattern="^(BPH|RSB)$"),
-    growth_stage: GrowthStage = Query(
-        ...,
-        description=(
-            "Current rice growth stage for this field. Applied to every day in "
-            "the fetched window — weather APIs have no concept of crop growth "
-            "stage, so this has to come from LGU/farmer-reported data, not "
-            "from the live fetch."
-        ),
-    ),
-) -> ForecastInferenceResponse:
-    """Live version of /forecast: fetches the actual past N days of weather
-    for `municipality` from Open-Meteo (N = ml.config.PEST_PARAMS[pest].crf_window_days,
-    currently 14) instead of requiring the caller to supply it, then runs
-    the same predict + ETL-bucket pipeline as /forecast.
-    """
+def _live_forecast(municipality: str, pest: str, growth_stage: GrowthStage) -> ForecastInferenceResponse:
+    """Shared by GET /forecast/live and the superadmin cross-municipality
+    overview (app/routers/admin.py) so both run the exact same pipeline."""
     coordinates = municipality_coordinates(municipality)
     if coordinates is None:
         raise HTTPException(
@@ -176,6 +160,28 @@ def infer_forecast_live(
     ]
 
     return _run_forecast(pest, window, municipality)
+
+
+@router.get("/forecast/live", response_model=ForecastInferenceResponse)
+def infer_forecast_live(
+    municipality: str = Query(..., description="Must match a municipality in app/data/lgu_users.py"),
+    pest: str = Query(..., pattern="^(BPH|RSB)$"),
+    growth_stage: GrowthStage = Query(
+        ...,
+        description=(
+            "Current rice growth stage for this field. Applied to every day in "
+            "the fetched window — weather APIs have no concept of crop growth "
+            "stage, so this has to come from LGU/farmer-reported data, not "
+            "from the live fetch."
+        ),
+    ),
+) -> ForecastInferenceResponse:
+    """Live version of /forecast: fetches the actual past N days of weather
+    for `municipality` from Open-Meteo (N = ml.config.PEST_PARAMS[pest].crf_window_days,
+    currently 14) instead of requiring the caller to supply it, then runs
+    the same predict + ETL-bucket pipeline as /forecast.
+    """
+    return _live_forecast(municipality, pest, growth_stage)
 
 
 @router.get("/forecast/trajectory", response_model=TrajectoryResponse)

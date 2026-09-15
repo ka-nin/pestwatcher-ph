@@ -103,6 +103,36 @@ a {
   flex-direction: column;
 }
 
+/* Rendered once in App.jsx, outside .app-screen, so it never scrolls away
+   with page content on any screen. Its background matches whatever sits at
+   the very top of the current route: transparent over the light gradient
+   pages (Welcome), or brand green over pages whose top content is a
+   solid-color hero/header (Home/Alerts/Guide, Scan flow, detail/expanded
+   views). */
+.global-status-bar {
+  flex-shrink: 0;
+}
+
+.global-status-bar.on-brand {
+  background: var(--color-primary);
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px 4px;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.status-bar-icons {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .app-screen {
   flex: 1;
   overflow-y: auto;
