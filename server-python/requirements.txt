@@ -21,6 +21,7 @@ h5py==3.14.0
 joblib==1.6.0
 shap==0.51.0  # ml/explainability/shap_report.py, imported unconditionally by app/routers/inference.py
 
-# Uncomment as you build out ml/resnet (image classifier)
-# pillow==11.0.0
+pillow==11.0.0  # ml/resnet image cropping/loading
+
+# Uncomment as you build out ml/resnet explainability
 # lime==0.2.0.1
