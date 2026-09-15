@@ -8,7 +8,10 @@
     "notes": "test from curl",
     "id": "dc1728164643431eb73f6e764a557745",
     "submitted_at": "2026-09-14T09:09:33.747961+00:00",
-    "municipality": "Science City of Muñoz"
+    "municipality": "Science City of Muñoz",
+    "status": "verified",
+    "verified_by": "munoz_tech_01",
+    "verified_at": "2026-09-15T06:26:38.329323+00:00"
   },
   {
     "username": "farmer_demo",

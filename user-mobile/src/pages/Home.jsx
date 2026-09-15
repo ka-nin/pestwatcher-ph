@@ -222,7 +222,7 @@ export default function Home() {
                 <span>RAINFALL</span>
                 <CloudRain size={16} color="#5b7fbf" />
               </div>
-              <strong>{weather ? weather.current.precipitation : '--'} mm</strong>
+              <strong>{weather ? weather.current.precipitation.toFixed(1) : '--'} mm</strong>
               <span className="weather-tile-caption">Now</span>
             </div>
             <div className="weather-tile">
