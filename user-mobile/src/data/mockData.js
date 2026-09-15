@@ -5,6 +5,8 @@
 export const currentLocation = {
   province: 'Nueva Ecija',
   region: 'Central Luzon',
+  latitude: 15.58,
+  longitude: 120.95,
 };
 
 export const dashboardSummary = {
@@ -29,33 +31,6 @@ export const dashboardSummary = {
     { day: 'Sun', level: 3 },
   ],
 };
-
-export const regionalAlerts = [
-  {
-    id: 'alert-1',
-    risk: 'high',
-    riskLabel: 'High Risk',
-    distance: '5km away',
-    date: 'May 15, 2024',
-    pestName: 'Brown Planthopper (Kayumangging Hanip)',
-    scientificName: 'Nilaparvata lugens',
-    location: 'CABANATUAN CITY',
-    description:
-      "Mabilis ang pagdami ng hanip sa mga karatig-bukid. Inirerekomenda ang pagpapatuloy ng pinit o 'alternate wetting and drying' upang mapigilan ang paglago ng mga peste.",
-  },
-  {
-    id: 'alert-2',
-    risk: 'medium',
-    riskLabel: 'Moderate Risk',
-    distance: '12km away',
-    date: 'May 14, 2024',
-    pestName: 'Rice Bug (Atangya / Aksip)',
-    scientificName: 'Leptocorisa oratorius',
-    location: 'SAN JOSE CITY',
-    description:
-      "Naitala ang pagtaas ng pinsala sa mga palayan sa 'milky stage'. Gumamit ng biological controls o traps.",
-  },
-];
 
 export const pestGuide = [
   {
@@ -385,16 +360,30 @@ export const scanDetectionByRisk = {
 
 export const scanDetection = scanDetectionByRisk.medium;
 
+// Limited to what the BiLSTM forecast model actually covers (BPH, RSB —
+// see server-python/ml/config.py PEST_PARAMS). Anything else a farmer
+// spots still gets logged, just bucketed as "Others" — it won't match a
+// pest code in app/decision/report_signal.py, so it can be reviewed by an
+// LGU tech but never nudges a forecast.
 export const pestTypeOptions = [
   'Brown Planthopper (Kayumangging Hanip)',
   'Rice Stem Borer (Aksip o Atip)',
-  'Rice Leaf Folder (Uod na Tagatupi ng Dahon)',
-  'Rice Bug (Atangya)',
-  'Iba pa / Hindi sigurado',
+  'Others / Hindi Sigurado',
 ];
 
 export const severityOptions = [
   { id: 'low', label: 'Mababa', color: 'var(--color-primary)' },
   { id: 'medium', label: 'Katamtaman', color: 'var(--color-accent-orange)' },
   { id: 'high', label: 'Mataas', color: 'var(--color-accent-red)' },
+];
+
+// Must match server-python/ml/config.py GROWTH_STAGE_BUCKETS exactly —
+// these are the only six values the BiLSTM/ETL pipeline understands.
+export const growthStageOptions = [
+  'Seedling',
+  'Tillering',
+  'Elongation',
+  'Panicle',
+  'Flowering',
+  'Ripening',
 ];

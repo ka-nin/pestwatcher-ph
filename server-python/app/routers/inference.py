@@ -7,6 +7,7 @@ from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from app.config import get_settings
 from app.data.lgu_users import municipality_coordinates
 from app.decision.etl_thresholds import derive_risk_level
+from app.decision.report_signal import apply_adjustment
 from app.models.resnet_model import resnet_classifier
 from app.routers.weather import fetch_recent_daily_weather
 from app.schemas.inference import (
@@ -65,9 +66,11 @@ async def infer_image(file: UploadFile = File(...)) -> ImageInferenceResponse:
     )
 
 
-def _run_forecast(pest: str, window: list[DailyObservation]) -> ForecastInferenceResponse:
-    """Shared by both endpoints below: predict, then apply the (separate,
-    non-learned) ETL bucketing — see app/decision/etl_thresholds.py.
+def _run_forecast(pest: str, window: list[DailyObservation], municipality: str) -> ForecastInferenceResponse:
+    """Shared by both endpoints below: predict, apply the (separate,
+    non-learned) ETL bucketing — see app/decision/etl_thresholds.py — then
+    let LGU-verified reports for this municipality bump that level one tier
+    if there's enough recent corroborated ground truth (app/decision/report_signal.py).
     """
     result = bilstm_forecaster.predict(pest, window)
 
@@ -79,13 +82,16 @@ def _run_forecast(pest: str, window: list[DailyObservation]) -> ForecastInferenc
 
     growth_stage_bucket = GROWTH_STAGE_BUCKETS[window[-1].growth_stage]
     risk_level = derive_risk_level(pest, growth_stage_bucket, result.predicted_value)
+    adjusted_level, signal = apply_adjustment(risk_level, municipality, pest)
 
     return ForecastInferenceResponse(
         status="ok",
         predicted_value=result.predicted_value,
         unit=result.unit,
-        risk_level=risk_level,
+        risk_level=adjusted_level,
         message="Forecast successful",
+        adjusted_by_reports=adjusted_level != risk_level,
+        verified_report_count=signal.verified_report_count,
     )
 
 
@@ -125,7 +131,7 @@ def infer_forecast(payload: ForecastInferenceRequest) -> ForecastInferenceRespon
         for obs in payload.daily_observations
     ]
 
-    return _run_forecast(payload.pest, window)
+    return _run_forecast(payload.pest, window, payload.municipality)
 
 
 @router.get("/forecast/live", response_model=ForecastInferenceResponse)
@@ -169,7 +175,7 @@ def infer_forecast_live(
         for day in daily_weather
     ]
 
-    return _run_forecast(pest, window)
+    return _run_forecast(pest, window, municipality)
 
 
 @router.get("/forecast/trajectory", response_model=TrajectoryResponse)
@@ -242,12 +248,14 @@ def infer_forecast_trajectory(
 
         growth_stage_bucket = GROWTH_STAGE_BUCKETS[growth_stage]
         risk_level = derive_risk_level(pest, growth_stage_bucket, result.predicted_value)
+        adjusted_level, report_signal = apply_adjustment(risk_level, municipality, pest)
         points.append(
             TrajectoryPoint(
                 date=target_date.isoformat(),
                 predicted_value=result.predicted_value,
                 unit=result.unit,
-                risk_level=risk_level,
+                risk_level=adjusted_level,
+                adjusted_by_reports=adjusted_level != risk_level,
             )
         )
 

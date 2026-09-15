@@ -2,10 +2,12 @@ import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import WeatherMap from '../components/WeatherMap';
 import { currentLocation } from '../data/mockData';
+import { useReports } from '../hooks/useReports';
 import './MapExpanded.css';
 
 export default function MapExpanded() {
   const navigate = useNavigate();
+  const { reports } = useReports();
 
   return (
     <div className="map-expanded-screen">
@@ -22,7 +24,7 @@ export default function MapExpanded() {
       </div>
 
       <div className="map-expanded-body">
-        <WeatherMap fill />
+        <WeatherMap fill alerts={reports} />
       </div>
     </div>
   );

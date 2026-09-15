@@ -1,10 +1,13 @@
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.models.bilstm_model import bilstm_forecaster
-from app.routers import auth, inference, reports, weather
+from app.routers import auth, inference, locations, reports, weather
 from ml.config import PEST_PARAMS
 
 settings = get_settings()
@@ -48,3 +51,12 @@ app.include_router(auth.router)
 app.include_router(weather.router)
 app.include_router(inference.router)
 app.include_router(reports.router)
+app.include_router(locations.router)
+
+# Serves farmer-uploaded report photos (app/routers/reports.py) so
+# admin-web can render them directly as <img src>. Photos aren't behind
+# auth — same posture as everything else in this API, which has no
+# token/session layer yet (see app/data/farmer_users.py).
+_uploads_dir = Path(settings.upload_dir)
+_uploads_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=_uploads_dir), name="uploads")

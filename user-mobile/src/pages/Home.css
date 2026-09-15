@@ -4,15 +4,21 @@
   height: 100%;
 }
 
-.home-topbar {
+/* Green hero header — full-bleed, rounded bottom corners */
+.home-hero {
   flex-shrink: 0;
+  background: linear-gradient(160deg, #4a8a45 0%, var(--color-primary) 55%, var(--color-primary-dark) 100%);
+  border-radius: 0 0 28px 28px;
+  padding: 18px 20px 22px;
+  box-shadow: 0 10px 24px -10px rgba(20, 40, 15, 0.4);
+}
+
+.home-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
   font-size: 10.5px;
   font-weight: 700;
-  color: var(--color-text-muted);
   letter-spacing: 0.3px;
 }
 
@@ -20,7 +26,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  color: var(--color-primary-dark);
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .home-brand-logo {
@@ -35,81 +41,48 @@
   gap: 8px;
 }
 
+.home-datetime {
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 600;
+}
+
 .home-logout {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   border: none;
-  background: var(--color-surface);
-  color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow-card);
 }
 
 .home-location {
-  flex-shrink: 0;
-  padding: 4px 20px 14px;
+  padding-top: 14px;
 }
 
 .home-location h1 {
   margin: 0;
-  font-size: 26px;
+  font-size: 27px;
   font-weight: 800;
-  color: var(--color-text);
+  color: #fff;
   letter-spacing: -0.3px;
+  text-transform: uppercase;
 }
 
 .home-location p {
-  margin: 1px 0 0;
+  margin: 2px 0 0;
   font-size: 12.5px;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .home-body {
   flex: 1;
-  padding: 0 16px 116px;
+  padding: 16px 16px 116px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-.growth-stage-select {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.growth-stage-select > span {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-text-muted);
-}
-
-.growth-stage-select-control {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.growth-stage-select-control select {
-  width: 100%;
-  appearance: none;
-  padding: 11px 34px 11px 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.growth-stage-select-control svg {
-  position: absolute;
-  right: 12px;
-  pointer-events: none;
-  color: var(--color-text-muted);
+  gap: 14px;
 }
 
 .home-error {
@@ -122,41 +95,31 @@
   font-weight: 600;
 }
 
-/* Hero risk card — white body with a soft tinted wash at the top, framed by
-   a shaded border matched to the current risk color, plus an outer glow. */
+/* Risk summary card — plain white card with an outlined status icon,
+   a pill badge, headline, message, then a divided tip section. */
 .hero-risk-card {
-  position: relative;
-  border-radius: 22px;
-  border: 2px solid var(--color-primary);
-  box-shadow:
-    var(--shadow-card),
-    0 0 0 6px var(--risk-glow, transparent);
-  padding: 18px 20px 20px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 18px 18px 16px;
 }
 
 .hero-risk-top {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .hero-risk-icon {
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
+  border: 2px solid currentColor;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 14px -4px rgba(20, 50, 15, 0.4);
-}
-
-.hero-risk-top-text {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
 }
 
 .hero-risk-chip {
@@ -164,15 +127,10 @@
   width: fit-content;
   font-size: 11px;
   font-weight: 700;
-  padding: 4px 11px;
+  padding: 5px 12px;
   border-radius: 999px;
   letter-spacing: 0.3px;
-}
-
-.hero-risk-window {
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--color-text-muted);
+  text-transform: uppercase;
 }
 
 .hero-risk-card h2 {
@@ -190,71 +148,96 @@
   color: var(--color-text-muted);
 }
 
-/* Tip strip — a slim, distinct callout instead of a boxed card */
-.tip-strip {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 2px 4px;
+.hero-risk-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 14px 0 12px;
 }
 
-.tip-strip p {
+.hero-risk-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.hero-risk-tip p {
   margin: 0;
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.5;
   color: var(--color-text-muted);
 }
 
-.tip-strip strong {
+.hero-risk-tip strong {
   color: var(--color-text);
   font-weight: 700;
 }
 
-/* Weather strip — compact horizontal row, not three separate boxes */
-.weather-strip {
+/* Weather — three individual stat tiles */
+.weather-tiles-block {
   display: flex;
-  align-items: center;
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
-  padding: 12px 6px;
-}
-
-.weather-strip-item {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
   gap: 8px;
 }
 
-.weather-strip-item div {
+.weather-tiles-live {
   display: flex;
-  flex-direction: column;
-  line-height: 1.15;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  letter-spacing: 0.2px;
+  padding-left: 2px;
 }
 
-.weather-strip-item strong {
-  font-size: 15px;
+.weather-tiles-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(63, 125, 58, 0.18);
+}
+
+.weather-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.weather-tile {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 12px 12px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.weather-tile-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.weather-tile-top span {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--color-text-muted);
+}
+
+.weather-tile strong {
+  font-size: 17px;
+  font-weight: 800;
   color: var(--color-text);
 }
 
-.weather-strip-item strong small {
-  font-size: 10px;
-  font-weight: 500;
-  margin-left: 1px;
-}
-
-.weather-strip-item span {
-  font-size: 9.5px;
+.weather-tile-caption {
+  font-size: 10.5px;
   color: var(--color-text-muted);
   font-weight: 600;
-}
-
-.weather-strip-divider {
-  width: 1px;
-  height: 30px;
-  background: var(--color-border);
 }
 
 .trend-card {
@@ -268,7 +251,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
 }
 
 .trend-header h3 {
@@ -276,21 +261,9 @@
   font-size: 13.5px;
 }
 
-.trend-more {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  background: none;
-  border: none;
-  color: var(--color-primary-dark);
-  font-size: 11px;
-  font-weight: 700;
-}
-
 .trend-legend {
   display: flex;
-  gap: 12px;
-  margin-bottom: 4px;
+  gap: 10px;
 }
 
 .trend-legend span {
@@ -308,3 +281,105 @@
   display: inline-block;
 }
 
+/* Nearby high-risk zones — flat warning strip, tappable */
+.nearby-zones-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: rgba(217, 123, 41, 0.12);
+  border: 1px solid rgba(217, 123, 41, 0.25);
+  border-radius: var(--radius-md);
+  padding: 13px 14px;
+}
+
+.nearby-zones-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nearby-zones-text strong {
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.nearby-zones-text small {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* AI Pest Scan — flat white strip, tappable */
+.scan-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 13px 14px;
+}
+
+.scan-strip-icon {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scan-strip-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scan-strip-text strong {
+  font-size: 13.5px;
+  color: var(--color-text);
+}
+
+.scan-strip-text small {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+/* Report sighting — full-width solid CTA */
+.report-manual-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-manual-cta {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 14.5px;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(63, 125, 58, 0.35);
+}
+
+.report-manual-block p {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}

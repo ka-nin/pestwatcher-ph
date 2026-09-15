@@ -153,6 +153,65 @@ export interface ExplanationResponse {
   message: string
 }
 
+export type ReportStatus = 'pending' | 'verified' | 'rejected'
+
+export interface ReportRecord {
+  id: string
+  username: string
+  pest_type: string
+  severity: string
+  province: string
+  municipality: string
+  crop_growth_stage: string
+  area_affected: number | null
+  date_spotted: string
+  notes: string
+  latitude: number | null
+  longitude: number | null
+  submitted_at: string
+  status: ReportStatus
+  verified_by: string | null
+  verified_at: string | null
+  photo_path: string | null
+  photo_url: string | null
+  ai_pest_detected: string | null
+  ai_confidence: number | null
+}
+
+// Scoped by municipality, not province — an LGU technician's account is
+// tied to one municipality (see server-python/app/data/lgu_users.py) and
+// should only ever see that municipality's own sightings, not the whole
+// province's (that broader view is what the mobile app's "regional
+// alerts" feed uses `province` for instead).
+export async function fetchReports(municipality?: string): Promise<ReportRecord[]> {
+  const params = municipality ? `?${new URLSearchParams({ municipality })}` : ''
+  const res = await fetch(`${API_BASE_URL}/api/reports${params}`)
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch reports')
+  }
+
+  return res.json()
+}
+
+export async function updateReportStatus(
+  id: string,
+  status: Extract<ReportStatus, 'verified' | 'rejected'>,
+  verifiedBy: string,
+): Promise<ReportRecord> {
+  const res = await fetch(`${API_BASE_URL}/api/reports/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status, verified_by: verifiedBy }),
+  })
+
+  if (!res.ok) {
+    throw new Error('Failed to update report')
+  }
+
+  return res.json()
+}
+
 export async function fetchPestForecastExplanation(
   municipality: string,
   pest: PestKey,

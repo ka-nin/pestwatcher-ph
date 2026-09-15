@@ -213,6 +213,11 @@
   color: #777;
 }
 
+.badge-yellow {
+  background: #fbf0d9;
+  color: #8a6d1f;
+}
+
 /* Shared panel */
 .panel,
 .stat-card {
