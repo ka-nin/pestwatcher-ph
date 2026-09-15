@@ -1,0 +1,69 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789443004.040789   26900 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1789443005.159384   26900 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+Found 5201 files belonging to 2 classes.
+I0000 00:00:1789443006.161429   26900 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: SSE3 SSE4.1 SSE4.2 AVX AVX2 AVX_VNNI AVX_VNNI_INT8 AVX_NE_CONVERT FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+Found 1101 files belonging to 2 classes.
+Found 1104 files belonging to 2 classes.
+BPH: class weights = {0: 0.699623352165725, 1: 1.7523584905660377}
+WARNING:tensorflow:TensorFlow GPU support is not available on native Windows for TensorFlow >= 2.11. Even if CUDA/cuDNN are installed, GPU will not be used. Please use WSL2 or the TensorFlow-DirectML plugin.
+Model: "functional_1"
++--------------------------------------------------------------------------+
+| Layer (type)                    | Output Shape           |       Param # |
+|---------------------------------+------------------------+---------------|
+| input_layer_2 (InputLayer)      | (None, 224, 224, 3)    |             0 |
+|---------------------------------+------------------------+---------------|
+| resnet50 (Functional)           | (None, 2048)           |    23,587,712 |
+|---------------------------------+------------------------+---------------|
+| dropout (Dropout)               | (None, 2048)           |             0 |
+|---------------------------------+------------------------+---------------|
+| dense (Dense)                   | (None, 64)             |       131,136 |
+|---------------------------------+------------------------+---------------|
+| dropout_1 (Dropout)             | (None, 64)             |             0 |
+|---------------------------------+------------------------+---------------|
+| prediction (Dense)              | (None, 1)              |            65 |
++--------------------------------------------------------------------------+
+ Total params: 23,718,913 (90.48 MB)
+ Trainable params: 131,201 (512.50 KB)
+ Non-trainable params: 23,587,712 (89.98 MB)
+
+--- Phase 1: training head only (15 epochs max) ---
+C:\Users\Christian Roi Detera\Desktop\ricepest\pestwatcher-ph\server-python\.venv\Lib\site-packages\keras\src\trainers\epoch_iterator.py:74: UserWarning: `shuffle=True` was passed, but will be ignored since the data `x` was provided as a tf.data.Dataset. The Dataset is expected to already be shuffled (via `.shuffle(buffer_size)`).
+  self.data_adapter = data_adapters.get_data_adapter(
+Epoch 1/15
+163/163 - 143s - 876ms/step - accuracy: 0.8198 - loss: 0.4016 - precision: 0.6409 - recall: 0.8383 - val_accuracy: 0.9364 - val_loss: 0.1938 - val_precision: 0.8220 - val_recall: 0.9442
+Epoch 2/15
+163/163 - 162s - 995ms/step - accuracy: 0.8956 - loss: 0.2510 - precision: 0.7687 - recall: 0.9070 - val_accuracy: 0.8974 - val_loss: 0.2527 - val_precision: 0.7074 - val_recall: 0.9888
+Epoch 3/15
+163/163 - 173s - 1s/step - accuracy: 0.9083 - loss: 0.2250 - precision: 0.7899 - recall: 0.9245 - val_accuracy: 0.9555 - val_loss: 0.1312 - val_precision: 0.9297 - val_recall: 0.8848
+Epoch 4/15
+163/163 - 172s - 1s/step - accuracy: 0.9271 - loss: 0.1935 - precision: 0.8279 - recall: 0.9400 - val_accuracy: 0.9546 - val_loss: 0.1291 - val_precision: 0.8567 - val_recall: 0.9777
+Epoch 5/15
+163/163 - 199s - 1s/step - accuracy: 0.9369 - loss: 0.1749 - precision: 0.8533 - recall: 0.9407 - val_accuracy: 0.9655 - val_loss: 0.1112 - val_precision: 0.9200 - val_recall: 0.9405
+Epoch 6/15
+163/163 - 151s - 924ms/step - accuracy: 0.9337 - loss: 0.1818 - precision: 0.8479 - recall: 0.9353 - val_accuracy: 0.9691 - val_loss: 0.1077 - val_precision: 0.9211 - val_recall: 0.9554
+Epoch 7/15
+163/163 - 150s - 917ms/step - accuracy: 0.9371 - loss: 0.1703 - precision: 0.8504 - recall: 0.9461 - val_accuracy: 0.9718 - val_loss: 0.1027 - val_precision: 0.9474 - val_recall: 0.9368
+Epoch 8/15
+163/163 - 148s - 909ms/step - accuracy: 0.9458 - loss: 0.1482 - precision: 0.8733 - recall: 0.9474 - val_accuracy: 0.9664 - val_loss: 0.1064 - val_precision: 0.9296 - val_recall: 0.9331
+Epoch 9/15
+163/163 - 158s - 970ms/step - accuracy: 0.9521 - loss: 0.1407 - precision: 0.8847 - recall: 0.9569 - val_accuracy: 0.9691 - val_loss: 0.1015 - val_precision: 0.9401 - val_recall: 0.9331
+Epoch 10/15
+163/163 - 158s - 967ms/step - accuracy: 0.9548 - loss: 0.1457 - precision: 0.8876 - recall: 0.9636 - val_accuracy: 0.9746 - val_loss: 0.0879 - val_precision: 0.9480 - val_recall: 0.9480
+Epoch 11/15
+163/163 - 158s - 971ms/step - accuracy: 0.9531 - loss: 0.1371 - precision: 0.8861 - recall: 0.9589 - val_accuracy: 0.9764 - val_loss: 0.0861 - val_precision: 0.9483 - val_recall: 0.9554
+Epoch 12/15
+163/163 - 163s - 998ms/step - accuracy: 0.9575 - loss: 0.1349 - precision: 0.8964 - recall: 0.9623 - val_accuracy: 0.9746 - val_loss: 0.0966 - val_precision: 0.9446 - val_recall: 0.9517
+Epoch 13/15
+163/163 - 177s - 1s/step - accuracy: 0.9610 - loss: 0.1248 - precision: 0.9062 - recall: 0.9629 - val_accuracy: 0.9746 - val_loss: 0.0865 - val_precision: 0.9582 - val_recall: 0.9368
+Epoch 14/15
+163/163 - 162s - 995ms/step - accuracy: 0.9569 - loss: 0.1346 - precision: 0.8952 - recall: 0.9616 - val_accuracy: 0.9737 - val_loss: 0.0881 - val_precision: 0.9511 - val_recall: 0.9405
+Epoch 15/15
+163/163 - 190s - 1s/step - accuracy: 0.9610 - loss: 0.1287 - precision: 0.9062 - recall: 0.9629 - val_accuracy: 0.9682 - val_loss: 0.1157 - val_precision: 0.9007 - val_recall: 0.9777
+
+--- Phase 2: fine-tuning from layer 143 (20 epochs max) ---
+Epoch 1/20
+163/163 - 217s - 1s/step - accuracy: 0.9473 - loss: 0.1910 - precision: 0.9044 - recall: 0.9117 - val_accuracy: 0.9709 - val_loss: 0.1065 - val_precision: 0.9100 - val_recall: 0.9777
+Epoch 2/20

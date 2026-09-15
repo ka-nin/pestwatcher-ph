@@ -5,3 +5,15 @@ __pycache__/
 uploads/*
 !uploads/.gitkeep
 .env
+
+# ResNet-50 pest classifier: raw image datasets, generated crops, and the
+# trained model itself are all too large/numerous for git (the model alone
+# exceeds GitHub's 100MB per-file limit). Code, logs, and metrics JSON stay
+# tracked so the exact model can be reproduced by rerunning the pipeline
+# against a local copy of the dataset — see ml/resnet/README (if present) or
+# ml/resnet/prepare_dataset.py + train.py docstrings for the run commands.
+ml/resnet/bph/
+ml/resnet/sb/
+ml/resnet/negative/
+ml/resnet/datasets/
+ml/weights/*/resnet50_*.keras
