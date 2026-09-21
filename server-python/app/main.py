@@ -6,6 +6,11 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
+from app.data.farmer_users import seed_if_empty as seed_farmer_users
+from app.data.lgu_users import seed_if_empty as seed_lgu_users
+from app.data.reports_store import migrate_from_json_if_empty
+from app.data.superadmins import seed_if_empty as seed_superadmins
+from app.db import init_db
 from app.models.bilstm_model import bilstm_forecaster
 from app.routers import admin, auth, inference, locations, reports, weather
 from ml.config import PEST_PARAMS
@@ -13,6 +18,19 @@ from ml.config import PEST_PARAMS
 settings = get_settings()
 
 app = FastAPI(title="Rice Pest Forecasting API", version="0.1.0")
+
+
+@app.on_event("startup")
+def init_database() -> None:
+    """Creates tables if missing, then seeds them from what used to be
+    hardcoded here (LGU/farmer/superadmin accounts) or in reports.json —
+    a no-op once the database already has data. See app/db.py and
+    app/data/*.py."""
+    init_db()
+    seed_lgu_users()
+    seed_farmer_users()
+    seed_superadmins()
+    migrate_from_json_if_empty(Path(settings.upload_dir).parent / "reports.json")
 
 
 @app.on_event("startup")

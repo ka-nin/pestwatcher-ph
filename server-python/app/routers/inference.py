@@ -82,7 +82,7 @@ def _run_forecast(pest: str, window: list[DailyObservation], municipality: str) 
 
     growth_stage_bucket = GROWTH_STAGE_BUCKETS[window[-1].growth_stage]
     risk_level = derive_risk_level(pest, growth_stage_bucket, result.predicted_value)
-    adjusted_level, signal = apply_adjustment(risk_level, municipality, pest)
+    adjusted_level, signal = apply_adjustment(risk_level, municipality, pest, growth_stage_bucket)
 
     return ForecastInferenceResponse(
         status="ok",
@@ -254,7 +254,7 @@ def infer_forecast_trajectory(
 
         growth_stage_bucket = GROWTH_STAGE_BUCKETS[growth_stage]
         risk_level = derive_risk_level(pest, growth_stage_bucket, result.predicted_value)
-        adjusted_level, report_signal = apply_adjustment(risk_level, municipality, pest)
+        adjusted_level, report_signal = apply_adjustment(risk_level, municipality, pest, growth_stage_bucket)
         points.append(
             TrajectoryPoint(
                 date=target_date.isoformat(),

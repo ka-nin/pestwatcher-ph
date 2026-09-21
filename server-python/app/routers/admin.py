@@ -9,7 +9,9 @@ same as before this router was added.
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.data.lgu_users import add_lgu_user, delete_lgu_user, find_lgu_user, lgu_users
+from app.data.lgu_users import add_lgu_user, delete_lgu_user, find_lgu_user
+from app.data.lgu_users import list_lgu_users as fetch_lgu_users
+from app.data.lgu_users import update_lgu_user as persist_lgu_user_update
 from app.decision.etl_thresholds import PEST_THRESHOLDS
 from app.dependencies import require_superadmin
 from app.routers.inference import _live_forecast
@@ -39,7 +41,7 @@ def _to_admin_response(user: LguUser) -> LguAccountAdminResponse:
 
 @router.get("/lgu-users", response_model=list[LguAccountAdminResponse])
 def list_lgu_users() -> list[LguAccountAdminResponse]:
-    return [_to_admin_response(u) for u in lgu_users]
+    return [_to_admin_response(u) for u in fetch_lgu_users()]
 
 
 @router.post("/lgu-users", response_model=LguAccountAdminResponse, status_code=201)
@@ -62,26 +64,19 @@ def create_lgu_user(payload: CreateLguUserRequest) -> LguAccountAdminResponse:
 
 @router.patch("/lgu-users/{username}", response_model=LguAccountAdminResponse)
 def update_lgu_user(username: str, payload: UpdateLguUserRequest) -> LguAccountAdminResponse:
-    user = find_lgu_user(username)
-    if user is None:
+    updated = persist_lgu_user_update(
+        username,
+        password_hash=hash_password(payload.password) if payload.password is not None else None,
+        role_level=payload.role_level,
+        province=payload.province,
+        municipality=payload.municipality,
+        latitude=payload.latitude,
+        longitude=payload.longitude,
+        is_active=payload.is_active,
+    )
+    if updated is None:
         raise HTTPException(status_code=404, detail=f"No LGU user '{username}'")
-
-    if payload.password is not None:
-        user.password_hash = hash_password(payload.password)
-    if payload.role_level is not None:
-        user.role_level = payload.role_level
-    if payload.province is not None:
-        user.province = payload.province
-    if payload.municipality is not None:
-        user.municipality = payload.municipality
-    if payload.latitude is not None:
-        user.latitude = payload.latitude
-    if payload.longitude is not None:
-        user.longitude = payload.longitude
-    if payload.is_active is not None:
-        user.is_active = payload.is_active
-
-    return _to_admin_response(user)
+    return _to_admin_response(updated)
 
 
 @router.delete("/lgu-users/{username}", status_code=204)
@@ -101,7 +96,7 @@ def get_overview() -> OverviewResponse:
     seen: set[str] = set()
     rows: list[MunicipalityOverview] = []
 
-    for user in lgu_users:
+    for user in fetch_lgu_users():
         if user.municipality in seen:
             continue
         seen.add(user.municipality)

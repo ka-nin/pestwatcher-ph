@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException
 
-from app.data.farmer_users import farmer_users
-from app.data.lgu_users import lgu_users
-from app.data.superadmins import superadmins
+from app.data.farmer_users import find_farmer_user
+from app.data.lgu_users import find_lgu_user
+from app.data.superadmins import find_superadmin
 from app.schemas.auth import (
     FarmerAccountResponse,
     LguAccountResponse,
@@ -17,10 +17,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post("/login", response_model=LoginResponse)
 def login(payload: LoginRequest) -> LoginResponse:
-    superadmin_match = next(
-        (u for u in superadmins if u.username == payload.username),
-        None,
-    )
+    superadmin_match = find_superadmin(payload.username)
     if superadmin_match and verify_password(payload.password, superadmin_match.password_hash):
         token = create_access_token(superadmin_match.username, "SuperAdmin")
         return LoginResponse(
@@ -28,7 +25,7 @@ def login(payload: LoginRequest) -> LoginResponse:
             accessToken=token,
         )
 
-    lgu_match = next((u for u in lgu_users if u.username == payload.username), None)
+    lgu_match = find_lgu_user(payload.username)
     if lgu_match and verify_password(payload.password, lgu_match.password_hash):
         if not lgu_match.is_active:
             raise HTTPException(status_code=403, detail="This account has been deactivated")
@@ -45,7 +42,7 @@ def login(payload: LoginRequest) -> LoginResponse:
             accessToken=token,
         )
 
-    farmer_match = next((u for u in farmer_users if u.username == payload.username), None)
+    farmer_match = find_farmer_user(payload.username)
     if farmer_match and verify_password(payload.password, farmer_match.password_hash):
         token = create_access_token(farmer_match.username, "Farmer")
         return LoginResponse(

@@ -50,6 +50,7 @@ function ReportsPage({ user }: ReportsPageProps) {
   const [error, setError] = useState('')
   const [filter, setFilter] = useState<ReportStatus | 'all'>('pending')
   const [actioningId, setActioningId] = useState<string | null>(null)
+  const [draftValues, setDraftValues] = useState<Record<string, string>>({})
 
   // Tenant-scoped: an LGU tech only ever sees their own municipality's
   // sightings, not the whole province's — see fetchReports' doc comment.
@@ -79,7 +80,9 @@ function ReportsPage({ user }: ReportsPageProps) {
   const handleReview = async (id: string, status: Extract<ReportStatus, 'verified' | 'rejected'>) => {
     setActioningId(id)
     try {
-      const updated = await updateReportStatus(id, status, user.username)
+      const draft = draftValues[id]
+      const verifiedValue = status === 'verified' && draft !== undefined && draft !== '' ? Number(draft) : undefined
+      const updated = await updateReportStatus(id, status, user.username, verifiedValue)
       setReports((prev) => prev.map((r) => (r.id === id ? updated : r)))
     } catch {
       setError('Unable to update this report — try again')
@@ -185,6 +188,16 @@ function ReportsPage({ user }: ReportsPageProps) {
                       <strong>Area Affected:</strong> {report.area_affected} ha
                     </span>
                   )}
+                  {report.estimated_value != null && (
+                    <span>
+                      <strong>Farmer Estimate:</strong> {report.estimated_value}
+                    </span>
+                  )}
+                  {report.status === 'verified' && report.verified_value != null && (
+                    <span>
+                      <strong>Confirmed Value:</strong> {report.verified_value}
+                    </span>
+                  )}
                 </div>
 
                 {report.notes && <p className="report-card-notes">{report.notes}</p>}
@@ -200,7 +213,17 @@ function ReportsPage({ user }: ReportsPageProps) {
                 </div>
 
                 {report.status === 'pending' && (
-                  <div className="report-card-actions">
+                  <>
+                    <label className="report-value-input">
+                      Confirm count/damage value
+                      <input
+                        type="number"
+                        placeholder={report.estimated_value != null ? String(report.estimated_value) : 'e.g. 12'}
+                        value={draftValues[report.id] ?? (report.estimated_value != null ? String(report.estimated_value) : '')}
+                        onChange={(e) => setDraftValues((prev) => ({ ...prev, [report.id]: e.target.value }))}
+                      />
+                    </label>
+                    <div className="report-card-actions">
                     <button
                       type="button"
                       className="report-action-btn report-action-verify"
@@ -217,7 +240,8 @@ function ReportsPage({ user }: ReportsPageProps) {
                     >
                       Reject
                     </button>
-                  </div>
+                    </div>
+                  </>
                 )}
               </div>
             </article>

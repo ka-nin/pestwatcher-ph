@@ -27,6 +27,7 @@ endpoints.
 | Node.js | 24.x | `node -v`. Anything 20+ should work; 24 is what this was built on. |
 | npm | 11.x | Ships with Node 24. The repo uses **npm workspaces** — don't use yarn or pnpm. |
 | Python | 3.11+ | `python --version`. Needed for `server-python`. |
+| Docker | any recent | Runs the PostgreSQL database `server-python` connects to — see step 3.5 below. |
 | Git | any | |
 
 `user-mobile` is a browser-based (Vite) app, not a native build — no Expo/Android
@@ -90,6 +91,21 @@ cd ..
 
 See [`server-python/README.md`](server-python/README.md) for what's in `.env`
 and the full folder breakdown (routers, ML model stubs, feature engineering).
+
+### 3.5. Start the database
+
+`server-python` stores LGU/farmer/SuperAdmin accounts and farmer-submitted
+reports in PostgreSQL — start it with Docker Compose from the repo root:
+
+```bash
+docker compose up -d
+```
+
+`server-python/.env.example`'s `DATABASE_URL` already points at this
+container's default credentials, so no further config is needed for local
+dev. The backend creates its tables and seeds the same demo accounts
+documented in `credentials.txt` automatically on first startup — see
+[`server-python/README.md`](server-python/README.md) for the schema.
 
 ### 4. Set up admin-web's and user-mobile's env files
 

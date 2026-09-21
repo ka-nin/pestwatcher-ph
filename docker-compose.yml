@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pestwatcher-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pestwatcher
+      POSTGRES_PASSWORD: pestwatcher_dev_only
+      POSTGRES_DB: pestwatcher
+    ports:
+      - "5432:5432"
+    volumes:
+      - pestwatcher_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pestwatcher -d pestwatcher"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  adminer:
+    image: adminer:4
+    container_name: pestwatcher-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Pre-fills the login form's server field with the compose service
+      # name (containers reach each other by service name on the default
+      # network) so you only ever have to type system/username/password.
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pestwatcher_pgdata:

@@ -1,4 +1,4 @@
-from app.data.lgu_users import lgu_users
+from app.data.lgu_users import list_lgu_users
 from app.schemas.locations import MunicipalityOption
 from fastapi import APIRouter
 
@@ -16,7 +16,7 @@ def list_municipalities() -> list[MunicipalityOption]:
     minus credentials, deduplicated by municipality.
     """
     seen: dict[str, MunicipalityOption] = {}
-    for u in lgu_users:
+    for u in list_lgu_users():
         seen.setdefault(
             u.municipality,
             MunicipalityOption(

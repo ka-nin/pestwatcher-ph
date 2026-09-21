@@ -11,13 +11,12 @@ it only adjusts the already ETL-bucketed Low/Medium/High level one tier up
 when there's enough recent, corroborated ground truth for it.
 """
 
-import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Literal
 
-from app.config import get_settings
+from app.data.reports_store import list_verified_reports
+from app.decision.etl_thresholds import GrowthStageBucket, derive_risk_level
 
 RiskLevel = Literal["Low", "Medium", "High"]
 RISK_ORDER: list[RiskLevel] = ["Low", "Medium", "High"]
@@ -46,11 +45,11 @@ PEST_KEYWORDS: dict[str, list[str]] = {
 class ReportSignal:
     verified_report_count: int
     weight: int
-
-
-def _reports_file() -> Path:
-    settings = get_settings()
-    return Path(settings.upload_dir).parent / "reports.json"
+    # Highest technologist-confirmed count/damage value among the matching
+    # reports gathered, in the pest's ETL units — None if no verified report
+    # carried a numeric value. Used to floor the risk level via the ETL
+    # table directly, independent of the weight-based bump below.
+    verified_value_floor: float | None = None
 
 
 def _matches_pest(pest_type: str, pest_code: str) -> bool:
@@ -69,40 +68,50 @@ def _parse_timestamp(value: str | None) -> datetime | None:
 
 def gather_signal(municipality: str, pest_code: str) -> ReportSignal:
     """Verified, recent, matching-pest reports for one municipality."""
-    path = _reports_file()
-    if not path.exists():
-        return ReportSignal(verified_report_count=0, weight=0)
-
     cutoff = datetime.now(timezone.utc) - timedelta(days=LOOKBACK_DAYS)
     count = 0
     weight = 0
+    value_floor: float | None = None
 
-    for record in json.loads(path.read_text(encoding="utf-8")):
-        if record.get("status") != "verified":
-            continue
-        if record.get("municipality") != municipality:
-            continue
-        if not _matches_pest(record.get("pest_type", ""), pest_code):
+    for record in list_verified_reports(municipality):
+        if not _matches_pest(record.pest_type, pest_code):
             continue
 
-        verified_at = _parse_timestamp(record.get("verified_at")) or _parse_timestamp(record.get("submitted_at"))
+        verified_at = _parse_timestamp(record.verified_at) or _parse_timestamp(record.submitted_at)
         if verified_at is None or verified_at < cutoff:
             continue
 
         count += 1
-        weight += SEVERITY_WEIGHT.get(record.get("severity"), 0)
+        weight += SEVERITY_WEIGHT.get(record.severity, 0)
 
-    return ReportSignal(verified_report_count=count, weight=weight)
+        if record.verified_value is not None and (value_floor is None or record.verified_value > value_floor):
+            value_floor = record.verified_value
+
+    return ReportSignal(verified_report_count=count, weight=weight, verified_value_floor=value_floor)
 
 
-def apply_adjustment(risk_level: RiskLevel, municipality: str, pest_code: str) -> tuple[RiskLevel, ReportSignal]:
+def apply_adjustment(
+    risk_level: RiskLevel,
+    municipality: str,
+    pest_code: str,
+    growth_stage_bucket: GrowthStageBucket,
+) -> tuple[RiskLevel, ReportSignal]:
     """Bumps `risk_level` one tier when verified, recent, matching-pest
-    reports for this municipality clear BUMP_THRESHOLD. Never bumps past
-    High, and never lowers a level — ground truth can only raise alarm, it
-    can't override the model down."""
+    reports for this municipality clear BUMP_THRESHOLD, then floors the
+    result against the ETL table using the highest technologist-confirmed
+    numeric value among those same reports (if any). Never lowers a level
+    either way — ground truth can only raise alarm, it can't override the
+    model down."""
     signal = gather_signal(municipality, pest_code)
-    if signal.weight < BUMP_THRESHOLD or risk_level not in RISK_ORDER:
-        return risk_level, signal
+    level = risk_level
 
-    idx = RISK_ORDER.index(risk_level)
-    return RISK_ORDER[min(idx + 1, len(RISK_ORDER) - 1)], signal
+    if signal.weight >= BUMP_THRESHOLD and level in RISK_ORDER:
+        idx = RISK_ORDER.index(level)
+        level = RISK_ORDER[min(idx + 1, len(RISK_ORDER) - 1)]
+
+    if signal.verified_value_floor is not None:
+        floor_level = derive_risk_level(pest_code, growth_stage_bucket, signal.verified_value_floor)
+        if RISK_ORDER.index(floor_level) > RISK_ORDER.index(level):
+            level = floor_level
+
+    return level, signal

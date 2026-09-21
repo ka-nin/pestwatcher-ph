@@ -22,6 +22,7 @@ export default function ManualReport() {
   const [severity, setSeverity] = useState('medium');
   const [cropGrowthStage, setCropGrowthStage] = useState(profileGrowthStage || 'Tillering');
   const [areaAffected, setAreaAffected] = useState('');
+  const [estimatedValue, setEstimatedValue] = useState('');
   const [dateSpotted, setDateSpotted] = useState(todayIso());
   const [notes, setNotes] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -57,6 +58,7 @@ export default function ManualReport() {
           severity,
           crop_growth_stage: cropGrowthStage,
           area_affected: areaAffected,
+          estimated_value: estimatedValue,
           province: user?.province || '',
           municipality: user?.municipality || '',
           date_spotted: dateSpotted,
@@ -168,6 +170,22 @@ export default function ManualReport() {
               placeholder="hal. 0.5"
               value={areaAffected}
               onChange={(e) => setAreaAffected(e.target.value)}
+              className="report-date-input"
+            />
+          </div>
+        </label>
+
+        <label className="report-field">
+          <span>Bilang ng Peste / Estimated Count (optional)</span>
+          <div className="report-static-field">
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              inputMode="decimal"
+              placeholder="hal. 12"
+              value={estimatedValue}
+              onChange={(e) => setEstimatedValue(e.target.value)}
               className="report-date-input"
             />
           </div>

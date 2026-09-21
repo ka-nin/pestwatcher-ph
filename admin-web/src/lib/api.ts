@@ -212,6 +212,8 @@ export interface ReportRecord {
   photo_url: string | null
   ai_pest_detected: string | null
   ai_confidence: number | null
+  estimated_value: number | null
+  verified_value: number | null
 }
 
 // Scoped by municipality, not province — an LGU technician's account is
@@ -234,11 +236,16 @@ export async function updateReportStatus(
   id: string,
   status: Extract<ReportStatus, 'verified' | 'rejected'>,
   verifiedBy: string,
+  verifiedValue?: number | null,
 ): Promise<ReportRecord> {
   const res = await fetch(`${API_BASE_URL}/api/reports/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status, verified_by: verifiedBy }),
+    body: JSON.stringify({
+      status,
+      verified_by: verifiedBy,
+      ...(verifiedValue != null ? { verified_value: verifiedValue } : {}),
+    }),
   })
 
   if (!res.ok) {

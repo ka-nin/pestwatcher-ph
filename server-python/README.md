@@ -25,6 +25,28 @@ pip install -r requirements.txt
 
 Copy `.env.example` to `.env` and adjust as needed (CORS origins, port).
 
+## Database
+
+Accounts (LGU, farmer, SuperAdmin) and farmer-submitted reports live in
+PostgreSQL, not in-memory. Start it from the repo root before running the
+backend:
+
+```
+docker compose up -d
+```
+
+`.env.example`'s `DATABASE_URL` already matches this container's default
+credentials. On startup, `app/main.py` creates the tables (`app/db_models.py`)
+if they don't exist and seeds them with the same demo accounts previously
+hardcoded here — see `credentials.txt` at the repo root for their plaintext
+passwords. This is a no-op once real data exists. There's no migration
+framework (Alembic) at this project's scope — schema changes during
+development are handled by editing `app/db_models.py` and recreating the
+dev database (`docker compose down -v && docker compose up -d`).
+
+Farmer-uploaded photos still live on disk under `uploads/` (path only,
+recorded in the `reports` table) — they were never moved into Postgres.
+
 ## Run
 
 ```
