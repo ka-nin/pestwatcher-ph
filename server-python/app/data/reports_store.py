@@ -12,6 +12,7 @@ from sqlalchemy import func
 
 from app.db import session_scope
 from app.db_models import ReportDB
+from app.decision.pest_matching import derive_pest_code
 from app.schemas.reports import ReportRecord
 
 
@@ -20,6 +21,7 @@ def _to_schema(row: ReportDB) -> ReportRecord:
         "id": row.id,
         "username": row.username,
         "pest_type": row.pest_type,
+        "pest_code": row.pest_code,
         "severity": row.severity,
         "province": row.province,
         "municipality": row.municipality,
@@ -57,6 +59,7 @@ def migrate_from_json_if_empty(json_path: Path) -> None:
                     id=r["id"],
                     username=r.get("username", "Anonymous Farmer"),
                     pest_type=r["pest_type"],
+                    pest_code=r.get("pest_code") or derive_pest_code(r["pest_type"]),
                     severity=r["severity"],
                     province=r["province"],
                     municipality=r["municipality"],
@@ -77,6 +80,21 @@ def migrate_from_json_if_empty(json_path: Path) -> None:
                     ai_confidence=r.get("ai_confidence"),
                 )
             )
+
+
+def backfill_pest_codes() -> None:
+    """One-time-per-row fix-up for reports written before the pest_code
+    column existed (it's nullable, so create_all() won't retroactively
+    populate it on an existing table — see app/db.py's docstring on this
+    project having no migration framework). Safe to call on every startup:
+    only touches rows where pest_code is still null, and is a no-op once
+    they're all set."""
+    with session_scope() as db:
+        rows = db.query(ReportDB).filter(ReportDB.pest_code.is_(None)).all()
+        for row in rows:
+            code = derive_pest_code(row.pest_type)
+            if code is not None:
+                row.pest_code = code
 
 
 def list_reports(province: str | None = None, municipality: str | None = None) -> list[ReportRecord]:

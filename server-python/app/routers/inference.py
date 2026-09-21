@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 
 from app.config import get_settings
-from app.data.lgu_users import municipality_coordinates
+from app.data.municipalities import municipality_coordinates
 from app.decision.etl_thresholds import derive_risk_level
 from app.decision.report_signal import apply_adjustment
 from app.models.resnet_model import resnet_classifier

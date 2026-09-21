@@ -51,6 +51,7 @@ const PEST_LABEL_FIL = {
 
 const RISK_RANK = { Low: 0, Medium: 1, High: 2 };
 const WEATHER_REFRESH_MS = 2 * 60 * 1000;
+const RISK_CARD_CYCLE_MS = 10 * 1000;
 
 export default function Home() {
   const navigate = useNavigate();
@@ -58,7 +59,10 @@ export default function Home() {
   const { reports } = useReports();
   const [weather, setWeather] = useState(null);
   const [weatherUpdatedAt, setWeatherUpdatedAt] = useState(null);
-  const [forecast, setForecast] = useState(null);
+  // Both pests' forecasts are kept (not just the worse one) so the risk
+  // card can cycle between them — see the cycling effect below.
+  const [forecasts, setForecasts] = useState({ BPH: null, RSB: null });
+  const [activePest, setActivePest] = useState('BPH');
   const [trend, setTrend] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -105,14 +109,26 @@ export default function Home() {
         ]);
         if (cancelled) return;
 
-        const candidates = [
-          { pest: 'BPH', ...bphForecast },
-          { pest: 'RSB', ...rsbForecast },
-        ].filter((f) => f.status === 'ok');
-        const worst = candidates.sort(
-          (a, b) => (RISK_RANK[b.risk_level] ?? -1) - (RISK_RANK[a.risk_level] ?? -1)
-        )[0];
-        setForecast(worst || null);
+        const nextForecasts = {
+          BPH: bphForecast.status === 'ok' ? { pest: 'BPH', ...bphForecast } : null,
+          RSB: rsbForecast.status === 'ok' ? { pest: 'RSB', ...rsbForecast } : null,
+        };
+        setForecasts(nextForecasts);
+
+        // Lead with whichever pest is currently riskier — the cycling
+        // effect below then alternates to the other one every 10s.
+        if (nextForecasts.BPH && nextForecasts.RSB) {
+          setActivePest(
+            (RISK_RANK[nextForecasts.RSB.risk_level] ?? -1) >
+              (RISK_RANK[nextForecasts.BPH.risk_level] ?? -1)
+              ? 'RSB'
+              : 'BPH'
+          );
+        } else if (nextForecasts.BPH) {
+          setActivePest('BPH');
+        } else if (nextForecasts.RSB) {
+          setActivePest('RSB');
+        }
 
         if (trajectory.status === 'ok' && trajectory.points.length) {
           setTrend(
@@ -135,6 +151,19 @@ export default function Home() {
     };
   }, [user, growthStage]);
 
+  // Alternates the risk card between BPH and RSB every 10s. Only runs once
+  // both forecasts have actually loaded — a single available pest (or
+  // still loading) just stays put.
+  useEffect(() => {
+    if (!forecasts.BPH || !forecasts.RSB) return;
+    const intervalId = setInterval(() => {
+      setActivePest((prev) => (prev === 'BPH' ? 'RSB' : 'BPH'));
+    }, RISK_CARD_CYCLE_MS);
+    return () => clearInterval(intervalId);
+  }, [forecasts.BPH, forecasts.RSB]);
+
+  const forecast = forecasts[activePest] || forecasts.BPH || forecasts.RSB;
+  const bothPestsAvailable = Boolean(forecasts.BPH && forecasts.RSB);
   const riskLevel = forecast?.risk_level?.toLowerCase() || 'low';
   const risk = RISK_META[riskLevel] || RISK_META.low;
   const RiskIcon = risk.icon;
@@ -174,22 +203,30 @@ export default function Home() {
         {error && <p className="home-error">{error}</p>}
 
         <section className="hero-risk-card">
-          <div className="hero-risk-top">
-            <div className="hero-risk-icon" style={{ borderColor: risk.accent, color: risk.accent }}>
-              <RiskIcon size={22} strokeWidth={2} />
+          <div className="hero-risk-content" key={activePest}>
+            <div className="hero-risk-top">
+              <div className="hero-risk-icon" style={{ borderColor: risk.accent, color: risk.accent }}>
+                <RiskIcon size={22} strokeWidth={2} />
+              </div>
+              <span className="hero-risk-chip" style={{ background: risk.accentSoft, color: risk.accent }}>
+                {loading ? 'Kinakalkula...' : RISK_LABEL_FIL[riskLevel]}
+              </span>
+              {bothPestsAvailable && (
+                <div className="hero-risk-dots" aria-hidden="true">
+                  <span className={activePest === 'BPH' ? 'is-active' : ''} />
+                  <span className={activePest === 'RSB' ? 'is-active' : ''} />
+                </div>
+              )}
             </div>
-            <span className="hero-risk-chip" style={{ background: risk.accentSoft, color: risk.accent }}>
-              {loading ? 'Kinakalkula...' : RISK_LABEL_FIL[riskLevel]}
-            </span>
+            <h2>{forecast ? PEST_LABEL_FIL[forecast.pest] : dashboardSummary.pestFil}</h2>
+            <p>
+              {loading
+                ? 'Kinukuha ang pinakabagong forecast mula sa BiLSTM na modelo...'
+                : forecast
+                  ? RISK_MESSAGE_FIL[riskLevel]
+                  : 'Hindi pa available ang modelo para sa lugar na ito.'}
+            </p>
           </div>
-          <h2>{forecast ? PEST_LABEL_FIL[forecast.pest] : dashboardSummary.pestFil}</h2>
-          <p>
-            {loading
-              ? 'Kinukuha ang pinakabagong forecast mula sa BiLSTM na modelo...'
-              : forecast
-                ? RISK_MESSAGE_FIL[riskLevel]
-                : 'Hindi pa available ang modelo para sa lugar na ito.'}
-          </p>
 
           <div className="hero-risk-divider" />
 

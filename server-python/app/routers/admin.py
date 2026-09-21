@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.data.lgu_users import add_lgu_user, delete_lgu_user, find_lgu_user
 from app.data.lgu_users import list_lgu_users as fetch_lgu_users
 from app.data.lgu_users import update_lgu_user as persist_lgu_user_update
+from app.data.municipalities import upsert_municipality
 from app.decision.etl_thresholds import PEST_THRESHOLDS
 from app.dependencies import require_superadmin
 from app.routers.inference import _live_forecast
@@ -59,6 +60,10 @@ def create_lgu_user(payload: CreateLguUserRequest) -> LguAccountAdminResponse:
         longitude=payload.longitude,
     )
     add_lgu_user(user)
+    # Registers/refreshes this municipality in the shared registry (see
+    # app/data/municipalities.py) so it shows up for weather lookups and
+    # the mobile app's picker even before any farmer account exists there.
+    upsert_municipality(user.municipality, user.province, user.latitude, user.longitude)
     return _to_admin_response(user)
 
 
@@ -76,6 +81,7 @@ def update_lgu_user(username: str, payload: UpdateLguUserRequest) -> LguAccountA
     )
     if updated is None:
         raise HTTPException(status_code=404, detail=f"No LGU user '{username}'")
+    upsert_municipality(updated.municipality, updated.province, updated.latitude, updated.longitude)
     return _to_admin_response(updated)
 
 

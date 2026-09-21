@@ -17,6 +17,7 @@ from typing import Literal
 
 from app.data.reports_store import list_verified_reports
 from app.decision.etl_thresholds import GrowthStageBucket, derive_risk_level
+from app.decision.pest_matching import derive_pest_code
 
 RiskLevel = Literal["Low", "Medium", "High"]
 RISK_ORDER: list[RiskLevel] = ["Low", "Medium", "High"]
@@ -31,15 +32,6 @@ LOOKBACK_DAYS = 14
 SEVERITY_WEIGHT = {"low": 1, "medium": 2, "high": 3}
 BUMP_THRESHOLD = 3
 
-# Reports store free-text pest_type (whatever the farmer picked in the
-# mobile app's dropdown, e.g. "Brown Planthopper (Kayumangging Hanip)");
-# forecasts key by the BiLSTM's pest code. Matched by substring since
-# there's no shared enum between the two apps yet.
-PEST_KEYWORDS: dict[str, list[str]] = {
-    "BPH": ["brown planthopper", "kayumangging hanip"],
-    "RSB": ["stem borer", "aksip", "atip"],
-}
-
 
 @dataclass(frozen=True)
 class ReportSignal:
@@ -52,9 +44,11 @@ class ReportSignal:
     verified_value_floor: float | None = None
 
 
-def _matches_pest(pest_type: str, pest_code: str) -> bool:
-    needle = pest_type.lower()
-    return any(keyword in needle for keyword in PEST_KEYWORDS.get(pest_code, []))
+def _matches_pest(record_pest_code: str | None, record_pest_type: str, pest_code: str) -> bool:
+    # Prefer the stored column (set at submission time, see
+    # app/routers/reports.py) — fall back to re-deriving it from pest_type
+    # only for rows written before pest_code existed and not yet backfilled.
+    return (record_pest_code or derive_pest_code(record_pest_type)) == pest_code
 
 
 def _parse_timestamp(value: str | None) -> datetime | None:
@@ -74,7 +68,7 @@ def gather_signal(municipality: str, pest_code: str) -> ReportSignal:
     value_floor: float | None = None
 
     for record in list_verified_reports(municipality):
-        if not _matches_pest(record.pest_type, pest_code):
+        if not _matches_pest(record.pest_code, record.pest_type, pest_code):
             continue
 
         verified_at = _parse_timestamp(record.verified_at) or _parse_timestamp(record.submitted_at)

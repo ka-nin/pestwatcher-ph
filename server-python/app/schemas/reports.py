@@ -43,6 +43,11 @@ class ReportResponse(BaseModel):
 class ReportRecord(ReportRequest):
     id: str
     submitted_at: str
+    # Normalized BPH/RSB key derived server-side from pest_type at
+    # submission time (see app/decision/pest_matching.py) — never set
+    # directly by a client. None when pest_type matches neither ETL pest
+    # (e.g. "Others / Hindi Sigurado").
+    pest_code: str | None = None
     # Every report starts unverified — an LGU technician reviews it in
     # admin-web before it's allowed to nudge the forecast (see
     # app/decision/report_signal.py). Old records written before this field

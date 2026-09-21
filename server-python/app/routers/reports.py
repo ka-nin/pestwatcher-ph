@@ -6,6 +6,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from app.config import get_settings
 from app.data import reports_store
+from app.decision.pest_matching import derive_pest_code
 from app.models.resnet_model import resnet_classifier
 from app.schemas.reports import ReportRecord, ReportResponse, ReportStatusUpdate
 
@@ -85,6 +86,7 @@ async def submit_report(
         submitted_at=datetime.now(timezone.utc).isoformat(),
         username=username,
         pest_type=pest_type,
+        pest_code=derive_pest_code(pest_type),
         severity=severity,
         province=province,
         municipality=municipality,

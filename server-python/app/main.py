@@ -8,7 +8,8 @@ from fastapi.staticfiles import StaticFiles
 from app.config import get_settings
 from app.data.farmer_users import seed_if_empty as seed_farmer_users
 from app.data.lgu_users import seed_if_empty as seed_lgu_users
-from app.data.reports_store import migrate_from_json_if_empty
+from app.data.municipalities import seed_if_empty as seed_municipalities
+from app.data.reports_store import backfill_pest_codes, migrate_from_json_if_empty
 from app.data.superadmins import seed_if_empty as seed_superadmins
 from app.db import init_db
 from app.models.bilstm_model import bilstm_forecaster
@@ -31,7 +32,9 @@ def init_database() -> None:
     seed_lgu_users()
     seed_farmer_users()
     seed_superadmins()
+    seed_municipalities()
     migrate_from_json_if_empty(Path(settings.upload_dir).parent / "reports.json")
+    backfill_pest_codes()
 
 
 @app.on_event("startup")

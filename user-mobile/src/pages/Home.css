@@ -104,11 +104,56 @@
   padding: 18px 18px 16px;
 }
 
+/* Re-mounted (via React key) every time the card cycles to the other
+   pest — the animation below replays automatically on each mount. */
+.hero-risk-content {
+  animation: hero-risk-fade-in 420ms ease;
+}
+
+@keyframes hero-risk-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-risk-content {
+    animation: none;
+  }
+}
+
 .hero-risk-top {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 12px;
+}
+
+/* Small carousel-style dots showing which of the two pests (BPH/RSB) is
+   currently displayed — only rendered once both forecasts have loaded. */
+.hero-risk-dots {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.hero-risk-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-border);
+  transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.hero-risk-dots span.is-active {
+  background: var(--color-text-muted);
+  transform: scale(1.35);
 }
 
 .hero-risk-icon {
