@@ -32,8 +32,10 @@ ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 async def infer_image(file: UploadFile = File(...)) -> ImageInferenceResponse:
     """Receives an optical field image from the mobile app for pest/disease detection.
 
-    Wired up to `resnet_classifier`, which is currently a stub — see
-    app/models/resnet_model.py for where to load the trained ResNet-50 weights.
+    The caller doesn't say which pest to check for, so this runs every
+    currently-loaded per-pest binary classifier (app/models/resnet_model.py
+    — one model per pest, not one shared multi-class model) and reports
+    whichever fires the strongest positive detection.
     """
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
@@ -51,7 +53,8 @@ async def infer_image(file: UploadFile = File(...)) -> ImageInferenceResponse:
     contents = await file.read()
     destination.write_bytes(contents)
 
-    result = resnet_classifier.predict(destination)
+    best = resnet_classifier.predict_best(destination)
+    result = best[1] if best else None
 
     return ImageInferenceResponse(
         status="ok" if result is not None else "model_not_loaded",
@@ -61,7 +64,7 @@ async def infer_image(file: UploadFile = File(...)) -> ImageInferenceResponse:
         message=(
             "Prediction successful"
             if result
-            else "ResNet-50 model not loaded yet — image saved for later training/inference"
+            else "No ResNet-50 model loaded yet — image saved for later training/inference"
         ),
     )
 

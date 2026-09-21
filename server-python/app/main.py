@@ -12,6 +12,7 @@ from app.data.reports_store import migrate_from_json_if_empty
 from app.data.superadmins import seed_if_empty as seed_superadmins
 from app.db import init_db
 from app.models.bilstm_model import bilstm_forecaster
+from app.models.resnet_model import resnet_classifier
 from app.routers import admin, auth, inference, locations, reports, weather
 from ml.config import PEST_PARAMS
 
@@ -38,11 +39,20 @@ def load_ml_models() -> None:
     # Best-effort: a pest whose model hasn't been trained yet should leave
     # the API running (its forecast endpoint reports "model_not_loaded"),
     # not crash startup for every pest.
+    # keras.models.load_model() raises ValueError (not FileNotFoundError/
+    # OSError) for a missing .keras file — caught here too, or a single
+    # untrained pest would take the whole app down at startup instead of
+    # just leaving that pest reporting "model_not_loaded".
     for pest in PEST_PARAMS:
         try:
             bilstm_forecaster.load(pest)
-        except (FileNotFoundError, OSError):
+        except (FileNotFoundError, OSError, ValueError):
             print(f"[startup] BiLSTM weights for {pest} not found — /api/inference/forecast will report model_not_loaded for {pest}")
+
+        try:
+            resnet_classifier.load(pest)
+        except (FileNotFoundError, OSError, ValueError):
+            print(f"[startup] ResNet-50 weights for {pest} not found — /api/inference/image will report model_not_loaded for {pest}")
 
 app.add_middleware(
     CORSMiddleware,

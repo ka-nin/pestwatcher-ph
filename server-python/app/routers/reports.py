@@ -69,14 +69,16 @@ async def submit_report(
         contents = await file.read()
         (upload_dir / photo_path).write_bytes(contents)
 
-        # Best-effort: resnet_classifier.predict() returns None until real
-        # weights are loaded (app/models/resnet_model.py) — a report with a
-        # photo but no AI read is a normal, expected state, same as
-        # /api/inference/image's "model_not_loaded".
-        prediction = resnet_classifier.predict(upload_dir / photo_path)
-        if prediction is not None:
-            ai_pest_detected = prediction.label
-            ai_confidence = prediction.confidence
+        # Best-effort: predict_best() returns None until at least one
+        # pest's weights are loaded (app/models/resnet_model.py) — a report
+        # with a photo but no AI read is a normal, expected state, same as
+        # /api/inference/image's "model_not_loaded". Runs every loaded
+        # pest's classifier and keeps whichever fires strongest, since a
+        # report photo isn't necessarily of the pest the farmer picked.
+        best = resnet_classifier.predict_best(upload_dir / photo_path)
+        if best is not None:
+            ai_pest_detected = best[1].label
+            ai_confidence = best[1].confidence
 
     record = ReportRecord(
         id=uuid.uuid4().hex,

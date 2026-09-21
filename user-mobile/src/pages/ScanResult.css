@@ -30,6 +30,44 @@
   font-weight: 600;
 }
 
+/* Two honestly-separate signals: what the photo showed vs. the live
+   weather-based forecast. Each gets its own small eyebrow label so neither
+   reads as having caused the other. */
+.scan-result-signal {
+  margin-bottom: 4px;
+}
+
+.scan-result-signal-forecast {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}
+
+.scan-result-signal-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--color-primary-dark);
+  margin-bottom: 6px;
+}
+
+.scan-result-photo-chip {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.scan-result-photo-chip.detected {
+  background: rgba(214, 69, 69, 0.14);
+  color: #a3312f;
+}
+
 /* Mirrors .guide-detail-close's position (top: 16px; right: 16px) on the
    opposite corner of the hero. */
 .scan-result-rescan-top {
