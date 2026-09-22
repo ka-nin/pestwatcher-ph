@@ -12,7 +12,7 @@ export const translations = {
     langEn: 'English',
 
     // Home
-    homeLocationSubtitle: 'Batay sa datos mula sa',
+    homeLocationSubtitle: 'Pagtataya ng panganib para sa munisipyong ito',
     homeCalculating: 'Kinakalkula...',
     homeForecastLoading: 'Kinukuha ang pinakabagong forecast mula sa BiLSTM na modelo...',
     homeForecastUnavailable: 'Hindi pa available ang modelo para sa lugar na ito.',
@@ -27,6 +27,8 @@ export const translations = {
     homeHumidityHigh: 'Napakataas',
     homeHumidityNormal: 'Normal',
     homeTrendTitle: 'Antas ng Peste sa Nakalipas na Araw',
+    homeTrendTitleBph: 'Antas ng BPH sa Nakalipas na Araw',
+    homeTrendTitleRsb: 'Antas ng RSB sa Nakalipas na Araw',
     homeTrendSafe: 'Ligtas',
     homeTrendWarning: 'Babala',
     homeTrendDanger: 'Panganib',
@@ -194,7 +196,7 @@ export const translations = {
     langEn: 'English',
 
     // Home
-    homeLocationSubtitle: 'Based on the data gathered from',
+    homeLocationSubtitle: 'Risk forecast for this municipality',
     homeCalculating: 'Calculating...',
     homeForecastLoading: 'Fetching the latest forecast from the BiLSTM model...',
     homeForecastUnavailable: 'The model isn’t available for this area yet.',
@@ -209,6 +211,8 @@ export const translations = {
     homeHumidityHigh: 'Very High',
     homeHumidityNormal: 'Normal',
     homeTrendTitle: 'Pest Level Trend',
+    homeTrendTitleBph: 'BPH Level Trend',
+    homeTrendTitleRsb: 'RSB Level Trend',
     homeTrendSafe: 'Safe',
     homeTrendWarning: 'Warning',
     homeTrendDanger: 'Danger',

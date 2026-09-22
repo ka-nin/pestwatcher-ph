@@ -37,6 +37,10 @@ const RISK_META = {
 const RISK_RANK = { Low: 0, Medium: 1, High: 2 };
 const WEATHER_REFRESH_MS = 2 * 60 * 1000;
 const RISK_CARD_CYCLE_MS = 10 * 1000;
+const PEST_META = {
+  BPH: { labelKey: 'pestLabelBph', trendTitleKey: 'homeTrendTitleBph' },
+  RSB: { labelKey: 'pestLabelRsb', trendTitleKey: 'homeTrendTitleRsb' },
+};
 
 export default function Home() {
   const navigate = useNavigate();
@@ -45,11 +49,12 @@ export default function Home() {
   const { reports } = useReports();
   const [weather, setWeather] = useState(null);
   const [weatherUpdatedAt, setWeatherUpdatedAt] = useState(null);
-  // Both pests' forecasts are kept (not just the worse one) so the risk
-  // card can cycle between them — see the cycling effect below.
+  // Both pests' forecasts and trends are kept (not just the worse one) so
+  // the single risk card + single trend chart below can cycle between them
+  // together, on the same interval and the same active pest.
   const [forecasts, setForecasts] = useState({ BPH: null, RSB: null });
+  const [trends, setTrends] = useState({ BPH: null, RSB: null });
   const [activePest, setActivePest] = useState('BPH');
-  const [trend, setTrend] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -88,10 +93,11 @@ export default function Home() {
 
     async function loadForecast() {
       try {
-        const [bphForecast, rsbForecast, trajectory] = await Promise.all([
+        const [bphForecast, rsbForecast, bphTrajectory, rsbTrajectory] = await Promise.all([
           fetchPestForecast(user.municipality, 'BPH', growthStage),
           fetchPestForecast(user.municipality, 'RSB', growthStage),
           fetchPestForecastTrajectory(user.municipality, 'BPH', growthStage, 7),
+          fetchPestForecastTrajectory(user.municipality, 'RSB', growthStage, 7),
         ]);
         if (cancelled) return;
 
@@ -116,14 +122,18 @@ export default function Home() {
           setActivePest('RSB');
         }
 
-        if (trajectory.status === 'ok' && trajectory.points.length) {
-          setTrend(
-            trajectory.points.map((p) => ({
-              day: new Date(p.date).toLocaleDateString('en-US', { weekday: 'short' }),
-              level: (RISK_RANK[p.risk_level] ?? 0) + 1,
-            }))
-          );
-        }
+        const toTrend = (trajectory) =>
+          trajectory.status === 'ok' && trajectory.points.length
+            ? trajectory.points.map((p) => ({
+                day: new Date(p.date).toLocaleDateString('en-US', { weekday: 'short' }),
+                level: (RISK_RANK[p.risk_level] ?? 0) + 1,
+              }))
+            : null;
+
+        setTrends({
+          BPH: toTrend(bphTrajectory),
+          RSB: toTrend(rsbTrajectory),
+        });
       } catch (err) {
         if (!cancelled) setError(err.message || t('homeForecastError'));
       } finally {
@@ -137,9 +147,9 @@ export default function Home() {
     };
   }, [user, growthStage]);
 
-  // Alternates the risk card between BPH and RSB every 10s. Only runs once
-  // both forecasts have actually loaded — a single available pest (or
-  // still loading) just stays put.
+  // Alternates both the risk card and the trend chart between BPH and RSB
+  // together, every 10s — a single activePest drives both, so they never
+  // fall out of sync. Only runs once both forecasts have actually loaded.
   useEffect(() => {
     if (!forecasts.BPH || !forecasts.RSB) return;
     const intervalId = setInterval(() => {
@@ -148,17 +158,17 @@ export default function Home() {
     return () => clearInterval(intervalId);
   }, [forecasts.BPH, forecasts.RSB]);
 
-  const forecast = forecasts[activePest] || forecasts.BPH || forecasts.RSB;
+  const forecast = forecasts[activePest];
   const bothPestsAvailable = Boolean(forecasts.BPH && forecasts.RSB);
   const riskLevel = forecast?.risk_level?.toLowerCase() || 'low';
   const risk = RISK_META[riskLevel] || RISK_META.low;
   const RiskIcon = risk.icon;
+  const trendData = trends[activePest] || dashboardSummary.trend;
   const now = new Date();
   const dateTimeLabel = `${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${now.toLocaleTimeString(
     'en-US',
     { hour: '2-digit', minute: '2-digit', hour12: true }
   )}`;
-  const trendData = trend || dashboardSummary.trend;
 
   const highRiskReports = reports.filter((r) => r.risk === 'high' || r.risk === 'medium');
   const nearbyZones = [...new Set(highRiskReports.map((r) => r.location))];
@@ -181,9 +191,9 @@ export default function Home() {
         </div>
 
         <div className="home-location">
-          <h1>{user?.province || currentLocation.province}</h1>
+          <h1>{user?.municipality || currentLocation.region}</h1>
           <p>
-            {t('homeLocationSubtitle')} {user?.municipality || currentLocation.region}
+            {user?.province || currentLocation.province} &middot; {t('homeLocationSubtitle')}
           </p>
         </div>
       </div>
@@ -207,13 +217,7 @@ export default function Home() {
                 </div>
               )}
             </div>
-            <h2>
-              {forecast
-                ? t(`pestLabel${forecast.pest === 'BPH' ? 'Bph' : 'Rsb'}`)
-                : language === 'en'
-                  ? dashboardSummary.pestEn
-                  : dashboardSummary.pestFil}
-            </h2>
+            <h2>{t(PEST_META[activePest].labelKey)}</h2>
             <p>
               {loading
                 ? t('homeForecastLoading')
@@ -272,7 +276,7 @@ export default function Home() {
 
         <section className="trend-card">
           <div className="trend-header">
-            <h3>{t('homeTrendTitle')}</h3>
+            <h3>{t(PEST_META[activePest].trendTitleKey)}</h3>
             <div className="trend-legend">
               <span><i style={{ background: LEVEL_COLOR[1] }} /> {t('homeTrendSafe')}</span>
               <span><i style={{ background: LEVEL_COLOR[2] }} /> {t('homeTrendWarning')}</span>
@@ -280,7 +284,7 @@ export default function Home() {
             </div>
           </div>
           <ResponsiveContainer width="100%" height={110}>
-            <BarChart data={trendData} barCategoryGap="34%" margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+            <BarChart data={trendData} barCategoryGap="34%" margin={{ top: 4, right: 0, left: 0, bottom: 0 }} key={activePest}>
               <XAxis
                 dataKey="day"
                 axisLine={false}
