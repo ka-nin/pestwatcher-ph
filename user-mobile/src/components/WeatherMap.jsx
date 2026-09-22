@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Compass } from 'lucide-react';
@@ -10,6 +10,7 @@ import './WeatherMap.css';
 const PROVINCE_LAT = currentLocation.latitude;
 const PROVINCE_LON = currentLocation.longitude;
 const PROVINCE_ZOOM = 9;
+const REPORT_ZOOM = 14;
 
 const RISK_COLOR = {
   high: '#d64545',
@@ -34,18 +35,18 @@ function pillIcon(alert) {
   });
 }
 
-function buildWindyUrl() {
+function buildWindyUrl(lat, lon, zoom) {
   const params = new URLSearchParams({
-    lat: PROVINCE_LAT,
-    lon: PROVINCE_LON,
-    detailLat: PROVINCE_LAT,
-    detailLon: PROVINCE_LON,
-    zoom: PROVINCE_ZOOM,
+    lat,
+    lon,
+    detailLat: lat,
+    detailLon: lon,
+    zoom,
     level: 'surface',
     overlay: 'wind',
     menu: '',
     message: '',
-    marker: '',
+    marker: 'true',
     calendar: 'now',
     pressure: '',
     type: 'map',
@@ -63,6 +64,11 @@ export default function WeatherMap({ fill = false, showControls = fill, alerts =
   const containerRef = useRef(null);
   const mapRef = useRef(null);
 
+  const pinnableAlerts = useMemo(
+    () => alerts.filter((a) => a.latitude != null && a.longitude != null),
+    [alerts]
+  );
+
   useEffect(() => {
     if (mode !== 'satellite' || !containerRef.current) return;
 
@@ -77,16 +83,19 @@ export default function WeatherMap({ fill = false, showControls = fill, alerts =
       { maxZoom: 18 }
     ).addTo(map);
 
-    alerts.forEach((alert) => {
-      if (alert.latitude == null || alert.longitude == null) return;
-      L.marker([alert.latitude, alert.longitude], { icon: pillIcon(alert) }).addTo(map);
+    pinnableAlerts.forEach((alert) => {
+      const pos = [alert.latitude, alert.longitude];
+      const marker = L.marker(pos, { icon: pillIcon(alert) }).addTo(map);
+      marker.on('click', () => {
+        map.flyTo(pos, REPORT_ZOOM, { duration: 0.8 });
+      });
     });
 
     return () => {
       map.remove();
       mapRef.current = null;
     };
-  }, [mode, alerts]);
+  }, [mode, pinnableAlerts]);
 
   return (
     <div className={`weather-map${fill ? ' weather-map-fill' : ''}`}>
@@ -94,10 +103,13 @@ export default function WeatherMap({ fill = false, showControls = fill, alerts =
         {mode === 'satellite' ? (
           <div ref={containerRef} className="weather-map-canvas" />
         ) : (
+          // Plain wind map — no risk-severity pins overlaid, unlike the
+          // satellite view. Windy's own embed only ever shows one marker
+          // (its detailLat/detailLon pin), fixed on the province center.
           <iframe
             key="wind"
             title="Nueva Ecija wind map"
-            src={buildWindyUrl()}
+            src={buildWindyUrl(PROVINCE_LAT, PROVINCE_LON, PROVINCE_ZOOM)}
             loading="lazy"
             allowFullScreen
           />

@@ -5,6 +5,7 @@ import ScreenHeader from '../components/ScreenHeader';
 import { pestTypeOptions, severityOptions, growthStageOptions } from '../data/mockData';
 import { submitReport } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import './ManualReport.css';
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -12,6 +13,7 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 export default function ManualReport() {
   const navigate = useNavigate();
   const { user, growthStage: profileGrowthStage } = useAuth();
+  const { language, t } = useLanguage();
   const fileInputRef = useRef(null);
   const pestSelectRef = useRef(null);
 
@@ -71,7 +73,7 @@ export default function ManualReport() {
       setSubmitted(true);
       setTimeout(() => navigate('/alerts'), 1400);
     } catch (err) {
-      setError(err.message || 'Hindi naisumite ang report. Subukan ulit.');
+      setError(err.message || t('reportSubmitError'));
     } finally {
       setSubmitting(false);
     }
@@ -79,16 +81,16 @@ export default function ManualReport() {
 
   return (
     <div className="report-screen">
-      <ScreenHeader title="Mag-ulat ng Sighting" />
+      <ScreenHeader title={t('reportTitle')} />
 
       <div className="report-mode-row">
         <button type="button" className="report-mode-photo" onClick={handlePickPhoto}>
           <Camera size={20} />
-          <span>Mag-ulat gamit ang Larawan</span>
+          <span>{t('reportModePhoto')}</span>
         </button>
         <button type="button" className="report-mode-manual" onClick={handleSkipToManual}>
           <Edit3 size={13} />
-          Manual lang, walang larawan
+          {t('reportModeManual')}
         </button>
         <input
           ref={fileInputRef}
@@ -102,8 +104,8 @@ export default function ManualReport() {
 
       {photoPreviewUrl && (
         <div className="report-photo-preview">
-          <img src={photoPreviewUrl} alt="Larawan ng peste" />
-          <button type="button" className="report-photo-remove" onClick={handleRemovePhoto} aria-label="Alisin ang larawan">
+          <img src={photoPreviewUrl} alt={t('reportPhotoAlt')} />
+          <button type="button" className="report-photo-remove" onClick={handleRemovePhoto} aria-label={t('reportPhotoRemoveAria')}>
             <X size={14} />
           </button>
         </div>
@@ -111,15 +113,15 @@ export default function ManualReport() {
 
       <form className="report-body" onSubmit={handleSubmit}>
         <label className="report-field">
-          <span>Pest Type / Uri ng Peste</span>
+          <span>{t('reportFieldPestType')}</span>
           <div className="report-select">
             <select ref={pestSelectRef} value={pestType} onChange={(e) => setPestType(e.target.value)} required>
               <option value="" disabled>
-                Pumili ng uri ng peste...
+                {t('reportPestPlaceholder')}
               </option>
               {pestTypeOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
+                <option key={opt.value} value={opt.value}>
+                  {opt[language]}
                 </option>
               ))}
             </select>
@@ -128,7 +130,7 @@ export default function ManualReport() {
         </label>
 
         <div className="report-field">
-          <span>Severity Level</span>
+          <span>{t('reportFieldSeverity')}</span>
           <div className="severity-options">
             {severityOptions.map((opt) => (
               <button
@@ -139,14 +141,14 @@ export default function ManualReport() {
                 onClick={() => setSeverity(opt.id)}
               >
                 <span className="severity-dot" style={{ background: opt.color }} />
-                {opt.label}
+                {opt[language]}
               </button>
             ))}
           </div>
         </div>
 
         <label className="report-field">
-          <span>Yugto ng Paglaki / Growth Stage</span>
+          <span>{t('reportFieldGrowthStage')}</span>
           <div className="report-select">
             <select value={cropGrowthStage} onChange={(e) => setCropGrowthStage(e.target.value)} required>
               {growthStageOptions.map((stage) => (
@@ -160,14 +162,14 @@ export default function ManualReport() {
         </label>
 
         <label className="report-field">
-          <span>Apektadong Sukat / Area Affected (hectares)</span>
+          <span>{t('reportFieldAreaAffected')}</span>
           <div className="report-static-field">
             <input
               type="number"
               min="0"
               step="0.1"
               inputMode="decimal"
-              placeholder="hal. 0.5"
+              placeholder={t('reportAreaPlaceholder')}
               value={areaAffected}
               onChange={(e) => setAreaAffected(e.target.value)}
               className="report-date-input"
@@ -176,14 +178,14 @@ export default function ManualReport() {
         </label>
 
         <label className="report-field">
-          <span>Bilang ng Peste / Estimated Count (optional)</span>
+          <span>{t('reportFieldEstimatedCount')}</span>
           <div className="report-static-field">
             <input
               type="number"
               min="0"
               step="0.1"
               inputMode="decimal"
-              placeholder="hal. 12"
+              placeholder={t('reportEstimatedPlaceholder')}
               value={estimatedValue}
               onChange={(e) => setEstimatedValue(e.target.value)}
               className="report-date-input"
@@ -192,16 +194,16 @@ export default function ManualReport() {
         </label>
 
         <label className="report-field">
-          <span>Location (Account na Naka-login)</span>
+          <span>{t('reportFieldLocation')}</span>
           <div className="report-static-field">
             <MapPin size={15} color="var(--color-primary)" />
-            {user ? `${user.municipality}, ${user.province}` : 'Walang lokasyon'}
+            {user ? `${user.municipality}, ${user.province}` : t('reportNoLocation')}
             <Check size={15} color="var(--color-primary)" style={{ marginLeft: 'auto' }} />
           </div>
         </label>
 
         <label className="report-field">
-          <span>Date Spotted</span>
+          <span>{t('reportFieldDateSpotted')}</span>
           <div className="report-static-field">
             <input
               type="date"
@@ -214,10 +216,10 @@ export default function ManualReport() {
         </label>
 
         <label className="report-field">
-          <span>Notes / Karagdagang Detalye</span>
+          <span>{t('reportFieldNotes')}</span>
           <textarea
             rows={4}
-            placeholder="Ilagay rito ang deskripsyon ng pinsala, tinantyang lawak ng apektadong sakahan, atbp..."
+            placeholder={t('reportNotesPlaceholder')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
@@ -226,7 +228,7 @@ export default function ManualReport() {
         {error && <p className="report-error">{error}</p>}
 
         <button className="report-submit" type="submit" disabled={submitted || submitting}>
-          {submitted ? 'Naisumite na!' : submitting ? 'Isinusumite...' : 'I-submit ang Report'}
+          {submitted ? t('reportSubmitted') : submitting ? t('reportSubmitting') : t('reportSubmit')}
         </button>
       </form>
     </div>

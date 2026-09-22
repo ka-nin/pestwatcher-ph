@@ -36,6 +36,19 @@
   z-index: 1;
 }
 
+.welcome-langrow {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+}
+
+.welcome-setup-langrow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
 .welcome-brand-block {
   display: flex;
   flex-direction: column;

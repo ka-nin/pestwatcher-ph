@@ -5,51 +5,53 @@
   position: relative;
 }
 
+/* Green gradient/rounding/shadow now come from .hero-surface (index.css). */
 .alerts-header {
-  flex-shrink: 0;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  background: linear-gradient(160deg, #4a8a45 0%, var(--color-primary) 55%, var(--color-primary-dark) 100%);
-  border-radius: 0 0 28px 28px;
-  padding: 18px 20px 22px;
-  box-shadow: 0 10px 24px -10px rgba(20, 40, 15, 0.4);
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-5) var(--space-6);
 }
 
 .alerts-header h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: var(--text-xl);
   font-weight: 800;
-  color: #fff;
-  letter-spacing: 0.2px;
+  line-height: var(--leading-tight);
 }
 
 .alerts-header p {
-  margin: 2px 0 0;
-  font-size: 12.5px;
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
   color: rgba(255, 255, 255, 0.78);
 }
 
 .alerts-header-filter {
   flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  border-radius: var(--radius-sm);
   border: none;
   background: rgba(255, 255, 255, 0.18);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+}
+
+.alerts-header-filter:active {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .alerts-body {
   flex: 1;
-  padding: 16px 16px 116px;
+  padding: var(--space-4) var(--space-4) 116px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-4);
 }
 
 .alerts-map {
@@ -63,51 +65,65 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 14px;
-  font-size: 11px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
 .alerts-map-footer button {
+  flex-shrink: 0;
   background: none;
   border: none;
   color: var(--color-primary-dark);
   font-weight: 700;
-  font-size: 11px;
+  font-size: var(--text-xs);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.alerts-map-footer button:active {
+  background: rgba(63, 125, 58, 0.1);
 }
 
 .alerts-list-header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  gap: var(--space-2);
+  padding: 0 var(--space-1);
 }
 
 .alerts-list-header h2 {
   margin: 0;
-  font-size: 13px;
-  letter-spacing: 0.5px;
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: var(--tracking-wider);
+  color: var(--color-text-muted);
 }
 
 .alerts-list-header span {
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--color-text-muted);
 }
 
 .alerts-error {
   margin: 0;
-  padding: 8px 14px;
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-sm);
   background: rgba(214, 69, 69, 0.12);
   color: #8a231f;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
 .alerts-empty {
   margin: 0;
-  padding: 20px 14px;
+  padding: var(--space-8) var(--space-4);
   text-align: center;
-  font-size: 12.5px;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
   color: var(--color-text-muted);
   background: var(--color-surface);
   border-radius: var(--radius-md);
@@ -117,15 +133,69 @@
 .alerts-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
+.municipality-risk-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.municipality-risk-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.municipality-risk-row:last-child {
+  border-bottom: none;
+}
+
+.municipality-risk-row.is-own {
+  background: var(--color-primary-light);
+}
+
+.municipality-risk-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.municipality-risk-you {
+  flex-shrink: 0;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-wide);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.municipality-risk-na {
+  flex-shrink: 0;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+/* Severity reads from the card's full outline. */
 .alert-card {
   background: var(--color-surface);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
-  padding: 14px;
-  border: 1.5px solid transparent;
+  padding: var(--space-4);
+  border: 1.5px solid var(--color-primary);
 }
 
 .alert-card.risk-high {
@@ -139,58 +209,81 @@
 .alert-card-top {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
 }
 
 .alert-verified-badge {
   display: inline-flex;
   align-items: center;
-  font-size: 9.5px;
+  font-size: var(--text-2xs);
   font-weight: 700;
-  letter-spacing: 0.2px;
-  padding: 3px 8px;
-  border-radius: 999px;
+  line-height: 1;
+  letter-spacing: var(--tracking-wide);
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
   background: var(--color-primary-light);
   color: var(--color-primary-dark);
-}
-
-.alert-distance {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 .alert-date {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
   margin-left: auto;
+  white-space: nowrap;
 }
 
 .alert-card h3 {
-  margin: 0 0 4px;
-  font-size: 14px;
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-text);
+}
+
+.alert-scientific {
+  margin: 2px 0 var(--space-3);
+  font-size: var(--text-xs);
+  font-style: italic;
+  color: var(--color-text-muted);
 }
 
 .alert-location {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--color-primary-dark);
+  gap: var(--space-1);
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-xs);
   font-weight: 700;
-  margin: 0 0 8px;
+  color: var(--color-primary-dark);
 }
 
-.alert-location em {
-  color: var(--color-text-muted);
-  font-weight: 500;
+.alert-location-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Distance is the "should I care about this one" signal, so it gets its own
+   pill on the right rather than sitting as muted text among other chips. */
+.alert-distance {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-wide);
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(63, 125, 58, 0.1);
+  color: var(--color-primary-dark);
+  white-space: nowrap;
 }
 
 .alert-desc {
   margin: 0;
-  font-size: 12.5px;
-  line-height: 1.5;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
   color: var(--color-text);
 }

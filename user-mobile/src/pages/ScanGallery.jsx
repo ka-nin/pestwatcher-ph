@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import ScreenHeader from '../components/ScreenHeader';
+import { useLanguage } from '../context/LanguageContext';
 import './ScanGallery.css';
 
 const TABS = ['All', 'Recent', 'Camera', 'Pest Albums'];
@@ -14,6 +15,7 @@ const PLACEHOLDER_PHOTOS = Array.from({ length: 9 }, (_, i) => ({
 
 export default function ScanGallery() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [tab, setTab] = useState('All');
   const [selected, setSelected] = useState(0);
 
@@ -52,10 +54,10 @@ export default function ScanGallery() {
 
       <div className="gallery-footer">
         <div className="gallery-footer-row">
-          <span>{selected !== null ? '1' : '0'} Larawan ang napili</span>
+          <span>{selected !== null ? '1' : '0'} {t('gallerySelectedSuffix')}</span>
           {selected !== null && (
             <button className="gallery-clear" onClick={() => setSelected(null)}>
-              I-clear
+              {t('galleryClear')}
             </button>
           )}
         </div>
@@ -64,7 +66,7 @@ export default function ScanGallery() {
           disabled={selected === null}
           onClick={() => navigate('/scan/analyzing')}
         >
-          Gamitin ang Larawan
+          {t('galleryUseBtn')}
         </button>
       </div>
     </div>

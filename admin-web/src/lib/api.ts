@@ -195,6 +195,7 @@ export interface ReportRecord {
   id: string
   username: string
   pest_type: string
+  pest_code: string | null
   severity: string
   province: string
   municipality: string
@@ -366,6 +367,16 @@ export interface OverviewResponse {
 export async function fetchAdminOverview(token: string): Promise<OverviewResponse> {
   const res = await authFetch(token, '/api/admin/overview')
   if (!res.ok) throw new Error('Failed to fetch municipality overview')
+  return res.json()
+}
+
+// Public equivalent of fetchAdminOverview — every municipality on file
+// (not just ones with an LGU account) and no auth, so any logged-in LGU
+// technician's Status page can show province-wide risk context alongside
+// their own municipality's detail, without needing SuperAdmin scope.
+export async function fetchMunicipalitiesRisk(): Promise<OverviewResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/locations/municipalities/risk`)
+  if (!res.ok) throw new Error('Failed to fetch municipality risk overview')
   return res.json()
 }
 

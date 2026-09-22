@@ -6,20 +6,29 @@ import { pestGuide, etlThresholds } from '../data/mockData';
 import { PestHeroMedia } from '../data/pestIcons';
 import { fetchPestForecast, fetchPestForecastTrajectory } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import './GuideDetail.css';
 import './ScanResult.css';
 
-const RISK_LABEL_FIL = {
-  low: 'Mababang Panganib',
-  medium: 'Katamtamang Panganib',
-  high: 'Mataas na Panganib',
+const RISK_LABEL = {
+  low: { fil: 'Mababang Panganib', en: 'Low Risk' },
+  medium: { fil: 'Katamtamang Panganib', en: 'Moderate Risk' },
+  high: { fil: 'Mataas na Panganib', en: 'High Risk' },
 };
 
-const RISK_SUMMARY_FIL = {
-  low: 'Mababa ang inaasahang panganib sa loob ng 14 araw. Ipagpatuloy ang normal na pagmamanman.',
-  medium:
-    'May pagtaas ng panganib na inaasahan sa loob ng 14 araw. Bantayan ang bukid at maghanda ng aksyon.',
-  high: 'Mataas ang inaasahang panganib sa loob ng 14 araw. Inirerekomenda ang agarang interbensyon.',
+const RISK_SUMMARY = {
+  low: {
+    fil: 'Mababa ang inaasahang panganib sa loob ng 14 araw. Ipagpatuloy ang normal na pagmamanman.',
+    en: 'Risk is expected to stay low over the next 14 days. Continue normal monitoring.',
+  },
+  medium: {
+    fil: 'May pagtaas ng panganib na inaasahan sa loob ng 14 araw. Bantayan ang bukid at maghanda ng aksyon.',
+    en: 'Risk is expected to increase over the next 14 days. Keep a close watch on the field and prepare a response.',
+  },
+  high: {
+    fil: 'Mataas ang inaasahang panganib sa loob ng 14 araw. Inirerekomenda ang agarang interbensyon.',
+    en: 'High risk is expected over the next 14 days. Immediate intervention is recommended.',
+  },
 };
 
 const RISK_HERO_GRADIENT = {
@@ -45,6 +54,8 @@ export default function ScanResult() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, growthStage } = useAuth();
+  const { language, t } = useLanguage();
+  const isEn = language === 'en';
 
   // Real result from the just-completed /api/inference/image call, passed
   // via navigation state from ScanCapture.
@@ -107,7 +118,7 @@ export default function ScanResult() {
           }
         }
       } catch (err) {
-        if (!cancelled) setForecastError(err.message || 'Hindi makuha ang live forecast.');
+        if (!cancelled) setForecastError(err.message || t('scanResultForecastError'));
       } finally {
         if (!cancelled) setLoadingForecast(false);
       }
@@ -126,13 +137,10 @@ export default function ScanResult() {
           <X size={18} />
         </button>
         <div className="scan-result-unavailable-body">
-          <h1>Hindi pa handa ang AI model</h1>
-          <p>
-            {inference?.message ||
-              'Ang larawan ay na-save na para sa training, pero wala pang trained na image classification model. Subukan ulit sa susunod.'}
-          </p>
+          <h1>{t('scanResultModelNotReady')}</h1>
+          <p>{inference?.message || t('scanResultModelNotReadyBody')}</p>
           <button className="scan-result-rescan-btn" onClick={() => navigate('/scan')}>
-            Scan Ulit
+            {t('scanResultRescan')}
           </button>
         </div>
       </div>
@@ -148,6 +156,11 @@ export default function ScanResult() {
   const stageThresholds = etlThresholds[guideId]?.[bucket];
   const measurement = forecast?.predicted_value ?? null;
 
+  const displayName = isEn ? entry.nameEn || entry.name : entry.name;
+  const description = isEn ? entry.descriptionEn || entry.description : entry.description;
+  const signs = isEn ? entry.signsEn || entry.signs : entry.signs;
+  const prevention = isEn ? entry.preventionEn || entry.prevention : entry.prevention;
+
   return (
     <div className="guide-detail-screen">
       <div
@@ -156,7 +169,7 @@ export default function ScanResult() {
       >
         <PestHeroMedia id={entry.id} />
         <div className="guide-detail-hero-scrim scan-result-hero-scrim" />
-        <button className="scan-result-rescan-top" onClick={() => navigate('/scan')} aria-label="Scan Ulit">
+        <button className="scan-result-rescan-top" onClick={() => navigate('/scan')} aria-label={t('scanResultRescan')}>
           <RotateCcw size={16} />
         </button>
         <button className="guide-detail-close" onClick={() => navigate('/home')} aria-label="Close">
@@ -167,18 +180,22 @@ export default function ScanResult() {
       <div className="guide-detail-sheet">
         {/* Signal 1: what the photo itself showed */}
         <section className="scan-result-signal">
-          <span className="scan-result-signal-label">Mula sa Larawan</span>
+          <span className="scan-result-signal-label">{t('scanResultFromPhoto')}</span>
           <div className="scan-result-confidence">
             <span className={`scan-result-photo-chip${photoDetected ? ' detected' : ''}`}>
-              {inference.pest_detected || 'Walang natukoy'}
+              {inference.pest_detected || t('scanResultNoneDetected')}
             </span>
             <span>{Math.round((inference.confidence ?? 0) * 100)}% confidence</span>
           </div>
         </section>
 
-        <h1>{entry.name}</h1>
+        <h1>{displayName}</h1>
         <p className="guide-detail-fil">
-          {entry.nameFil} <em>({entry.scientificName})</em>
+          {isEn ? entry.scientificName && <em>{entry.scientificName}</em> : (
+            <>
+              {entry.nameFil} <em>({entry.scientificName})</em>
+            </>
+          )}
         </p>
 
         <span className="scan-result-etl-tag scan-result-stage-tag">
@@ -187,40 +204,43 @@ export default function ScanResult() {
 
         {/* Signal 2: the live, weather-based forecast for this farm — not derived from the photo */}
         <section className="scan-result-signal scan-result-signal-forecast">
-          <span className="scan-result-signal-label">Live na Forecast (Batay sa Panahon)</span>
+          <span className="scan-result-signal-label">{t('scanResultLiveForecast')}</span>
 
-          {loadingForecast && <p className="scan-result-summary">Kinukuha ang live forecast...</p>}
+          {loadingForecast && <p className="scan-result-summary">{t('scanResultLoadingForecast')}</p>}
           {forecastError && <p className="scan-result-summary">{forecastError}</p>}
 
           {!loadingForecast && forecast && forecastRisk && (
             <>
               <div className="scan-result-confidence">
-                <RiskBadge level={forecastRisk} label={RISK_LABEL_FIL[forecastRisk]} />
+                <RiskBadge level={forecastRisk} label={RISK_LABEL[forecastRisk][language]} />
                 {forecast.adjusted_by_reports && (
-                  <span>Naaayon sa {forecast.verified_report_count} verified na ulat</span>
+                  <span>
+                    {t('scanResultAdjustedBy')} {forecast.verified_report_count} {t('scanResultVerifiedReports')}
+                  </span>
                 )}
               </div>
-              <p className="scan-result-summary">{RISK_SUMMARY_FIL[forecastRisk]}</p>
+              <p className="scan-result-summary">{RISK_SUMMARY[forecastRisk][language]}</p>
             </>
           )}
 
           {!loadingForecast && !forecast && (
             <p className="scan-result-summary">
-              Hindi pa available ang BiLSTM forecast model para sa {resolvedPest || 'peste na ito'} sa lugar na ito.
+              {t('scanResultModelUnavailable')} {resolvedPest || t('scanResultThisPest')}.
             </p>
           )}
         </section>
 
         {trajectory && trajectory.length > 0 && (
           <section>
-            <h2>14-ARAW NA PAGTATAYA NG PANGANIB</h2>
+            <h2>{t('scanResultTrajectoryTitle')}</h2>
             <div className="forecast-grid">
               {trajectory.map((day) => {
                 const d = new Date(day.date);
-                const dayFil = DAY_NAMES_FIL[d.toLocaleDateString('en-US', { weekday: 'short' })];
+                const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+                const dayName = isEn ? weekday : DAY_NAMES_FIL[weekday];
                 return (
                   <div key={day.date} className={`forecast-day risk-${day.risk_level.toLowerCase()}`}>
-                    <span className="forecast-day-name">{dayFil}</span>
+                    <span className="forecast-day-name">{dayName}</span>
                     <span className="forecast-day-date">
                       {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
@@ -229,9 +249,9 @@ export default function ScanResult() {
               })}
             </div>
             <div className="forecast-legend">
-              <span><i className="risk-low" /> Mababa</span>
-              <span><i className="risk-medium" /> Katamtaman</span>
-              <span><i className="risk-high" /> Mataas</span>
+              <span><i className="risk-low" /> {t('scanResultLegendLow')}</span>
+              <span><i className="risk-medium" /> {t('scanResultLegendMedium')}</span>
+              <span><i className="risk-high" /> {t('scanResultLegendHigh')}</span>
             </div>
           </section>
         )}
@@ -256,36 +276,36 @@ export default function ScanResult() {
                 />
               </div>
               <div className="etl-scale-labels">
-                <span>Mababa (&lt;{stageThresholds.low})</span>
-                <span>Katamtaman ({stageThresholds.low}–{stageThresholds.medium})</span>
-                <span>Mataas (&gt;{stageThresholds.medium})</span>
+                <span>{t('scanResultLegendLow')} (&lt;{stageThresholds.low})</span>
+                <span>{t('scanResultLegendMedium')} ({stageThresholds.low}–{stageThresholds.medium})</span>
+                <span>{t('scanResultLegendHigh')} (&gt;{stageThresholds.medium})</span>
               </div>
               <p className="etl-scale-note">
-                Batay sa Economic Threshold Level (ETL) ng PhilRice at DA-RCPC para sa {entry.name} sa{' '}
-                {bucket === 'Vegetative' ? 'vegetative' : 'reproductive'} na yugto.
+                {t('scanResultEtlNote')} {displayName} {t('scanResultEtlNoteStage')}{' '}
+                {bucket === 'Vegetative' ? t('scanResultVegetative') : t('scanResultReproductive')}.
               </p>
             </div>
           </section>
         )}
 
         <section>
-          <h2>TUNGKOL SA PESTENG ITO</h2>
-          <p>{entry.description}</p>
+          <h2>{t('scanResultAboutTitle')}</h2>
+          <p>{description}</p>
         </section>
 
         <section>
-          <h2>MGA PALATANDAAN</h2>
+          <h2>{t('guideDetailSigns')}</h2>
           <ul>
-            {entry.signs.map((sign) => (
+            {signs.map((sign) => (
               <li key={sign}>{sign}</li>
             ))}
           </ul>
         </section>
 
         <section>
-          <h2>INIREREKOMENDANG AKSYON</h2>
+          <h2>{t('scanResultRecommendedAction')}</h2>
           <ul>
-            {entry.prevention.map((item) => (
+            {prevention.map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>

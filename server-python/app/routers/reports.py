@@ -1,13 +1,14 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from app.config import get_settings
 from app.data import reports_store
 from app.decision.pest_matching import derive_pest_code
 from app.models.resnet_model import resnet_classifier
+from app.rate_limit import RateLimitExceeded, RateLimiter
 from app.schemas.reports import ReportRecord, ReportResponse, ReportStatusUpdate
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
@@ -16,6 +17,20 @@ router = APIRouter(prefix="/api/reports", tags=["reports"])
 # duplicated rather than imported to avoid coupling the two routers over
 # what's otherwise an unrelated constant.
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
+# Anti-spam guardrails for the public, farmer-facing submission endpoint —
+# there's no farmer login to rate-limit by account, so this throttles by
+# requesting IP instead. A genuine farmer with a real outbreak on hand
+# won't hit either limit; both exist to stop a script (or a mis-tapping
+# button) from flooding an LGU's review queue or artificially inflating
+# app/decision/report_signal.py's verified-report risk signal.
+REPORT_RATE_LIMIT_MAX = 5
+REPORT_RATE_LIMIT_WINDOW_SECONDS = 10 * 60
+DUPLICATE_REPORT_WINDOW_MINUTES = 10
+
+_report_rate_limiter = RateLimiter(
+    max_requests=REPORT_RATE_LIMIT_MAX, window_seconds=REPORT_RATE_LIMIT_WINDOW_SECONDS
+)
 
 
 @router.get("", response_model=list[ReportRecord])
@@ -33,6 +48,7 @@ def list_reports(province: str | None = None, municipality: str | None = None) -
 
 @router.post("", response_model=ReportResponse)
 async def submit_report(
+    request: Request,
     pest_type: str = Form(...),
     severity: str = Form(...),
     province: str = Form(...),
@@ -53,6 +69,24 @@ async def submit_report(
     photo-less report (the fallback path) is the same endpoint with `file`
     omitted. Persisted to the `reports` Postgres table (app/data/reports_store.py).
     """
+    client_ip = request.client.host if request.client else "unknown"
+    try:
+        _report_rate_limiter.check(client_ip)
+    except RateLimitExceeded as exc:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many reports submitted — please wait {round(exc.retry_after_seconds)}s and try again.",
+        ) from exc
+
+    duplicate_cutoff = (
+        datetime.now(timezone.utc) - timedelta(minutes=DUPLICATE_REPORT_WINDOW_MINUTES)
+    ).isoformat()
+    if reports_store.count_recent_similar_reports(username, municipality, pest_type, duplicate_cutoff) > 0:
+        raise HTTPException(
+            status_code=409,
+            detail="You already reported this pest sighting recently — please wait before submitting again.",
+        )
+
     photo_path: str | None = None
     ai_pest_detected: str | None = None
     ai_confidence: float | None = None

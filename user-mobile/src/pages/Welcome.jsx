@@ -5,7 +5,9 @@ import riceFieldImg from '../assets/rice-field.png';
 import logoImg from '../assets/logo-shield.png';
 import { fetchMunicipalities } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { findNearest } from '../utils/geo';
+import LanguageToggle from '../components/LanguageToggle';
 import './Welcome.css';
 
 // Simulated GPS fix for this demo — a real device's navigator.geolocation
@@ -25,6 +27,7 @@ const SIMULATED_GPS_FIX = { latitude: 15.58, longitude: 120.95 };
 export default function Welcome() {
   const navigate = useNavigate();
   const { setUser } = useAuth();
+  const { t } = useLanguage();
   const [stage, setStage] = useState('intro'); // 'intro' -> 'cta' -> 'setup'
   const [municipalities, setMunicipalities] = useState([]);
   const [selected, setSelected] = useState('');
@@ -51,7 +54,7 @@ export default function Welcome() {
           setSelected(list[0].municipality);
         }
       })
-      .catch((err) => setError(err.message || 'Hindi ma-connect sa server. Subukan ulit.'))
+      .catch((err) => setError(err.message || t('welcomeConnectError')))
       .finally(() => setLoadingList(false));
   }, [stage, municipalities.length]);
 
@@ -87,12 +90,10 @@ export default function Welcome() {
           </div>
 
           <h1 className="welcome-intro-headline">
-            <span className="welcome-intro-headline-accent">Ang Bagong Yugto</span>
-            <span className="welcome-intro-headline-primary">ng Agrikultura</span>
+            <span className="welcome-intro-headline-accent">{t('welcomeHeadlineAccent')}</span>
+            <span className="welcome-intro-headline-primary">{t('welcomeHeadlinePrimary')}</span>
           </h1>
-          <p className="welcome-intro-tagline">
-            Pangmatagalang solusyon sa pagsasaka para sa mas magandang bukas
-          </p>
+          <p className="welcome-intro-tagline">{t('welcomeTagline')}</p>
         </div>
       </div>
     );
@@ -102,18 +103,23 @@ export default function Welcome() {
     return (
       <div className="welcome-screen welcome-screen-setup">
         <div className="welcome-setup-content">
-          <h1>Kumpirmahin ang iyong lokasyon</h1>
-          <p>Batay sa GPS ng iyong device, ito ang pinakamalapit na sakop na sinusuportahan ng forecast model.</p>
+          <div className="welcome-setup-langrow">
+            <LanguageToggle variant="light" />
+          </div>
+          <h1>{t('welcomeSetupTitle')}</h1>
+          <p>{t('welcomeSetupSubtitle')}</p>
 
           {error && <p className="welcome-login-error">{error}</p>}
 
           {loadingList && !municipalities.length ? (
-            <p className="welcome-setup-loading">Kinukuha ang iyong lokasyon...</p>
+            <p className="welcome-setup-loading">{t('welcomeSetupLoading')}</p>
           ) : (
             <>
               <div className="welcome-setup-detected">
                 <LocateFixed size={13} />
-                {nearestKm != null ? `Awtomatikong natukoy · ~${nearestKm}km ang layo` : 'Awtomatikong natukoy'}
+                {nearestKm != null
+                  ? `${t('welcomeSetupDetected')} · ~${nearestKm}km ${t('welcomeSetupDetectedAway')}`
+                  : t('welcomeSetupDetected')}
               </div>
               <div className="municipality-list">
                 {municipalities.map((m) => (
@@ -132,12 +138,12 @@ export default function Welcome() {
                   </button>
                 ))}
               </div>
-              <p className="welcome-setup-override">Hindi tama? Pumili ng ibang munisipyo sa itaas.</p>
+              <p className="welcome-setup-override">{t('welcomeSetupOverride')}</p>
             </>
           )}
 
           <label className="welcome-setup-name">
-            <span>Pangalan (opsyonal)</span>
+            <span>{t('welcomeSetupNameLabel')}</span>
             <input
               type="text"
               placeholder="Juan Dela Cruz"
@@ -147,7 +153,7 @@ export default function Welcome() {
           </label>
 
           <button className="welcome-cta welcome-cta-dark" onClick={handleContinue} disabled={!selected}>
-            Magpatuloy
+            {t('welcomeContinueBtn')}
           </button>
         </div>
       </div>
@@ -157,16 +163,19 @@ export default function Welcome() {
   return (
     <div className="welcome-screen" style={{ backgroundImage: `url(${riceFieldImg})` }}>
       <div className="welcome-content">
+        <div className="welcome-langrow">
+          <LanguageToggle variant="light" />
+        </div>
         <div className="welcome-brand-block">
           <img src={logoImg} alt="PestWatcher PH" className="welcome-logo-img" />
           <h1>
             PESTWATCHER<sup>PH</sup>
           </h1>
-          <p>Pangmatagalang solusyon sa pagsasaka para sa mas magandang bukas</p>
+          <p>{t('welcomeTagline')}</p>
         </div>
 
         <button className="welcome-cta" onClick={() => setStage('setup')}>
-          Simulan
+          {t('welcomeCtaStart')}
         </button>
       </div>
     </div>

@@ -121,6 +121,27 @@ def list_verified_reports(municipality: str) -> list[ReportRecord]:
         return [_to_schema(r) for r in rows]
 
 
+def count_recent_similar_reports(username: str, municipality: str, pest_type: str, since_iso: str) -> int:
+    """Used by app/routers/reports.py to reject an accidental double-submit
+    or a spammed repeat of the same sighting — same farmer, municipality,
+    and pest, within a short trailing window. `submitted_at` is stored as
+    an ISO 8601 string with a fixed UTC offset (see create_report), which
+    sorts lexicographically the same as chronologically, so a plain string
+    comparison works without parsing every row back into a datetime.
+    """
+    with session_scope() as db:
+        return (
+            db.query(ReportDB)
+            .filter(
+                ReportDB.username == username,
+                ReportDB.municipality == municipality,
+                ReportDB.pest_type == pest_type,
+                ReportDB.submitted_at >= since_iso,
+            )
+            .count()
+        )
+
+
 def create_report(record: ReportRecord) -> None:
     with session_scope() as db:
         data = record.model_dump(exclude={"photo_url"})

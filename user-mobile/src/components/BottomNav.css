@@ -1,57 +1,115 @@
+/* Floating bar with the active tab's icon raised into a circle that breaks
+   out above the bar's top edge. The circle carries a ring in the bar's own
+   white so its outline reads as separate from the bar underneath, giving
+   the "scooped out" look rather than the two whites merging together. */
 .bottom-nav {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 10;
-  background: #fff;
-  box-shadow: 0 -4px 18px rgba(30, 30, 15, 0.1);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding: 0 var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
+  background: none;
+  pointer-events: none;
 }
 
 .bottom-nav-pill {
+  position: relative;
   display: flex;
   justify-content: space-around;
-  align-items: center;
-  height: 58px;
+  align-items: stretch;
+  height: 62px;
+  padding-bottom: var(--space-2);
+  background: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 26px rgba(30, 30, 15, 0.18);
+  pointer-events: auto;
+  /* The raised circle intentionally overflows the top edge. */
+  overflow: visible;
 }
 
 .bottom-nav-item {
+  position: relative;
   flex: 1;
   height: 100%;
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  gap: 3px;
+  padding-bottom: 5px;
   color: var(--color-text-muted);
-  transition: color 0.2s ease;
+  transition: color 0.28s ease;
 }
 
-.bottom-nav-icon-wrap svg {
-  transition: transform 0.2s ease;
-}
-
-.bottom-nav-item.active .bottom-nav-icon-wrap svg {
-  transform: scale(1.08);
-}
-
+/* Icon is ALWAYS absolutely positioned so every state change (top, size,
+   colors, shadow) is a genuine CSS transition between two real values.
+   Toggling position itself (static <-> absolute) can't be animated — that
+   was the source of the previous jump-cut/jank. */
 .bottom-nav-icon-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: 21px;
+  transform: translate(-50%, 0);
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: transparent;
+  border: 2.5px solid transparent;
+  box-shadow: 0 0 0 0 rgba(63, 125, 58, 0);
+  transition: bottom 0.38s cubic-bezier(0.34, 1.56, 0.64, 1),
+    width 0.38s cubic-bezier(0.34, 1.56, 0.64, 1),
+    height 0.38s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 0.28s ease, border-color 0.28s ease, color 0.28s ease,
+    box-shadow 0.32s ease;
+}
+
+.bottom-nav-icon-wrap svg {
+  width: 20px;
+  height: 20px;
+  transition: width 0.38s cubic-bezier(0.34, 1.56, 0.64, 1),
+    height 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .bottom-nav-label {
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   line-height: 1;
+  letter-spacing: var(--tracking-wide);
+  transition: color 0.28s ease;
 }
 
 .bottom-nav-item.active {
   color: var(--color-primary);
 }
 
-.bottom-nav-item:not(.active) {
-  color: var(--color-text-muted);
+/* Active tab: icon lifts out of the bar into an outlined circle that breaks
+   the top edge; label just bolds/recolors in place. */
+.bottom-nav-item.active .bottom-nav-icon-wrap {
+  bottom: 40px;
+  width: 52px;
+  height: 52px;
+  background: #fff;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  box-shadow: 0 0 0 5px #fff, 0 8px 16px -4px rgba(63, 125, 58, 0.45);
+}
+
+.bottom-nav-item.active .bottom-nav-icon-wrap svg {
+  width: 24px;
+  height: 24px;
+}
+
+.bottom-nav-item.active .bottom-nav-label {
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav-icon-wrap,
+  .bottom-nav-icon-wrap svg,
+  .bottom-nav-label {
+    transition: none;
+  }
 }

@@ -11,11 +11,89 @@
   --color-text: #2a2a22;
   --color-text-muted: #6b6a5f;
   --color-border: #e4ddc9;
+
+  /* Risk/severity tints. Same values that were inline in RiskBadge.jsx and
+     Guide.jsx's DANGER_STYLE — tokenized so a severity reads identically
+     everywhere instead of being re-typed per component. */
+  --risk-low-bg: #e5f2df;
+  --risk-low-fg: var(--color-primary-dark);
+  --risk-medium-bg: #fbeacd;
+  --risk-medium-fg: #8a5a10;
+  --risk-high-bg: #fbe0de;
+  --risk-high-fg: #a52f28;
+  --risk-critical-bg: #f6d2ce;
+  --risk-critical-fg: #8f1f1a;
   --radius-lg: 20px;
   --radius-md: 14px;
   --radius-sm: 10px;
+  --radius-pill: 999px;
+
+  /* Elevation scale. --shadow-card is the existing mid-level surface used by
+     every card; the other two give depth a floor and a ceiling so stacked UI
+     (sheets, floating buttons) can actually read as being above a card. */
+  --shadow-sm: 0 1px 3px rgba(40, 40, 20, 0.06), 0 1px 2px rgba(40, 40, 20, 0.04);
   --shadow-card: 0 4px 18px rgba(40, 40, 20, 0.1);
-  --font-base: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --shadow-lg: 0 14px 34px -10px rgba(40, 40, 20, 0.26);
+  --shadow-hero: 0 10px 24px -10px rgba(20, 40, 15, 0.4);
+
+  /* -apple-system first so iOS/macOS get SF Pro (this app is tested in
+     mobile Safari/Chrome), then Segoe on Windows, Roboto on Android. */
+  --font-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, sans-serif;
+
+  /* Type scale — paired size/line-height so vertical rhythm stays even.
+     Replaces the ad-hoc 9.5/10/10.5/11/12.5/13/13.5/14/17/22/26px values
+     that had accumulated across the screens. */
+  --text-2xs: 10px;
+  --text-xs: 11px;
+  --text-sm: 12.5px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --text-lg: 19px;
+  --text-xl: 23px;
+  --text-2xl: 28px;
+
+  --leading-tight: 1.2;
+  --leading-snug: 1.35;
+  --leading-normal: 1.55;
+
+  /* Optical tracking: large bold type wants negative, small caps-y labels
+     want positive, or they read cramped/loose respectively at phone size. */
+  --tracking-tight: -0.4px;
+  --tracking-wide: 0.6px;
+  --tracking-wider: 1px;
+
+  /* 4px-based spacing scale. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Minimum comfortable touch target. Farmers use this outdoors, one-handed,
+     sometimes with wet or muddy hands — several controls were 32-34px,
+     under both the iOS (44pt) and Material (48dp) guidance. */
+  --tap-target: 44px;
+
+  /* The green header treatment shared by Home, Alerts and Guide — was
+     duplicated verbatim in three stylesheets before this. */
+  --gradient-hero: linear-gradient(160deg, #4a8a45 0%, var(--color-primary) 55%, var(--color-primary-dark) 100%);
+}
+
+/* Shared hero header. Any screen-level green header uses this so the tab
+   screens and the pushed/detail screens speak the same visual language. */
+.hero-surface {
+  flex-shrink: 0;
+  background: var(--gradient-hero);
+  border-radius: 0 0 28px 28px;
+  box-shadow: var(--shadow-hero);
+  color: #fff;
+}
+
+.hero-surface h1 {
+  color: #fff;
+  letter-spacing: var(--tracking-tight);
 }
 
 /* Every card/surface in the app uses var(--color-surface) as its
@@ -57,6 +135,9 @@ body {
   font-family: var(--font-base);
   background: #1b1b17;
   color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 button {
@@ -154,6 +235,28 @@ a {
 button:active,
 a:active {
   transform: scale(0.97);
+}
+
+/* Keyboard focus ring. :focus-visible (not :focus) so it never fires on
+   touch/mouse press, only genuine keyboard navigation. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Suppresses the grey tap flash Android/iOS Safari paint over taps — the
+   scale-down above is the app's own, more deliberate feedback. */
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {

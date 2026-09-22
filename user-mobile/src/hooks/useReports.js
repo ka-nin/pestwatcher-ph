@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchReports } from '../api/client';
 import { pestGuide } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { haversineKm } from '../utils/geo';
 
 const SEVERITY_LABEL = {
@@ -29,6 +30,7 @@ function formatDate(iso) {
 // from the logged-in farmer's own coordinates, and a matched scientific name.
 export function useReports() {
   const { user } = useAuth();
+  const { language, t } = useLanguage();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -54,17 +56,23 @@ export function useReports() {
             const distanceKm = hasCoords
               ? Math.round(haversineKm(user.latitude, user.longitude, r.latitude, r.longitude))
               : null;
+            const isEn = language === 'en';
+            const pestName = guide
+              ? isEn
+                ? guide.nameEn || guide.name
+                : `${guide.name} (${guide.nameFil})`
+              : r.pest_type;
             return {
               id: r.id,
               risk: r.severity,
               riskLabel: SEVERITY_LABEL[r.severity] || 'Unknown Risk',
-              distance: distanceKm != null ? `${distanceKm}km away` : 'Distance unknown',
+              distance: distanceKm != null ? `${distanceKm}km` : t('alertsDistanceUnknown'),
               date: formatDate(r.date_spotted),
               distanceKm,
-              pestName: guide ? `${guide.name} (${guide.nameFil})` : r.pest_type,
+              pestName,
               scientificName: guide?.scientificName || '—',
               location: r.municipality || r.province,
-              description: r.notes || 'Walang karagdagang detalye na ibinigay.',
+              description: r.notes || t('alertsNoDetails'),
               latitude: r.latitude,
               longitude: r.longitude,
               // "pending" until an LGU technician reviews it in admin-web —
@@ -77,7 +85,7 @@ export function useReports() {
         setReports(shaped);
       })
       .catch((err) => {
-        if (!cancelled) setError(err.message || 'Hindi makuha ang mga ulat.');
+        if (!cancelled) setError(err.message || t('alertsError'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -86,7 +94,7 @@ export function useReports() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, language]);
 
   return { reports, loading, error };
 }
