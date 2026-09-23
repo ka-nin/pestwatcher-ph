@@ -2,22 +2,6 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-
-class ImageInferenceResponse(BaseModel):
-    """Response contract for the ResNet-50 optical field surveillance endpoint.
-
-    Kept stable now so the mobile app can integrate against it before the
-    real model is trained/loaded — `status` tells the caller whether the
-    prediction is real or a placeholder.
-    """
-
-    status: Literal["ok", "model_not_loaded"]
-    pest_detected: str | None = None
-    confidence: float | None = None
-    risk_level: Literal["Low", "Moderate", "High", "Critical"] | None = None
-    message: str
-
-
 GrowthStage = Literal["Seedling", "Tillering", "Elongation", "Panicle", "Flowering", "Ripening"]
 
 
@@ -71,6 +55,28 @@ class TrajectoryResponse(BaseModel):
     status: Literal["ok", "model_not_loaded"]
     points: list[TrajectoryPoint]
     message: str
+
+
+class ImageInferenceResponse(BaseModel):
+    """Response contract for the ResNet-50 optical field surveillance endpoint.
+
+    `status` tells the caller whether the image classification itself ran
+    ("ok"/"model_not_loaded") or whether neither classifier detected a
+    tracked pest ("no_pest_detected") — a real, expected outcome, not an
+    error. When a pest IS detected, the endpoint also runs the matching
+    BiLSTM forecast for the caller's municipality/growth_stage (a photo
+    alone has no time dimension to forecast from — see
+    app/models/resnet_model.py's module docstring) — `forecast` carries
+    that 14-day trajectory, and is null whenever there's no confirmed pest
+    or the caller omitted municipality/growth_stage.
+    """
+
+    status: Literal["ok", "model_not_loaded", "no_pest_detected"]
+    pest_detected: Literal["BPH", "RSB"] | None = None
+    confidence: float | None = None
+    risk_level: Literal["Low", "Moderate", "High", "Critical"] | None = None
+    message: str
+    forecast: TrajectoryResponse | None = None
 
 
 class ExplanationFeature(BaseModel):

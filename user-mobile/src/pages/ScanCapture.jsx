@@ -3,10 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Camera, X, AlertCircle, ImagePlus } from 'lucide-react';
 import ScreenHeader from '../components/ScreenHeader';
 import { submitImageInference } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import './ScanCapture.css';
 
 export default function ScanCapture() {
   const navigate = useNavigate();
+  const { user, growthStage } = useAuth();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -75,7 +77,9 @@ export default function ScanCapture() {
     async function runInference() {
       try {
         const blob = capturedBlobRef.current;
-        const result = blob ? await submitImageInference(blob) : null;
+        const result = blob
+          ? await submitImageInference(blob, user?.municipality, growthStage)
+          : null;
         if (cancelled) return;
         navigate('/scan/result', { state: { inference: result } });
       } catch (err) {
@@ -89,6 +93,10 @@ export default function ScanCapture() {
     return () => {
       cancelled = true;
     };
+    // user.municipality/growthStage are read once at submit time by design —
+    // this effect is gated on `analyzing` (a one-shot trigger from tapping
+    // the shutter), not meant to re-fire mid-upload if either changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analyzing, navigate]);
 
   const capturePhoto = () => {

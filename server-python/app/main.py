@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.models.bilstm_model import bilstm_forecaster
+from app.models.resnet_model import resnet_classifier
 from app.routers import admin, auth, inference, locations, reports, weather
 from ml.config import PEST_PARAMS
 
@@ -25,6 +26,10 @@ def load_ml_models() -> None:
             bilstm_forecaster.load(pest)
         except (FileNotFoundError, OSError):
             print(f"[startup] BiLSTM weights for {pest} not found — /api/inference/forecast will report model_not_loaded for {pest}")
+        try:
+            resnet_classifier.load(pest)
+        except (FileNotFoundError, OSError):
+            print(f"[startup] ResNet-50 weights for {pest} not found — /api/inference/image will skip {pest} detection")
 
 app.add_middleware(
     CORSMiddleware,

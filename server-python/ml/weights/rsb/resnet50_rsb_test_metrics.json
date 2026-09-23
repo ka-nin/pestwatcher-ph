@@ -1,0 +1,20 @@
+{
+  "accuracy": 1.0,
+  "positive_precision": 1.0,
+  "positive_recall": 1.0,
+  "positive_f1": 1.0,
+  "confusion_matrix": [
+    [
+      807,
+      0
+    ],
+    [
+      0,
+      126
+    ]
+  ],
+  "confusion_matrix_labels": [
+    "negative",
+    "positive"
+  ]
+}

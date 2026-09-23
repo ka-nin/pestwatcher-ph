@@ -27,6 +27,28 @@ const RISK_HERO_GRADIENT = {
   high: 'radial-gradient(120% 140% at 100% 0%, #e37c6e 0%, #d64545 32%, #a3312f 68%, #6e211f 100%)',
 };
 
+// Maps the backend's ResNet pest codes to the local pest encyclopedia entry.
+const PEST_ID_BY_CODE = { BPH: 'bph', RSB: 'stem-borer' };
+
+const BACKEND_RISK_TO_LOCAL = { Low: 'low', Medium: 'medium', High: 'high' };
+
+function UnavailableScreen({ title, message, onClose, onRescan }) {
+  return (
+    <div className="guide-detail-screen scan-result-unavailable">
+      <button className="guide-detail-close scan-result-unavailable-close" onClick={onClose} aria-label="Close">
+        <X size={18} />
+      </button>
+      <div className="scan-result-unavailable-body">
+        <h1>{title}</h1>
+        <p>{message}</p>
+        <button className="scan-result-rescan-btn" onClick={onRescan}>
+          Scan Ulit
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function ScanResult() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -36,30 +58,136 @@ export default function ScanResult() {
   // reached directly (e.g. via a bookmark or the ?risk= design-testing path).
   const inference = location.state?.inference;
 
-  if (inference && inference.status !== 'ok') {
+  const closeToHome = () => navigate('/home');
+  const rescan = () => navigate('/scan');
+
+  if (inference && inference.status === 'model_not_loaded') {
     return (
-      <div className="guide-detail-screen scan-result-unavailable">
-        <button className="guide-detail-close scan-result-unavailable-close" onClick={() => navigate('/home')} aria-label="Close">
-          <X size={18} />
-        </button>
-        <div className="scan-result-unavailable-body">
-          <h1>Hindi pa handa ang AI model</h1>
-          <p>
-            {inference.message ||
-              'Ang larawan ay na-save na para sa training, pero wala pang trained na image classification model. Subukan ulit sa susunod.'}
-          </p>
-          <button className="scan-result-rescan-btn" onClick={() => navigate('/scan')}>
-            Scan Ulit
+      <UnavailableScreen
+        title="Hindi pa handa ang AI model"
+        message={
+          inference.message ||
+          'Ang larawan ay na-save na para sa training, pero wala pang trained na image classification model. Subukan ulit sa susunod.'
+        }
+        onClose={closeToHome}
+        onRescan={rescan}
+      />
+    );
+  }
+
+  if (inference && inference.status === 'no_pest_detected') {
+    return (
+      <UnavailableScreen
+        title="Walang natukoy na peste"
+        message={
+          inference.message ||
+          'Walang nakitang Brown Planthopper o Rice Stem Borer sa larawang ito. Subukan ulit nang mas malapit sa peste.'
+        }
+        onClose={closeToHome}
+        onRescan={rescan}
+      />
+    );
+  }
+
+  // Real, successful detection. entry/risk/forecast all come straight from
+  // the backend response instead of the mock scenarios below.
+  if (inference && inference.status === 'ok') {
+    const entry = pestGuide.find((p) => p.id === PEST_ID_BY_CODE[inference.pest_detected]) || pestGuide[0];
+    const forecastPoints = inference.forecast?.points || [];
+    // The trajectory's first point is "today" — used for the hero risk
+    // badge/gradient, same as how the mock version reads today's measurement.
+    const todayRisk = forecastPoints[0]
+      ? BACKEND_RISK_TO_LOCAL[forecastPoints[0].risk_level] || 'low'
+      : 'low';
+
+    return (
+      <div className="guide-detail-screen">
+        <div className="guide-detail-hero" style={{ background: RISK_HERO_GRADIENT[todayRisk] }}>
+          <PestHeroMedia id={entry.id} />
+          <div className="guide-detail-hero-scrim scan-result-hero-scrim" />
+          <button className="scan-result-rescan-top" onClick={rescan} aria-label="Scan Ulit">
+            <RotateCcw size={16} />
           </button>
+          <button className="guide-detail-close" onClick={closeToHome} aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="guide-detail-sheet">
+          <div className="scan-result-confidence">
+            <RiskBadge level={todayRisk} label={RISK_LABEL_FIL[todayRisk]} />
+            <span>{Math.round(inference.confidence * 100)}% confidence</span>
+          </div>
+
+          <h1>{entry.name}</h1>
+          <p className="guide-detail-fil">
+            {entry.nameFil} <em>({entry.scientificName})</em>
+          </p>
+
+          <p className="scan-result-summary">{RISK_SUMMARY_FIL[todayRisk]}</p>
+
+          {forecastPoints.length > 0 && (
+            <section>
+              <h2>14-ARAW NA PAGTATAYA NG PANGANIB</h2>
+              <div className="forecast-grid">
+                {forecastPoints.map((point) => {
+                  const day = new Date(point.date);
+                  const risk = BACKEND_RISK_TO_LOCAL[point.risk_level] || 'low';
+                  return (
+                    <div key={point.date} className={`forecast-day risk-${risk}`}>
+                      <span className="forecast-day-name">
+                        {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                      </span>
+                      <span className="forecast-day-date">{day.getDate()}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="forecast-legend">
+                <span><i className="risk-low" /> Mababa</span>
+                <span><i className="risk-medium" /> Katamtaman</span>
+                <span><i className="risk-high" /> Mataas</span>
+              </div>
+            </section>
+          )}
+
+          {!inference.forecast && (
+            <p className="scan-result-summary">
+              Walang available na 14-araw na forecast — kulang ang lokasyon o growth stage ng account.
+            </p>
+          )}
+
+          <section>
+            <h2>TUNGKOL SA PESTENG ITO</h2>
+            <p>{entry.description}</p>
+          </section>
+
+          <section>
+            <h2>MGA PALATANDAAN</h2>
+            <ul>
+              {entry.signs.map((sign) => (
+                <li key={sign}>{sign}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section>
+            <h2>INIREREKOMENDANG AKSYON</h2>
+            <ul>
+              {entry.prevention.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </section>
         </div>
       </div>
     );
   }
 
-  // In production the risk level comes straight from the backend's
-  // /api/inference/image response. The ?risk= override here only exists so
-  // every risk state's UI can be reached for design/testing purposes, and as
-  // a fallback while the real ResNet-50 classifier is still a stub.
+  // No real inference result — either this screen was opened directly, or
+  // we're previewing a risk state for design/testing via ?risk=. Uses the
+  // mock scanDetectionByRisk scenarios, which include the richer
+  // ETL-measurement section the real backend response doesn't have yet.
   const scenario = searchParams.get('risk');
   const scanDetection =
     (scenario && scanDetectionByRisk[scenario]) || scanDetectionByRisk.medium;
@@ -79,10 +207,10 @@ export default function ScanResult() {
       <div className="guide-detail-hero" style={{ background: RISK_HERO_GRADIENT[risk] }}>
         <PestHeroMedia id={entry.id} />
         <div className="guide-detail-hero-scrim scan-result-hero-scrim" />
-        <button className="scan-result-rescan-top" onClick={() => navigate('/scan')} aria-label="Scan Ulit">
+        <button className="scan-result-rescan-top" onClick={rescan} aria-label="Scan Ulit">
           <RotateCcw size={16} />
         </button>
-        <button className="guide-detail-close" onClick={() => navigate('/home')} aria-label="Close">
+        <button className="guide-detail-close" onClick={closeToHome} aria-label="Close">
           <X size={18} />
         </button>
       </div>
