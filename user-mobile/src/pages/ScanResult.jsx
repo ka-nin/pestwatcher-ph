@@ -1,269 +1,273 @@
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { X, RotateCcw, Sprout } from 'lucide-react';
 import RiskBadge from '../components/RiskBadge';
-import { pestGuide, etlThresholds, classifyRisk, scanDetectionByRisk } from '../data/mockData';
+import { pestGuide, etlThresholds } from '../data/mockData';
 import { PestHeroMedia } from '../data/pestIcons';
+import { fetchPestForecast, fetchPestForecastTrajectory } from '../api/client';
+import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import './GuideDetail.css';
 import './ScanResult.css';
 
-const RISK_LABEL_FIL = {
-  low: 'Mababang Panganib',
-  medium: 'Katamtamang Panganib',
-  high: 'Mataas na Panganib',
+const RISK_LABEL = {
+  low: { fil: 'Mababang Panganib', en: 'Low Risk' },
+  medium: { fil: 'Katamtamang Panganib', en: 'Moderate Risk' },
+  high: { fil: 'Mataas na Panganib', en: 'High Risk' },
 };
 
-const RISK_SUMMARY_FIL = {
-  low: 'Mababa ang inaasahang panganib sa loob ng 14 araw. Ipagpatuloy ang normal na pagmamanman.',
-  medium:
-    'May pagtaas ng panganib na inaasahan sa loob ng 14 araw. Bantayan ang bukid at maghanda ng aksyon.',
-  high: 'Mataas ang inaasahang panganib sa loob ng 14 araw. Inirerekomenda ang agarang interbensyon.',
+const RISK_SUMMARY = {
+  low: {
+    fil: 'Mababa ang inaasahang panganib sa loob ng 14 araw. Ipagpatuloy ang normal na pagmamanman.',
+    en: 'Risk is expected to stay low over the next 14 days. Continue normal monitoring.',
+  },
+  medium: {
+    fil: 'May pagtaas ng panganib na inaasahan sa loob ng 14 araw. Bantayan ang bukid at maghanda ng aksyon.',
+    en: 'Risk is expected to increase over the next 14 days. Keep a close watch on the field and prepare a response.',
+  },
+  high: {
+    fil: 'Mataas ang inaasahang panganib sa loob ng 14 araw. Inirerekomenda ang agarang interbensyon.',
+    en: 'High risk is expected over the next 14 days. Immediate intervention is recommended.',
+  },
 };
 
-// Matches the risk gradients used on Home's hero card so a High-risk scan
-// result and a High-risk dashboard card read as the same visual language.
 const RISK_HERO_GRADIENT = {
   low: 'radial-gradient(120% 140% at 100% 0%, #6ba362 0%, #3f7d3a 32%, #2f5f2c 68%, #1f4020 100%)',
   medium: 'radial-gradient(120% 140% at 100% 0%, #ddc066 0%, #c9a227 32%, #9a7a1c 68%, #6b5312 100%)',
   high: 'radial-gradient(120% 140% at 100% 0%, #e37c6e 0%, #d64545 32%, #a3312f 68%, #6e211f 100%)',
 };
 
-// Maps the backend's ResNet pest codes to the local pest encyclopedia entry.
-const PEST_ID_BY_CODE = { BPH: 'bph', RSB: 'stem-borer' };
+const GUIDE_ID_BY_PEST = { BPH: 'bph', RSB: 'stem-borer' };
+const GROWTH_BUCKET = {
+  Seedling: 'Vegetative',
+  Tillering: 'Vegetative',
+  Elongation: 'Vegetative',
+  Panicle: 'Reproductive',
+  Flowering: 'Reproductive',
+  Ripening: 'Reproductive',
+};
+const RISK_RANK = { Low: 0, Medium: 1, High: 2 };
 
-const BACKEND_RISK_TO_LOCAL = { Low: 'low', Medium: 'medium', High: 'high' };
-
-function UnavailableScreen({ title, message, onClose, onRescan }) {
-  return (
-    <div className="guide-detail-screen scan-result-unavailable">
-      <button className="guide-detail-close scan-result-unavailable-close" onClick={onClose} aria-label="Close">
-        <X size={18} />
-      </button>
-      <div className="scan-result-unavailable-body">
-        <h1>{title}</h1>
-        <p>{message}</p>
-        <button className="scan-result-rescan-btn" onClick={onRescan}>
-          Scan Ulit
-        </button>
-      </div>
-    </div>
-  );
-}
+const DAY_NAMES_FIL = { Mon: 'Lun', Tue: 'Mar', Wed: 'Miy', Thu: 'Huw', Fri: 'Biy', Sat: 'Sab', Sun: 'Lin' };
 
 export default function ScanResult() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
+  const { user, growthStage } = useAuth();
+  const { language, t } = useLanguage();
+  const isEn = language === 'en';
+
   // Real result from the just-completed /api/inference/image call, passed
-  // via navigation state from ScanCapture. Undefined if this screen was
-  // reached directly (e.g. via a bookmark or the ?risk= design-testing path).
+  // via navigation state from ScanCapture.
   const inference = location.state?.inference;
 
-  const closeToHome = () => navigate('/home');
-  const rescan = () => navigate('/scan');
+  const [forecast, setForecast] = useState(null);
+  const [trajectory, setTrajectory] = useState(null);
+  const [resolvedPest, setResolvedPest] = useState(null);
+  const [loadingForecast, setLoadingForecast] = useState(true);
+  const [forecastError, setForecastError] = useState('');
 
-  if (inference && inference.status === 'model_not_loaded') {
-    return (
-      <UnavailableScreen
-        title="Hindi pa handa ang AI model"
-        message={
-          inference.message ||
-          'Ang larawan ay na-save na para sa training, pero wala pang trained na image classification model. Subukan ulit sa susunod.'
+  // The photo classification (what the camera saw) and the weather-based
+  // forecast (what the model expects over the next 14 days) are two
+  // genuinely separate signals — this app doesn't have a model that turns
+  // a photo into a pest count, and the BiLSTM forecast never takes a photo
+  // as input (see the ml/resnet vs ml/bilstm pipelines). Both are shown
+  // honestly side by side rather than merged into one fabricated number.
+  useEffect(() => {
+    if (!inference || inference.status !== 'ok' || !user) return;
+    let cancelled = false;
+    setLoadingForecast(true);
+    setForecastError('');
+
+    const detectedPest = inference.pest_detected?.startsWith('BPH')
+      ? 'BPH'
+      : inference.pest_detected?.startsWith('RSB')
+        ? 'RSB'
+        : null;
+
+    async function loadForecast() {
+      try {
+        if (detectedPest) {
+          const [live, traj] = await Promise.all([
+            fetchPestForecast(user.municipality, detectedPest, growthStage),
+            fetchPestForecastTrajectory(user.municipality, detectedPest, growthStage, 14),
+          ]);
+          if (cancelled) return;
+          setResolvedPest(detectedPest);
+          setForecast(live.status === 'ok' ? live : null);
+          setTrajectory(traj.status === 'ok' ? traj.points : []);
+        } else {
+          // No specific pest detected (e.g. "Healthy") — fall back to
+          // whichever of BPH/RSB currently carries the worse forecast for
+          // this farm, same logic Home's dashboard card uses.
+          const [bph, rsb] = await Promise.all([
+            fetchPestForecast(user.municipality, 'BPH', growthStage),
+            fetchPestForecast(user.municipality, 'RSB', growthStage),
+          ]);
+          if (cancelled) return;
+          const candidates = [
+            { pest: 'BPH', ...bph },
+            { pest: 'RSB', ...rsb },
+          ].filter((f) => f.status === 'ok');
+          const worst = candidates.sort((a, b) => (RISK_RANK[b.risk_level] ?? -1) - (RISK_RANK[a.risk_level] ?? -1))[0];
+          setResolvedPest(worst?.pest || 'BPH');
+          setForecast(worst || null);
+          if (worst) {
+            const traj = await fetchPestForecastTrajectory(user.municipality, worst.pest, growthStage, 14);
+            if (!cancelled) setTrajectory(traj.status === 'ok' ? traj.points : []);
+          }
         }
-        onClose={closeToHome}
-        onRescan={rescan}
-      />
-    );
-  }
+      } catch (err) {
+        if (!cancelled) setForecastError(err.message || t('scanResultForecastError'));
+      } finally {
+        if (!cancelled) setLoadingForecast(false);
+      }
+    }
 
-  if (inference && inference.status === 'no_pest_detected') {
+    loadForecast();
+    return () => {
+      cancelled = true;
+    };
+  }, [inference, user, growthStage]);
+
+  if (!inference || inference.status !== 'ok') {
     return (
-      <UnavailableScreen
-        title="Walang natukoy na peste"
-        message={
-          inference.message ||
-          'Walang nakitang Brown Planthopper o Rice Stem Borer sa larawang ito. Subukan ulit nang mas malapit sa peste.'
-        }
-        onClose={closeToHome}
-        onRescan={rescan}
-      />
-    );
-  }
-
-  // Real, successful detection. entry/risk/forecast all come straight from
-  // the backend response instead of the mock scenarios below.
-  if (inference && inference.status === 'ok') {
-    const entry = pestGuide.find((p) => p.id === PEST_ID_BY_CODE[inference.pest_detected]) || pestGuide[0];
-    const forecastPoints = inference.forecast?.points || [];
-    // The trajectory's first point is "today" — used for the hero risk
-    // badge/gradient, same as how the mock version reads today's measurement.
-    const todayRisk = forecastPoints[0]
-      ? BACKEND_RISK_TO_LOCAL[forecastPoints[0].risk_level] || 'low'
-      : 'low';
-
-    return (
-      <div className="guide-detail-screen">
-        <div className="guide-detail-hero" style={{ background: RISK_HERO_GRADIENT[todayRisk] }}>
-          <PestHeroMedia id={entry.id} />
-          <div className="guide-detail-hero-scrim scan-result-hero-scrim" />
-          <button className="scan-result-rescan-top" onClick={rescan} aria-label="Scan Ulit">
-            <RotateCcw size={16} />
+      <div className="guide-detail-screen scan-result-unavailable">
+        <button className="guide-detail-close scan-result-unavailable-close" onClick={() => navigate('/home')} aria-label="Close">
+          <X size={18} />
+        </button>
+        <div className="scan-result-unavailable-body">
+          <h1>{t('scanResultModelNotReady')}</h1>
+          <p>{inference?.message || t('scanResultModelNotReadyBody')}</p>
+          <button className="scan-result-rescan-btn" onClick={() => navigate('/scan')}>
+            {t('scanResultRescan')}
           </button>
-          <button className="guide-detail-close" onClick={closeToHome} aria-label="Close">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="guide-detail-sheet">
-          <div className="scan-result-confidence">
-            <RiskBadge level={todayRisk} label={RISK_LABEL_FIL[todayRisk]} />
-            <span>{Math.round(inference.confidence * 100)}% confidence</span>
-          </div>
-
-          <h1>{entry.name}</h1>
-          <p className="guide-detail-fil">
-            {entry.nameFil} <em>({entry.scientificName})</em>
-          </p>
-
-          <p className="scan-result-summary">{RISK_SUMMARY_FIL[todayRisk]}</p>
-
-          {forecastPoints.length > 0 && (
-            <section>
-              <h2>14-ARAW NA PAGTATAYA NG PANGANIB</h2>
-              <div className="forecast-grid">
-                {forecastPoints.map((point) => {
-                  const day = new Date(point.date);
-                  const risk = BACKEND_RISK_TO_LOCAL[point.risk_level] || 'low';
-                  return (
-                    <div key={point.date} className={`forecast-day risk-${risk}`}>
-                      <span className="forecast-day-name">
-                        {day.toLocaleDateString('en-US', { weekday: 'short' })}
-                      </span>
-                      <span className="forecast-day-date">{day.getDate()}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="forecast-legend">
-                <span><i className="risk-low" /> Mababa</span>
-                <span><i className="risk-medium" /> Katamtaman</span>
-                <span><i className="risk-high" /> Mataas</span>
-              </div>
-            </section>
-          )}
-
-          {!inference.forecast && (
-            <p className="scan-result-summary">
-              Walang available na 14-araw na forecast — kulang ang lokasyon o growth stage ng account.
-            </p>
-          )}
-
-          <section>
-            <h2>TUNGKOL SA PESTENG ITO</h2>
-            <p>{entry.description}</p>
-          </section>
-
-          <section>
-            <h2>MGA PALATANDAAN</h2>
-            <ul>
-              {entry.signs.map((sign) => (
-                <li key={sign}>{sign}</li>
-              ))}
-            </ul>
-          </section>
-
-          <section>
-            <h2>INIREREKOMENDANG AKSYON</h2>
-            <ul>
-              {entry.prevention.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </section>
         </div>
       </div>
     );
   }
 
-  // No real inference result — either this screen was opened directly, or
-  // we're previewing a risk state for design/testing via ?risk=. Uses the
-  // mock scanDetectionByRisk scenarios, which include the richer
-  // ETL-measurement section the real backend response doesn't have yet.
-  const scenario = searchParams.get('risk');
-  const scanDetection =
-    (scenario && scanDetectionByRisk[scenario]) || scanDetectionByRisk.medium;
-  const { pestId, cropStage, cropStageFil, measurement, confidence, forecast } = scanDetection;
+  const photoDetected = inference.pest_detected && inference.pest_detected !== 'Healthy';
+  const guideId = resolvedPest ? GUIDE_ID_BY_PEST[resolvedPest] : 'bph';
+  const entry = pestGuide.find((p) => p.id === guideId) || pestGuide[0];
 
-  const entry = pestGuide.find((p) => p.id === pestId) || pestGuide[0];
-  const pestThresholds = etlThresholds[pestId];
-  const stageThresholds = pestThresholds?.[cropStage];
-  const risk = classifyRisk(pestId, cropStage, measurement);
-  // A stage can override the pest-level unit/label (e.g. Rice Stem Borer's
-  // Reproductive stage is measured in % white ears instead of dead hearts).
-  const unit = stageThresholds?.unit || pestThresholds?.unit || '';
-  const metricLabel = stageThresholds?.metricLabel || pestThresholds?.metricLabel || 'Sukatan';
+  const forecastRisk = forecast?.risk_level?.toLowerCase() || null;
+  const bucket = GROWTH_BUCKET[growthStage] || 'Vegetative';
+  const stageThresholds = etlThresholds[guideId]?.[bucket];
+  const measurement = forecast?.predicted_value ?? null;
+
+  const displayName = isEn ? entry.nameEn || entry.name : entry.name;
+  const description = isEn ? entry.descriptionEn || entry.description : entry.description;
+  const signs = isEn ? entry.signsEn || entry.signs : entry.signs;
+  const prevention = isEn ? entry.preventionEn || entry.prevention : entry.prevention;
 
   return (
     <div className="guide-detail-screen">
-      <div className="guide-detail-hero" style={{ background: RISK_HERO_GRADIENT[risk] }}>
+      <div
+        className="guide-detail-hero"
+        style={{ background: forecastRisk ? RISK_HERO_GRADIENT[forecastRisk] : RISK_HERO_GRADIENT.medium }}
+      >
         <PestHeroMedia id={entry.id} />
         <div className="guide-detail-hero-scrim scan-result-hero-scrim" />
-        <button className="scan-result-rescan-top" onClick={rescan} aria-label="Scan Ulit">
+        <button className="scan-result-rescan-top" onClick={() => navigate('/scan')} aria-label={t('scanResultRescan')}>
           <RotateCcw size={16} />
         </button>
-        <button className="guide-detail-close" onClick={closeToHome} aria-label="Close">
+        <button className="guide-detail-close" onClick={() => navigate('/home')} aria-label="Close">
           <X size={18} />
         </button>
       </div>
 
       <div className="guide-detail-sheet">
-        {/* Summary report */}
-        <div className="scan-result-confidence">
-          <RiskBadge level={risk} label={RISK_LABEL_FIL[risk]} />
-          <span>{Math.round(confidence * 100)}% confidence</span>
-        </div>
-
-        <h1>{entry.name}</h1>
-        <p className="guide-detail-fil">
-          {entry.nameFil} <em>({entry.scientificName})</em>
-        </p>
-
-        <p className="scan-result-summary">{RISK_SUMMARY_FIL[risk]}</p>
-
-        <span className="scan-result-etl-tag scan-result-stage-tag">
-          <Sprout size={13} /> {cropStageFil}
-        </span>
-
-        {/* 14-day daily risk forecast */}
-        <section>
-          <h2>14-ARAW NA PAGTATAYA NG PANGANIB</h2>
-          <div className="forecast-grid">
-            {forecast.map((day, i) => (
-              <div key={i} className={`forecast-day risk-${day.risk}`}>
-                <span className="forecast-day-name">{day.dayFil}</span>
-                <span className="forecast-day-date">{day.dateLabel}</span>
-              </div>
-            ))}
-          </div>
-          <div className="forecast-legend">
-            <span><i className="risk-low" /> Mababa</span>
-            <span><i className="risk-medium" /> Katamtaman</span>
-            <span><i className="risk-high" /> Mataas</span>
+        {/* Signal 1: what the photo itself showed */}
+        <section className="scan-result-signal">
+          <span className="scan-result-signal-label">{t('scanResultFromPhoto')}</span>
+          <div className="scan-result-confidence">
+            <span className={`scan-result-photo-chip${photoDetected ? ' detected' : ''}`}>
+              {inference.pest_detected || t('scanResultNoneDetected')}
+            </span>
+            <span>{Math.round((inference.confidence ?? 0) * 100)}% confidence</span>
           </div>
         </section>
 
-        {/* ETL basis for today's reading */}
-        {stageThresholds && (
+        <h1>{displayName}</h1>
+        <p className="guide-detail-fil">
+          {isEn ? entry.scientificName && <em>{entry.scientificName}</em> : (
+            <>
+              {entry.nameFil} <em>({entry.scientificName})</em>
+            </>
+          )}
+        </p>
+
+        <span className="scan-result-etl-tag scan-result-stage-tag">
+          <Sprout size={13} /> {growthStage} ({bucket})
+        </span>
+
+        {/* Signal 2: the live, weather-based forecast for this farm — not derived from the photo */}
+        <section className="scan-result-signal scan-result-signal-forecast">
+          <span className="scan-result-signal-label">{t('scanResultLiveForecast')}</span>
+
+          {loadingForecast && <p className="scan-result-summary">{t('scanResultLoadingForecast')}</p>}
+          {forecastError && <p className="scan-result-summary">{forecastError}</p>}
+
+          {!loadingForecast && forecast && forecastRisk && (
+            <>
+              <div className="scan-result-confidence">
+                <RiskBadge level={forecastRisk} label={RISK_LABEL[forecastRisk][language]} />
+                {forecast.adjusted_by_reports && (
+                  <span>
+                    {t('scanResultAdjustedBy')} {forecast.verified_report_count} {t('scanResultVerifiedReports')}
+                  </span>
+                )}
+              </div>
+              <p className="scan-result-summary">{RISK_SUMMARY[forecastRisk][language]}</p>
+            </>
+          )}
+
+          {!loadingForecast && !forecast && (
+            <p className="scan-result-summary">
+              {t('scanResultModelUnavailable')} {resolvedPest || t('scanResultThisPest')}.
+            </p>
+          )}
+        </section>
+
+        {trajectory && trajectory.length > 0 && (
+          <section>
+            <h2>{t('scanResultTrajectoryTitle')}</h2>
+            <div className="forecast-grid">
+              {trajectory.map((day) => {
+                const d = new Date(day.date);
+                const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+                const dayName = isEn ? weekday : DAY_NAMES_FIL[weekday];
+                return (
+                  <div key={day.date} className={`forecast-day risk-${day.risk_level.toLowerCase()}`}>
+                    <span className="forecast-day-name">{dayName}</span>
+                    <span className="forecast-day-date">
+                      {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="forecast-legend">
+              <span><i className="risk-low" /> {t('scanResultLegendLow')}</span>
+              <span><i className="risk-medium" /> {t('scanResultLegendMedium')}</span>
+              <span><i className="risk-high" /> {t('scanResultLegendHigh')}</span>
+            </div>
+          </section>
+        )}
+
+        {stageThresholds && measurement != null && (
           <section className="scan-result-etl">
             <div className="scan-result-etl-measurement">
               <span className="scan-result-etl-value">
-                {measurement}
-                <small>{unit}</small>
+                {measurement.toFixed(1)}
+                <small>{stageThresholds.unit}</small>
               </span>
-              <span className="scan-result-etl-metric-label">{metricLabel} (ngayong araw)</span>
+              <span className="scan-result-etl-metric-label">{stageThresholds.metricLabel} (BiLSTM forecast)</span>
             </div>
             <div className="etl-scale">
               <div className="etl-scale-track">
-                <div className={`etl-scale-fill risk-${risk}`} />
+                <div className={`etl-scale-fill risk-${forecastRisk}`} />
                 <div
                   className="etl-scale-marker"
                   style={{
@@ -272,36 +276,36 @@ export default function ScanResult() {
                 />
               </div>
               <div className="etl-scale-labels">
-                <span>Mababa (&lt;{stageThresholds.low})</span>
-                <span>Katamtaman ({stageThresholds.low}–{stageThresholds.medium})</span>
-                <span>Mataas (&gt;{stageThresholds.medium})</span>
+                <span>{t('scanResultLegendLow')} (&lt;{stageThresholds.low})</span>
+                <span>{t('scanResultLegendMedium')} ({stageThresholds.low}–{stageThresholds.medium})</span>
+                <span>{t('scanResultLegendHigh')} (&gt;{stageThresholds.medium})</span>
               </div>
               <p className="etl-scale-note">
-                Batay sa Economic Threshold Level (ETL) ng PhilRice at DA-RCPC para sa {entry.name} sa{' '}
-                {cropStage === 'Vegetative' ? 'vegetative' : 'reproductive'} na yugto.
+                {t('scanResultEtlNote')} {displayName} {t('scanResultEtlNoteStage')}{' '}
+                {bucket === 'Vegetative' ? t('scanResultVegetative') : t('scanResultReproductive')}.
               </p>
             </div>
           </section>
         )}
 
         <section>
-          <h2>NA-DETECT NA RESULTA</h2>
-          <p>{entry.description}</p>
+          <h2>{t('scanResultAboutTitle')}</h2>
+          <p>{description}</p>
         </section>
 
         <section>
-          <h2>MGA PALATANDAAN</h2>
+          <h2>{t('guideDetailSigns')}</h2>
           <ul>
-            {entry.signs.map((sign) => (
+            {signs.map((sign) => (
               <li key={sign}>{sign}</li>
             ))}
           </ul>
         </section>
 
         <section>
-          <h2>INIREREKOMENDANG AKSYON</h2>
+          <h2>{t('scanResultRecommendedAction')}</h2>
           <ul>
-            {entry.prevention.map((item) => (
+            {prevention.map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>

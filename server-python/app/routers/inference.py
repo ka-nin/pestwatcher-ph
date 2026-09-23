@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from app.config import get_settings
-from app.data.lgu_users import municipality_coordinates
+from app.data.municipalities import municipality_coordinates
 from app.decision.etl_thresholds import derive_risk_level
 from app.decision.report_signal import apply_adjustment
 from app.models.resnet_model import resnet_classifier
@@ -110,7 +110,7 @@ def _run_forecast(pest: str, window: list[DailyObservation], municipality: str) 
 
     growth_stage_bucket = GROWTH_STAGE_BUCKETS[window[-1].growth_stage]
     risk_level = derive_risk_level(pest, growth_stage_bucket, result.predicted_value)
-    adjusted_level, signal = apply_adjustment(risk_level, municipality, pest)
+    adjusted_level, signal = apply_adjustment(risk_level, municipality, pest, growth_stage_bucket)
 
     return ForecastInferenceResponse(
         status="ok",
@@ -274,7 +274,7 @@ def _build_trajectory(municipality: str, pest: str, growth_stage: GrowthStage, d
 
         growth_stage_bucket = GROWTH_STAGE_BUCKETS[growth_stage]
         risk_level = derive_risk_level(pest, growth_stage_bucket, result.predicted_value)
-        adjusted_level, report_signal = apply_adjustment(risk_level, municipality, pest)
+        adjusted_level, report_signal = apply_adjustment(risk_level, municipality, pest, growth_stage_bucket)
         points.append(
             TrajectoryPoint(
                 date=target_date.isoformat(),

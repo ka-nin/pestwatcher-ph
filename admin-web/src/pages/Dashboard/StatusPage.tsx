@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react'
 import {
+  fetchMunicipalitiesRisk,
   fetchPestForecastTrajectory,
+  fetchReports,
   type GrowthStage,
   type LguUser,
+  type MunicipalityOverview,
+  type ReportRecord,
   type RiskLevel,
   type TrajectoryPoint,
   type WeatherForecast,
@@ -126,6 +130,41 @@ function StatusPage({ user, weather, weatherError, climateMetrics }: StatusPageP
     key: 'bph' | 'rsb'
     point: TrajectoryPoint
   } | null>(null)
+  const [reports, setReports] = useState<ReportRecord[]>([])
+  const [municipalityRisk, setMunicipalityRisk] = useState<MunicipalityOverview[] | null>(null)
+  const [municipalityRiskError, setMunicipalityRiskError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    fetchMunicipalitiesRisk()
+      .then((res) => {
+        if (!cancelled) setMunicipalityRisk(res.municipalities)
+      })
+      .catch(() => {
+        if (!cancelled) setMunicipalityRiskError('Unable to load municipality risk status')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    fetchReports(user.municipality)
+      .then((data) => {
+        if (!cancelled) setReports(data)
+      })
+      .catch(() => {
+        // Non-critical for this panel — the map just shows no report pins.
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user.municipality])
 
   useEffect(() => {
     let cancelled = false
@@ -230,6 +269,56 @@ function StatusPage({ user, weather, weatherError, climateMetrics }: StatusPageP
         )}
       </section>
 
+      <section className="panel municipality-risk-panel">
+        <div className="panel-head">
+          <div>
+            <div className="panel-title">Municipality Risk Status</div>
+            <div className="panel-subtitle">Live BPH / RSB risk across every municipality on file</div>
+          </div>
+          <span className="badge badge-green">LIVE</span>
+        </div>
+
+        {municipalityRiskError ? (
+          <p className="stat-card-error">{municipalityRiskError}</p>
+        ) : municipalityRisk === null ? (
+          <p className="stat-card-loading">Loading municipality risk status…</p>
+        ) : (
+          <div className="municipality-risk-list">
+            {municipalityRisk.map((row) => (
+              <div
+                key={row.municipality}
+                className={`municipality-risk-row${row.municipality === user.municipality ? ' is-own' : ''}`}
+              >
+                <div className="municipality-risk-name">
+                  {row.municipality}
+                  {row.municipality === user.municipality && (
+                    <span className="municipality-risk-you">Your area</span>
+                  )}
+                </div>
+                <div className="municipality-risk-badges">
+                  <span className="municipality-risk-badge-label">BPH</span>
+                  {row.bph.risk_level ? (
+                    <span className={`badge badge-${RISK_TONE[row.bph.risk_level]}`}>
+                      {row.bph.risk_level.toUpperCase()}
+                    </span>
+                  ) : (
+                    <span className="badge badge-neutral">N/A</span>
+                  )}
+                  <span className="municipality-risk-badge-label">RSB</span>
+                  {row.rsb.risk_level ? (
+                    <span className={`badge badge-${RISK_TONE[row.rsb.risk_level]}`}>
+                      {row.rsb.risk_level.toUpperCase()}
+                    </span>
+                  ) : (
+                    <span className="badge badge-neutral">N/A</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       <section className="stat-row">
         <div className="stat-card">
           <div className="stat-card-head">
@@ -303,7 +392,7 @@ function StatusPage({ user, weather, weatherError, climateMetrics }: StatusPageP
           <div className="panel-head">
             <div>
               <div className="panel-title">{user.province} Province Map</div>
-              <div className="panel-subtitle">Risk zones by region (API map placeholder)</div>
+              <div className="panel-subtitle">Farmer-reported sightings, pinned by severity — click a pin to zoom in</div>
             </div>
             <span className="badge badge-green">LIVE</span>
           </div>
@@ -312,17 +401,18 @@ function StatusPage({ user, weather, weatherError, climateMetrics }: StatusPageP
             latitude={user.latitude}
             longitude={user.longitude}
             label={`${user.municipality}, ${user.province}`}
+            reports={reports}
           />
 
           <div className="map-legend">
             <span className="legend-item">
-              <span className="legend-dot legend-dot-low" /> Low risk
+              <span className="legend-dot legend-dot-low" /> Low severity
             </span>
             <span className="legend-item">
-              <span className="legend-dot legend-dot-mid" /> Medium risk
+              <span className="legend-dot legend-dot-mid" /> Medium severity
             </span>
             <span className="legend-item">
-              <span className="legend-dot legend-dot-high" /> High risk
+              <span className="legend-dot legend-dot-high" /> High severity
             </span>
           </div>
         </div>

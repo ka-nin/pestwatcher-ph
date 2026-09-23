@@ -28,6 +28,10 @@ class Settings(BaseSettings):
 
     upload_dir: str = "uploads"
 
+    # Local dev default matches docker-compose.yml at the repo root
+    # (`docker compose up -d`) — override in .env for any other environment.
+    database_url: str = "postgresql+psycopg2://pestwatcher:pestwatcher_dev_only@localhost:5432/pestwatcher"
+
     # HS256 signing secret for admin/LGU auth tokens (app/security.py). The
     # default below is fine for local dev only — .env.example generates a
     # real random one via `openssl rand -base64 48` and every deployment

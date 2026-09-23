@@ -28,6 +28,11 @@ class ReportRequest(BaseModel):
     area_affected: float | None = None
     latitude: float | None = None
     longitude: float | None = None
+    # Optional numeric count/damage estimate in the same units the ETL table
+    # uses for this pest (hoppers/hill for BPH, % dead hearts or white ears
+    # for RSB) — most farmers won't have an exact count, so this is
+    # supplementary to `severity`, not a replacement for it.
+    estimated_value: float | None = None
 
 
 class ReportResponse(BaseModel):
@@ -38,6 +43,11 @@ class ReportResponse(BaseModel):
 class ReportRecord(ReportRequest):
     id: str
     submitted_at: str
+    # Normalized BPH/RSB key derived server-side from pest_type at
+    # submission time (see app/decision/pest_matching.py) — never set
+    # directly by a client. None when pest_type matches neither ETL pest
+    # (e.g. "Others / Hindi Sigurado").
+    pest_code: str | None = None
     # Every report starts unverified — an LGU technician reviews it in
     # admin-web before it's allowed to nudge the forecast (see
     # app/decision/report_signal.py). Old records written before this field
@@ -45,6 +55,12 @@ class ReportRecord(ReportRequest):
     status: ReportStatus = "pending"
     verified_by: str | None = None
     verified_at: str | None = None
+    # The technologist's confirmed count/damage value, in the same units as
+    # estimated_value above. Set when a report is verified — defaults to the
+    # farmer's own estimated_value unless the technologist overrides it with
+    # a correction (see ReportStatusUpdate.verified_value). Stays null for a
+    # pending or rejected report.
+    verified_value: float | None = None
     # Set only when the farmer attached a photo. photo_path is the on-disk
     # filename under settings.upload_dir (persisted); photo_url is the
     # /uploads-mounted path the frontend can actually load an <img> from —
@@ -63,3 +79,7 @@ class ReportRecord(ReportRequest):
 class ReportStatusUpdate(BaseModel):
     status: Literal["verified", "rejected"]
     verified_by: str
+    # Only meaningful when status is "verified". Lets the technologist
+    # correct the farmer's estimated_value instead of just rubber-stamping
+    # it; omit to accept the farmer's own estimate as-is.
+    verified_value: float | None = None

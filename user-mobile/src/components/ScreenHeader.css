@@ -1,38 +1,45 @@
+/* Uses the shared .hero-surface treatment (index.css) so a pushed detail
+   screen reads as the same app as the Home/Alerts/Guide tab headers, which
+   previously used a rounded gradient while this was a flat green bar. */
 .screen-header {
-  flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: var(--color-primary);
-  color: #fff;
-  padding: 6px 8px 16px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-5);
 }
 
 .screen-header h1 {
   flex: 1;
   text-align: center;
-  font-size: 17px;
   margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
 }
 
 .screen-header-back {
-  background: rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.16);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  border: none;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  cursor: pointer;
 }
 
 .screen-header-back:active {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.28);
 }
 
+/* Balances the back button so the title stays optically centered. */
 .screen-header-spacer {
-  width: 32px;
+  flex-shrink: 0;
+  width: var(--tap-target);
 }

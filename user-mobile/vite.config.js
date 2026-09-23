@@ -19,7 +19,10 @@ export default defineConfig(({ mode }) => ({
     ...(mode === 'http-preview' ? [] : [basicSsl()]),
   ],
   server: {
-    port: 5173,
+    // Dedicated port so this app doesn't collide with admin-web, which
+    // also defaults to Vite's standard 5173 — running both at once (or one
+    // right after the other) would otherwise land on the same address.
+    port: 5174,
     open: true,
     host: true,
   },

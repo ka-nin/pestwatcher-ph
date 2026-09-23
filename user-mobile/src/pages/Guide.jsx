@@ -3,23 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import { Search, ChevronRight } from 'lucide-react';
 import { pestGuide } from '../data/mockData';
 import { PestIcon, getPestIcon } from '../data/pestIcons';
+import { useLanguage } from '../context/LanguageContext';
 import './Guide.css';
 
 const FILTERS = [
-  { id: 'all', label: 'All' },
-  { id: 'Rice Pests', label: 'Rice Pests' },
-  { id: 'Diseases', label: 'Diseases' },
-  { id: 'Prevention', label: 'Prevention' },
+  { id: 'all', labelKey: 'guideFilterAll' },
+  { id: 'Rice Pests', labelKey: 'guideFilterPests' },
+  { id: 'Diseases', labelKey: 'guideFilterDiseases' },
+  { id: 'Prevention', labelKey: 'guideFilterPrevention' },
 ];
 
+// Same tints the risk badges use — pulled from the shared tokens in
+// index.css rather than re-typed here, so a "High Danger" chip and a
+// "High Risk" badge can't drift apart visually.
 const DANGER_STYLE = {
-  'High Danger': { bg: '#fbe0de', color: '#a52f28' },
-  'Warning Limit': { bg: '#fbeacd', color: '#8a5a10' },
-  'Critical Risk': { bg: '#f6d2ce', color: '#8f1f1a' },
+  'High Danger': { bg: 'var(--risk-high-bg)', color: 'var(--risk-high-fg)' },
+  'Warning Limit': { bg: 'var(--risk-medium-bg)', color: 'var(--risk-medium-fg)' },
+  'Critical Risk': { bg: 'var(--risk-critical-bg)', color: 'var(--risk-critical-fg)' },
 };
 
 export default function Guide() {
   const navigate = useNavigate();
+  const { language, t } = useLanguage();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
 
@@ -38,16 +43,16 @@ export default function Guide() {
 
   return (
     <div className="guide-screen">
-      <div className="guide-hero">
-        <span className="guide-eyebrow">FARMER ENCYCLOPEDIA</span>
-        <h1>Pest &amp; Disease Guide</h1>
-        <p>Alamin ang tamang solusyon sa peste at sakit sa palay.</p>
+      <div className="guide-hero hero-surface">
+        <span className="guide-eyebrow">{t('guideEyebrow')}</span>
+        <h1>{t('guideTitle')}</h1>
+        <p>{t('guideSubtitle')}</p>
         <div className="guide-search">
           <Search size={16} />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Maghanap ng peste o sakit..."
+            placeholder={t('guideSearchPlaceholder')}
           />
         </div>
       </div>
@@ -60,13 +65,13 @@ export default function Guide() {
               className={`guide-filter-chip${filter === f.id ? ' active' : ''}`}
               onClick={() => setFilter(f.id)}
             >
-              {f.label}
+              {t(f.labelKey)}
             </button>
           ))}
         </div>
 
         <div className="guide-results-count">
-          Mga Kilalang Peste sa Palayan <span>{results.length} nahanap</span>
+          {t('guideResultsTitle')} <span>{results.length} {t('guideResultsCount')}</span>
         </div>
 
         <div className="guide-list">
@@ -86,7 +91,9 @@ export default function Guide() {
                 </div>
                 <div className="guide-card-body">
                   <div className="guide-card-top">
-                    <span className="guide-card-category">{entry.categoryFil}</span>
+                    <span className="guide-card-category">
+                      {language === 'en' ? entry.category : entry.categoryFil}
+                    </span>
                     <span
                       className="guide-card-danger"
                       style={{ background: dangerStyle.bg, color: dangerStyle.color }}
@@ -94,16 +101,20 @@ export default function Guide() {
                       {entry.dangerLevel}
                     </span>
                   </div>
-                  <h3>{entry.name}</h3>
-                  <p className="guide-card-fil">{entry.nameFil}</p>
-                  <p className="guide-card-summary">{entry.summary}</p>
+                  <h3>{language === 'en' ? entry.nameEn || entry.name : entry.name}</h3>
+                  <p className="guide-card-fil">
+                    {language === 'en' ? entry.scientificName || '' : entry.nameFil}
+                  </p>
+                  <p className="guide-card-summary">
+                    {language === 'en' ? entry.summaryEn || entry.summary : entry.summary}
+                  </p>
                 </div>
                 <ChevronRight size={18} color="var(--color-text-muted)" />
               </button>
             );
           })}
           {results.length === 0 && (
-            <p className="guide-empty">Walang natagpuang resulta.</p>
+            <p className="guide-empty">{t('guideEmpty')}</p>
           )}
         </div>
       </div>

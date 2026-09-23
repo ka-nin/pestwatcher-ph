@@ -20,6 +20,11 @@ export async function fetchMunicipalities() {
   return parseJsonOrThrow(res, 'Failed to fetch municipality list');
 }
 
+export async function fetchMunicipalitiesRisk() {
+  const res = await fetch(`${API_BASE_URL}/api/locations/municipalities/risk`);
+  return parseJsonOrThrow(res, 'Failed to fetch municipality risk overview');
+}
+
 export async function fetchWeatherForecast(latitude, longitude) {
   const params = new URLSearchParams({ latitude, longitude });
   const res = await fetch(`${API_BASE_URL}/api/weather/forecast?${params}`);

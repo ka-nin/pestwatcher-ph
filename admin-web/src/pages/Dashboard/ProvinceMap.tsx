@@ -1,20 +1,61 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import type { ReportRecord } from '../../lib/api'
 import './ProvinceMap.css'
 
 interface ProvinceMapProps {
   latitude: number
   longitude: number
   label: string
+  reports?: ReportRecord[]
 }
 
 type MapMode = 'satellite' | 'wind'
 
-function ProvinceMap({ latitude, longitude, label }: ProvinceMapProps) {
+// Same palette as the risk-zone legend dots (Dashboard.css) so a report pin
+// and a risk-level badge always mean the same color across the dashboard.
+const SEVERITY_COLOR: Record<string, string> = {
+  low: '#4b9e5f',
+  medium: '#e0b23b',
+  high: '#d3564f',
+}
+
+const REPORT_ZOOM = 16
+
+function buildWindyUrl(lat: number, lon: number, zoom: number) {
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lon: String(lon),
+    detailLat: String(lat),
+    detailLon: String(lon),
+    width: '650',
+    height: '450',
+    zoom: String(zoom),
+    level: 'surface',
+    overlay: 'wind',
+    menu: '',
+    message: 'true',
+    marker: 'true',
+    calendar: 'now',
+    pressure: '',
+    type: 'map',
+    location: 'coordinates',
+    metricWind: 'km/h',
+    metricTemp: '°C',
+    radarRange: '-1',
+  })
+  return `https://embed.windy.com/embed2.html?${params.toString()}`
+}
+
+function ProvinceMap({ latitude, longitude, label, reports = [] }: ProvinceMapProps) {
   const [mode, setMode] = useState<MapMode>('satellite')
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
+  const pinnableReports = useMemo(
+    () => reports.filter((r) => r.latitude != null && r.longitude != null),
+    [reports],
+  )
 
   useEffect(() => {
     if (mode !== 'satellite' || !containerRef.current) return
@@ -39,11 +80,36 @@ function ProvinceMap({ latitude, longitude, label }: ProvinceMapProps) {
       .addTo(map)
       .bindPopup(label)
 
+    // Farmer-reported sightings with a known location — colored by severity,
+    // clicking one flies the map in to that exact spot.
+    pinnableReports.forEach((report) => {
+        const color = SEVERITY_COLOR[report.severity] ?? '#999'
+        const pos: [number, number] = [report.latitude as number, report.longitude as number]
+
+        const marker = L.circleMarker(pos, {
+          radius: 7,
+          color: '#fff',
+          weight: 2,
+          fillColor: color,
+          fillOpacity: 0.9,
+        })
+          .addTo(map)
+          .bindPopup(
+            `<strong>${report.pest_type}</strong><br/>` +
+              `${report.severity.charAt(0).toUpperCase()}${report.severity.slice(1)} severity · ${report.status}<br/>` +
+              `${report.date_spotted}`,
+          )
+
+        marker.on('click', () => {
+          map.flyTo(pos, REPORT_ZOOM, { duration: 0.8 })
+        })
+      })
+
     return () => {
       map.remove()
       mapRef.current = null
     }
-  }, [mode, latitude, longitude, label])
+  }, [mode, latitude, longitude, label, pinnableReports])
 
   return (
     <div className="province-map">
@@ -68,11 +134,14 @@ function ProvinceMap({ latitude, longitude, label }: ProvinceMapProps) {
         {mode === 'satellite' ? (
           <div ref={containerRef} className="province-map-canvas" />
         ) : (
+          // Plain wind map — no risk-severity pins overlaid, unlike the
+          // satellite view. Windy's own embed only ever shows one marker
+          // (its detailLat/detailLon pin), fixed on the province center.
           <iframe
             key="wind"
             title="Wind map"
             className="province-map-canvas"
-            src={`https://embed.windy.com/embed2.html?lat=${latitude}&lon=${longitude}&detailLat=${latitude}&detailLon=${longitude}&width=650&height=450&zoom=9&level=surface&overlay=wind&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1`}
+            src={buildWindyUrl(latitude, longitude, 9)}
             frameBorder="0"
           />
         )}

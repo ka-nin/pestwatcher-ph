@@ -1,0 +1,209 @@
+====================================================================
+PESTWATCHER PH — HOW TO RUN EVERYTHING (macOS/Linux + Windows)
+====================================================================
+
+Run these in order. Steps marked [ONE-TIME] only need to be done once
+per machine (or once after a fresh git clone). Steps marked [EVERY
+TIME] are what you run each time you sit down to work.
+
+Prerequisites (both OS): Node.js 24.x, Python 3.11+, Docker Desktop,
+Git. Docker Desktop must be OPEN/RUNNING before any docker command.
+
+
+--------------------------------------------------------------------
+1. [ONE-TIME] CLONE AND INSTALL
+--------------------------------------------------------------------
+
+--- macOS / Linux ---
+git clone https://github.com/ka-nin/pestwatcher-ph.git
+cd pestwatcher-ph
+npm install
+npm install-scripts approve esbuild
+
+--- Windows (PowerShell or cmd) ---
+git clone https://github.com/ka-nin/pestwatcher-ph.git
+cd pestwatcher-ph
+npm install
+npm install-scripts approve esbuild
+
+
+--------------------------------------------------------------------
+2. [ONE-TIME] PYTHON BACKEND SETUP
+--------------------------------------------------------------------
+
+--- macOS / Linux ---
+cd server-python
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+cd ..
+
+--- Windows ---
+cd server-python
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env
+cd ..
+
+
+--------------------------------------------------------------------
+3. [ONE-TIME] HTTPS CERTIFICATE (only needed for user-mobile)
+--------------------------------------------------------------------
+The certs/ folder is gitignored, so this must be redone on every
+machine. Requires OpenSSL (already on macOS/Linux; on Windows, use
+Git Bash, which ships with OpenSSL, or install it separately).
+
+--- macOS / Linux / Windows (Git Bash) ---
+cd server-python
+mkdir -p certs
+openssl req -x509 -newkey rsa:2048 -nodes -keyout certs/dev-key.pem -out certs/dev-cert.pem -days 365 -subj "/CN=localhost"
+cd ..
+
+
+--------------------------------------------------------------------
+4. [ONE-TIME] FRONTEND ENV FILES
+--------------------------------------------------------------------
+
+--- macOS / Linux ---
+cp admin-web/.env.example admin-web/.env
+cp user-mobile/.env.example user-mobile/.env
+
+--- Windows ---
+copy admin-web\.env.example admin-web\.env
+copy user-mobile\.env.example user-mobile\.env
+
+Then edit user-mobile/.env so it reads:
+    VITE_API_URL=https://localhost:8443
+
+And create a second file user-mobile/.env.http-preview containing:
+    VITE_API_URL=http://localhost:8000
+(used automatically by "npm run dev:preview" — see step 6)
+
+
+--------------------------------------------------------------------
+5. [EVERY TIME] START THE DATABASE
+--------------------------------------------------------------------
+Same command on both OS. Run from the repo root. Docker Desktop must
+already be running.
+
+docker compose up -d
+
+This starts:
+  - PostgreSQL   -> localhost:5432
+  - Adminer (DB web UI) -> http://localhost:8080
+    (login: System=PostgreSQL, Server=postgres, User=pestwatcher,
+     Password=pestwatcher_dev_only, Database=pestwatcher)
+
+
+--------------------------------------------------------------------
+6. [EVERY TIME] START THE BACKEND
+--------------------------------------------------------------------
+Run ONE of these depending on which frontend you need. You can run
+both at once (they're separate processes on separate ports).
+
+--- macOS / Linux: backend for admin-web (plain HTTP, port 8000) ---
+cd server-python
+source .venv/bin/activate
+uvicorn app.main:app --reload --port 8000
+
+--- Windows: backend for admin-web (plain HTTP, port 8000) ---
+cd server-python
+.venv\Scripts\activate
+uvicorn app.main:app --reload --port 8000
+
+--- macOS / Linux: backend for user-mobile (HTTPS, port 8443) ---
+cd server-python
+source .venv/bin/activate
+uvicorn app.main:app --reload --port 8443 --ssl-keyfile certs/dev-key.pem --ssl-certfile certs/dev-cert.pem
+
+--- Windows: backend for user-mobile (HTTPS, port 8443) ---
+cd server-python
+.venv\Scripts\activate
+uvicorn app.main:app --reload --port 8443 --ssl-keyfile certs/dev-key.pem --ssl-certfile certs/dev-cert.pem
+
+>>> ONE-TIME PER BROWSER SESSION: open https://localhost:8443/api/health
+    directly in your browser and click through the "not secure" warning
+    (Advanced -> Proceed). Skipping this makes user-mobile fail with
+    "Failed to fetch."
+
+
+--------------------------------------------------------------------
+7. [EVERY TIME] START THE FRONTENDS
+--------------------------------------------------------------------
+Same commands on both OS.
+
+--- admin-web (LGU dashboard + SuperAdmin console) ---
+cd admin-web
+npm run dev
+-> http://localhost:5173
+
+--- user-mobile (normal mode, real browser tab, camera works) ---
+cd user-mobile
+npm run dev
+-> https://localhost:5174
+
+--- user-mobile (embedded webview / VS Code mobile-view preview) ---
+cd user-mobile
+npm run dev:preview
+-> http://localhost:5174   (plain HTTP, no cert warning, no camera)
+
+
+--------------------------------------------------------------------
+8. LOGIN CREDENTIALS (seeded automatically into the database)
+--------------------------------------------------------------------
+SuperAdmin : sysadmin         / PestWatch!FhkKbrMn6Y
+LGU_Tech   : munoz_tech_01    / PestWatch!Mu2026        (Sci. City of Munoz, Nueva Ecija)
+LGU_Tech   : concepcion_tech  / PestWatch!Con2026       (Concepcion, Tarlac)
+LGU_Tech   : sanmiguel_tech   / PestWatch!SM2026        (San Miguel, Bulacan)
+LGU_Tech   : arayat_tech_01   / PestWatch!Ara2026       (Arayat, Pampanga)
+Farmer     : farmer_demo      / RicePest!Demo2026       (Sci. City of Munoz, Nueva Ecija)
+
+
+--------------------------------------------------------------------
+9. STOPPING EVERYTHING
+--------------------------------------------------------------------
+
+--- macOS / Linux: stop the dev servers + backend ---
+pkill -f "vite"
+pkill -f "uvicorn"
+
+--- Windows: stop the dev servers + backend ---
+Close the terminal windows/tabs running them, or:
+    taskkill /F /IM node.exe
+    taskkill /F /IM python.exe
+(these kill ALL Node/Python processes system-wide — fine if this is
+the only project you're running, otherwise close the specific
+terminal windows instead)
+
+--- Both OS: stop the database (Postgres + Adminer) ---
+docker compose down
+(stops and removes the containers; your data is kept in the Docker
+volume. Only add -v — "docker compose down -v" — if you also want to
+permanently delete the database contents.)
+
+
+--------------------------------------------------------------------
+10. TROUBLESHOOTING
+--------------------------------------------------------------------
+- "Failed to fetch" in user-mobile
+    -> Is the HTTPS backend (port 8443) running? Did you do the
+       one-time browser cert-trust step in section 6?
+
+- Backend can't connect to the database
+    -> Is Docker Desktop open? Did you run "docker compose up -d"?
+
+- admin-web and user-mobile open the same URL
+    -> Check admin-web/vite.config.ts has port: 5173 and
+       user-mobile/vite.config.js has port: 5174.
+
+- Need to wipe and re-seed the database from scratch
+    -> docker compose down -v && docker compose up -d
+       (deletes all local DB data, backend recreates + reseeds on
+       next startup)
+
+- Adminer says "connection refused"
+    -> Server field must be "postgres" (the Docker service name),
+       NOT "localhost".
+====================================================================

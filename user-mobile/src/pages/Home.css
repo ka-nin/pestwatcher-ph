@@ -4,22 +4,19 @@
   height: 100%;
 }
 
-/* Green hero header — full-bleed, rounded bottom corners */
+/* Green gradient/rounding/shadow now come from .hero-surface (index.css). */
 .home-hero {
-  flex-shrink: 0;
-  background: linear-gradient(160deg, #4a8a45 0%, var(--color-primary) 55%, var(--color-primary-dark) 100%);
-  border-radius: 0 0 28px 28px;
-  padding: 18px 20px 22px;
-  box-shadow: 0 10px 24px -10px rgba(20, 40, 15, 0.4);
+  padding: var(--space-5) var(--space-5) var(--space-6);
 }
 
 .home-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 10.5px;
+  gap: var(--space-2);
+  font-size: var(--text-2xs);
   font-weight: 700;
-  letter-spacing: 0.3px;
+  letter-spacing: var(--tracking-wide);
 }
 
 .home-brand {
@@ -30,15 +27,15 @@
 }
 
 .home-brand-logo {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   object-fit: contain;
 }
 
 .home-topbar-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .home-datetime {
@@ -46,75 +43,135 @@
   font-weight: 600;
 }
 
+/* Was an 18px hit area — well under any touch guidance, and this one logs
+   the farmer out, so a mis-tap is genuinely disruptive. The visible circle
+   stays small; the tappable box around it is padded out to 44px. */
 .home-logout {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  margin: calc(var(--space-3) * -1) calc(var(--space-2) * -1) calc(var(--space-3) * -1) 0;
   border: none;
-  background: rgba(255, 255, 255, 0.16);
+  background: none;
   color: rgba(255, 255, 255, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+}
+
+.home-logout svg {
+  width: 18px;
+  height: 18px;
+  padding: 5px;
+  box-sizing: content-box;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .home-location {
-  padding-top: 14px;
+  padding-top: var(--space-4);
 }
 
 .home-location h1 {
   margin: 0;
-  font-size: 27px;
+  font-size: var(--text-2xl);
   font-weight: 800;
-  color: #fff;
-  letter-spacing: -0.3px;
+  line-height: var(--leading-tight);
   text-transform: uppercase;
 }
 
 .home-location p {
-  margin: 2px 0 0;
-  font-size: 12.5px;
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
   color: rgba(255, 255, 255, 0.78);
 }
 
 .home-body {
   flex: 1;
-  padding: 16px 16px 116px;
+  padding: var(--space-4) var(--space-4) 116px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-4);
 }
 
 .home-error {
   margin: 0;
-  padding: 8px 14px;
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-sm);
   background: rgba(214, 69, 69, 0.12);
   color: #8a231f;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
 /* Risk summary card — plain white card with an outlined status icon,
    a pill badge, headline, message, then a divided tip section. */
+/* The primary "what do I do today" card — elevated above the supporting
+   cards below it so the screen has an obvious entry point. */
 .hero-risk-card {
   background: var(--color-surface);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
-  padding: 18px 18px 16px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-5) var(--space-5) var(--space-4);
+}
+
+/* Re-mounted (via React key) every time the card cycles to the other
+   pest — the animation below replays automatically on each mount. */
+.hero-risk-content {
+  animation: hero-risk-fade-in 420ms ease;
+}
+
+@keyframes hero-risk-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-risk-content {
+    animation: none;
+  }
 }
 
 .hero-risk-top {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+/* Small carousel-style dots showing which of the two pests (BPH/RSB) is
+   currently displayed — only rendered once both forecasts have loaded. */
+.hero-risk-dots {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.hero-risk-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-border);
+  transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.hero-risk-dots span.is-active {
+  background: var(--color-text-muted);
+  transform: scale(1.35);
 }
 
 .hero-risk-icon {
   flex-shrink: 0;
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   border: 2px solid currentColor;
   display: flex;
@@ -125,45 +182,47 @@
 .hero-risk-chip {
   display: inline-block;
   width: fit-content;
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 700;
-  padding: 5px 12px;
-  border-radius: 999px;
-  letter-spacing: 0.3px;
+  line-height: 1;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
 }
 
 .hero-risk-card h2 {
-  margin: 0 0 8px;
-  font-size: 18px;
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
   font-weight: 800;
-  line-height: 1.25;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
   color: var(--color-text);
 }
 
 .hero-risk-card p {
   margin: 0;
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
   color: var(--color-text-muted);
 }
 
 .hero-risk-divider {
   height: 1px;
   background: var(--color-border);
-  margin: 14px 0 12px;
+  margin: var(--space-4) 0 var(--space-3);
 }
 
 .hero-risk-tip {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .hero-risk-tip p {
   margin: 0;
-  font-size: 12.5px;
-  line-height: 1.5;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
   color: var(--color-text-muted);
 }
 
@@ -176,17 +235,17 @@
 .weather-tiles-block {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .weather-tiles-live {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--color-text-muted);
-  letter-spacing: 0.2px;
+  letter-spacing: var(--tracking-wide);
   padding-left: 2px;
 }
 
@@ -201,17 +260,17 @@
 .weather-tiles {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .weather-tile {
   background: var(--color-surface);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
-  padding: 12px 12px 13px;
+  padding: var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -219,23 +278,29 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-1);
 }
 
 .weather-tile-top span {
-  font-size: 9px;
+  font-size: var(--text-2xs);
   font-weight: 700;
-  letter-spacing: 0.3px;
+  letter-spacing: var(--tracking-wide);
   color: var(--color-text-muted);
 }
 
+/* Tabular figures keep the three tiles' numbers optically aligned as the
+   live values tick over, instead of jittering with proportional digits. */
 .weather-tile strong {
-  font-size: 17px;
+  font-size: var(--text-lg);
   font-weight: 800;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
   color: var(--color-text);
+  font-variant-numeric: tabular-nums;
 }
 
 .weather-tile-caption {
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
   color: var(--color-text-muted);
   font-weight: 600;
 }
@@ -244,7 +309,7 @@
   background: var(--color-surface);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
-  padding: 14px 14px 6px;
+  padding: var(--space-4) var(--space-4) var(--space-2);
 }
 
 .trend-header {
@@ -252,25 +317,27 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 10px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
 }
 
 .trend-header h3 {
   margin: 0;
-  font-size: 13.5px;
+  font-size: var(--text-base);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
 }
 
 .trend-legend {
   display: flex;
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .trend-legend span {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 10px;
+  gap: var(--space-1);
+  font-size: var(--text-2xs);
   color: var(--color-text-muted);
 }
 
@@ -285,13 +352,15 @@
 .nearby-zones-strip {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   width: 100%;
+  min-height: var(--tap-target);
   text-align: left;
   background: rgba(217, 123, 41, 0.12);
   border: 1px solid rgba(217, 123, 41, 0.25);
   border-radius: var(--radius-md);
-  padding: 13px 14px;
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
 }
 
 .nearby-zones-text {
@@ -303,12 +372,13 @@
 }
 
 .nearby-zones-text strong {
-  font-size: 13px;
+  font-size: var(--text-sm);
+  font-weight: 700;
   color: var(--color-text);
 }
 
 .nearby-zones-text small {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -319,19 +389,21 @@
 .scan-strip {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   width: 100%;
+  min-height: var(--tap-target);
   text-align: left;
   background: var(--color-surface);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
-  padding: 13px 14px;
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
 }
 
 .scan-strip-icon {
   flex-shrink: 0;
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: var(--color-primary);
   color: #fff;
@@ -349,12 +421,13 @@
 }
 
 .scan-strip-text strong {
-  font-size: 13.5px;
+  font-size: var(--text-base);
+  font-weight: 700;
   color: var(--color-text);
 }
 
 .scan-strip-text small {
-  font-size: 11.5px;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
@@ -363,23 +436,26 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .report-manual-cta {
   width: 100%;
-  padding: 15px;
+  min-height: 52px;
+  padding: var(--space-4);
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-primary);
   color: #fff;
-  font-size: 14.5px;
+  font-size: var(--text-md);
   font-weight: 700;
+  letter-spacing: var(--tracking-tight);
   box-shadow: 0 6px 16px rgba(63, 125, 58, 0.35);
+  cursor: pointer;
 }
 
 .report-manual-block p {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }

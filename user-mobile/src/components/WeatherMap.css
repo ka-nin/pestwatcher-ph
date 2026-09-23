@@ -69,7 +69,12 @@
   color: #fff;
 }
 
-/* Threat-zone pill markers drawn on the satellite map */
+/* Threat-zone pill markers drawn on the satellite map. The outer div stays
+   non-interactive (Leaflet sizes it to the full icon bounding box, which is
+   larger than the visible pill and would otherwise block map dragging
+   around it) — pointer-events is re-enabled on the inner pill itself so
+   clicks/taps on the visible marker still reach it (see the click-to-zoom
+   handler in WeatherMap.jsx). */
 .map-pill-marker {
   pointer-events: none;
 }
@@ -87,6 +92,8 @@
   border-radius: 999px;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
   transform: translate(-6px, -10px);
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .map-pill-marker-inner i {

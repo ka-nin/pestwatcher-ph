@@ -18,6 +18,11 @@ NOT produce a forecast. A 14-day outbreak trajectory requires 14 days of
 weather (app/models/bilstm_model.py), which no single photo can supply;
 see app/routers/inference.py's /image endpoint for how a detected pest here
 triggers a separate BiLSTM forecast call for the farmer's municipality.
+
+predict() must preprocess exactly the way train.py did — resnet50's own
+`preprocess_input` (ImageNet channel-mean subtraction), not a plain /255
+scale — or a correctly-loaded model will silently produce garbage
+predictions.
 """
 
 from dataclasses import dataclass
@@ -33,6 +38,8 @@ from ml.config import PEST_PARAMS
 IMAGE_SIZE = (224, 224)
 POSITIVE_THRESHOLD = 0.5  # matches the 0.5 cutoff used at training-time evaluation (ml/resnet/train.py)
 
+RiskLevel = Literal["Low", "Moderate", "High", "Critical"]
+
 
 @dataclass
 class ResnetPrediction:
@@ -41,7 +48,7 @@ class ResnetPrediction:
     # predict() returning None outright when no model is loaded at all.
     label: Literal["BPH", "RSB"] | None
     confidence: float
-    risk_level: Literal["Low", "Moderate", "High", "Critical"]
+    risk_level: RiskLevel
 
 
 def _risk_level_for_confidence(confidence: float) -> Literal["Low", "Moderate", "High", "Critical"]:

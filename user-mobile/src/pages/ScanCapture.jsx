@@ -4,11 +4,13 @@ import { Camera, X, AlertCircle, ImagePlus } from 'lucide-react';
 import ScreenHeader from '../components/ScreenHeader';
 import { submitImageInference } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import './ScanCapture.css';
 
 export default function ScanCapture() {
   const navigate = useNavigate();
   const { user, growthStage } = useAuth();
+  const { t } = useLanguage();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -84,7 +86,7 @@ export default function ScanCapture() {
         navigate('/scan/result', { state: { inference: result } });
       } catch (err) {
         if (cancelled) return;
-        setScanError(err.message || 'Hindi na-upload ang larawan. Subukan ulit.');
+        setScanError(err.message || t('scanErrorUpload'));
         setAnalyzing(false);
       }
     }
@@ -148,43 +150,41 @@ export default function ScanCapture() {
 
   return (
     <div className="scan-screen">
-      <ScreenHeader title="AI Pest Scan" onBack={() => navigate('/home')} />
+      <ScreenHeader title={t('scanCaptureTitle')} onBack={() => navigate('/home')} />
 
       <div className="scan-body">
         <div className="scan-frame">
           {preview ? (
-            <img src={preview} alt="Nakuhang larawan" className="scan-frame-img" />
+            <img src={preview} alt={t('scanCapturedAlt')} className="scan-frame-img" />
           ) : mode === 'camera' && cameraStatus === 'live' ? (
             <video ref={videoRef} autoPlay playsInline muted className="scan-frame-video" />
           ) : mode === 'camera' && cameraStatus === 'starting' ? (
             <div className="scan-frame-placeholder">
               <Camera size={40} color="rgba(255,255,255,0.5)" />
-              <span className="scan-frame-status">Sinisimulan ang camera...</span>
+              <span className="scan-frame-status">{t('scanStarting')}</span>
             </div>
           ) : mode === 'camera' ? (
             <div className="scan-frame-placeholder scan-frame-error">
               <AlertCircle size={32} color="rgba(255,255,255,0.7)" />
               <span className="scan-frame-status">
-                {cameraStatus === 'denied'
-                  ? 'Hindi ma-access ang camera. Paki-check ang camera permission.'
-                  : 'Hindi suportado ng browser na ito ang camera.'}
+                {cameraStatus === 'denied' ? t('scanCameraDenied') : t('scanCameraUnsupported')}
               </span>
             </div>
           ) : mode === 'upload' ? (
             <button className="scan-frame-placeholder scan-frame-placeholder-btn" onClick={chooseUpload}>
               <ImagePlus size={40} color="rgba(255,255,255,0.5)" />
-              <span className="scan-frame-status">I-tap para pumili ng larawan mula sa gallery.</span>
+              <span className="scan-frame-status">{t('scanUploadPrompt')}</span>
             </button>
           ) : (
             <div className="scan-choice">
-              <p className="scan-choice-title">Paano mo gustong mag-scan?</p>
+              <p className="scan-choice-title">{t('scanChoiceTitle')}</p>
               <button className="scan-choice-btn" onClick={chooseCamera}>
                 <span className="scan-choice-icon">
                   <Camera size={22} />
                 </span>
                 <span>
-                  <strong>Kumuha ng Larawan</strong>
-                  <small>Gamitin ang camera ngayon din</small>
+                  <strong>{t('scanChoiceCameraTitle')}</strong>
+                  <small>{t('scanChoiceCameraSubtitle')}</small>
                 </span>
               </button>
               <button className="scan-choice-btn" onClick={chooseUpload}>
@@ -192,8 +192,8 @@ export default function ScanCapture() {
                   <ImagePlus size={22} />
                 </span>
                 <span>
-                  <strong>Mag-upload ng Larawan</strong>
-                  <small>Pumili mula sa gallery ng iyong telepono</small>
+                  <strong>{t('scanChoiceUploadTitle')}</strong>
+                  <small>{t('scanChoiceUploadSubtitle')}</small>
                 </span>
               </button>
             </div>
@@ -210,28 +210,26 @@ export default function ScanCapture() {
           {analyzing && (
             <div className="scan-analyzing-overlay">
               <span className="scan-analyzing-spinner" />
-              <span className="scan-analyzing-text">Sinusuri ang peste...</span>
+              <span className="scan-analyzing-text">{t('scanAnalyzingOverlayText')}</span>
             </div>
           )}
         </div>
 
         {mode !== 'choosing' && (
           <>
-            <h2>Magsuri ng peste gamit ang iyong camera</h2>
-            <p className="scan-instructions">
-              I-tapat ang target na peste sa gitna ng scan frame para sa mas tumpak na pag-identify.
-            </p>
+            <h2>{t('scanInstructionsTitle')}</h2>
+            <p className="scan-instructions">{t('scanInstructions')}</p>
 
             <ul className="scan-tips">
-              <li>✓ I-lapit nang husto</li>
-              <li>✓ Hawakang matatag</li>
+              <li>✓ {t('scanTipClose')}</li>
+              <li>✓ {t('scanTipSteady')}</li>
             </ul>
 
             {scanError && <p className="scan-error">{scanError}</p>}
 
             {!preview && !analyzing && (
               <button className="scan-change-mode" onClick={() => setMode('choosing')}>
-                Baguhin ang paraan ng pag-scan
+                {t('scanChangeMode')}
               </button>
             )}
           </>
@@ -253,7 +251,7 @@ export default function ScanCapture() {
             if (preview) setAnalyzing(true);
             else if (cameraStatus === 'live') capturePhoto();
           }}
-          aria-label={preview ? 'I-scan ang larawan' : 'Kunin ang larawan'}
+          aria-label={preview ? t('scanShutterScan') : t('scanShutterCapture')}
         >
           <span className="scan-shutter-ring-inner" />
         </button>

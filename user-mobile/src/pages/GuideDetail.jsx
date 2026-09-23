@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { X, ShieldAlert } from 'lucide-react';
 import { pestGuide } from '../data/mockData';
 import { PestHeroMedia } from '../data/pestIcons';
+import { useLanguage } from '../context/LanguageContext';
 import './GuideDetail.css';
 
 const DANGER_STYLE = {
@@ -13,8 +14,15 @@ const DANGER_STYLE = {
 export default function GuideDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { language, t } = useLanguage();
   const entry = pestGuide.find((p) => p.id === id) || pestGuide[0];
   const dangerStyle = DANGER_STYLE[entry.dangerLevel] || DANGER_STYLE['Warning Limit'];
+  const isEn = language === 'en';
+
+  const displayName = isEn ? entry.nameEn || entry.name : entry.name;
+  const description = isEn ? entry.descriptionEn || entry.description : entry.description;
+  const signs = isEn ? entry.signsEn || entry.signs : entry.signs;
+  const prevention = isEn ? entry.preventionEn || entry.prevention : entry.prevention;
 
   return (
     <div className="guide-detail-screen">
@@ -28,7 +36,7 @@ export default function GuideDetail() {
 
       <div className="guide-detail-sheet">
         <div className="guide-detail-top">
-          <span className="guide-detail-category">{entry.categoryFil}</span>
+          <span className="guide-detail-category">{isEn ? entry.category : entry.categoryFil}</span>
           <span
             className="guide-detail-danger"
             style={{ background: dangerStyle.bg, color: dangerStyle.color }}
@@ -36,21 +44,25 @@ export default function GuideDetail() {
             {entry.dangerLevel}
           </span>
         </div>
-        <h1>{entry.name}</h1>
+        <h1>{displayName}</h1>
         <p className="guide-detail-fil">
-          {entry.nameFil} {entry.scientificName && <em>({entry.scientificName})</em>}
+          {isEn ? entry.scientificName && <em>{entry.scientificName}</em> : (
+            <>
+              {entry.nameFil} {entry.scientificName && <em>({entry.scientificName})</em>}
+            </>
+          )}
         </p>
 
         <section>
-          <h2>KAHULUGAN / DESCRIPTION</h2>
-          <p>{entry.description}</p>
+          <h2>{t('guideDetailDescription')}</h2>
+          <p>{description}</p>
         </section>
 
-        {entry.signs.length > 0 && (
+        {signs.length > 0 && (
           <section>
-            <h2>MGA PALATANDAAN / SIGNS TO LOOK FOR</h2>
+            <h2>{t('guideDetailSigns')}</h2>
             <ul>
-              {entry.signs.map((sign) => (
+              {signs.map((sign) => (
                 <li key={sign}>{sign}</li>
               ))}
             </ul>
@@ -58,13 +70,9 @@ export default function GuideDetail() {
         )}
 
         <section>
-          <h2>
-            {entry.category === 'Prevention'
-              ? 'PAANO ISAGAWA / HOW TO APPLY'
-              : 'PAG-IWAS / PREVENTION & CONTROL'}
-          </h2>
+          <h2>{entry.category === 'Prevention' ? t('guideDetailHowToApply') : t('guideDetailPrevention')}</h2>
           <ul>
-            {entry.prevention.map((item) => (
+            {prevention.map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>
@@ -73,7 +81,7 @@ export default function GuideDetail() {
 
       <div className="guide-detail-footer">
         <button className="guide-detail-report" onClick={() => navigate('/report')}>
-          <ShieldAlert size={16} /> Report Sighting sa Komunidad
+          <ShieldAlert size={16} /> {t('guideDetailReportCta')}
         </button>
       </div>
     </div>

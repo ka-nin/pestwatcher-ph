@@ -5,7 +5,7 @@ import './ScreenHeader.css';
 export default function ScreenHeader({ title, onBack }) {
   const navigate = useNavigate();
   return (
-    <header className="screen-header">
+    <header className="screen-header hero-surface">
       <button
         className="screen-header-back"
         onClick={onBack || (() => navigate(-1))}
