@@ -2,7 +2,7 @@ import uuid
 from datetime import date, timedelta
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from app.config import get_settings
 from app.data.municipalities import municipality_coordinates
@@ -29,13 +29,26 @@ ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 
 @router.post("/image", response_model=ImageInferenceResponse)
-async def infer_image(file: UploadFile = File(...)) -> ImageInferenceResponse:
-    """Receives an optical field image from the mobile app for pest/disease detection.
+async def infer_image(
+    file: UploadFile = File(...),
+    municipality: str | None = Form(
+        None, description="Farmer's municipality — needed to fetch weather for the 14-day forecast."
+    ),
+    growth_stage: GrowthStage | None = Form(
+        None, description="Current rice growth stage — needed for the forecast's ETL bucketing."
+    ),
+) -> ImageInferenceResponse:
+    """Receives an optical field photo from the mobile app, identifies which
+    tracked pest (if any) is present via `resnet_classifier` (two independent
+    binary models — see app/models/resnet_model.py), then — if a pest was
+    detected AND the caller supplied municipality/growth_stage — immediately
+    runs that pest's 14-day BiLSTM forecast (GET /forecast/trajectory's same
+    underlying logic) so the mobile app gets one photo-in, full-picture-out
+    response instead of orchestrating two separate calls.
 
-    The caller doesn't say which pest to check for, so this runs every
-    currently-loaded per-pest binary classifier (app/models/resnet_model.py
-    — one model per pest, not one shared multi-class model) and reports
-    whichever fires the strongest positive detection.
+    `municipality`/`growth_stage` are optional so a caller that only wants
+    the raw classification (no forecast) can omit them — the response's
+    `forecast` field is simply null in that case.
     """
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
@@ -53,19 +66,31 @@ async def infer_image(file: UploadFile = File(...)) -> ImageInferenceResponse:
     contents = await file.read()
     destination.write_bytes(contents)
 
-    best = resnet_classifier.predict_best(destination)
-    result = best[1] if best else None
+    result = resnet_classifier.predict(destination)
+
+    if result is None:
+        return ImageInferenceResponse(
+            status="model_not_loaded",
+            message="ResNet-50 model not loaded yet — image saved for later training/inference",
+        )
+
+    if result.label is None:
+        return ImageInferenceResponse(
+            status="no_pest_detected",
+            message="No tracked pest (BPH/RSB) was detected in this photo with sufficient confidence.",
+        )
+
+    forecast: TrajectoryResponse | None = None
+    if municipality and growth_stage:
+        forecast = _build_trajectory(municipality, result.label, growth_stage, days=13)
 
     return ImageInferenceResponse(
-        status="ok" if result is not None else "model_not_loaded",
-        pest_detected=result.label if result else None,
-        confidence=result.confidence if result else None,
-        risk_level=result.risk_level if result else None,
-        message=(
-            "Prediction successful"
-            if result
-            else "No ResNet-50 model loaded yet — image saved for later training/inference"
-        ),
+        status="ok",
+        pest_detected=result.label,
+        confidence=result.confidence,
+        risk_level=result.risk_level,
+        message="Prediction successful",
+        forecast=forecast,
     )
 
 
@@ -187,18 +212,10 @@ def infer_forecast_live(
     return _live_forecast(municipality, pest, growth_stage)
 
 
-@router.get("/forecast/trajectory", response_model=TrajectoryResponse)
-def infer_forecast_trajectory(
-    municipality: str = Query(..., description="Must match a municipality in app/data/lgu_users.py"),
-    pest: str = Query(..., pattern="^(BPH|RSB)$"),
-    growth_stage: GrowthStage = Query(
-        ...,
-        description="Applied to every day across every window — see /forecast/live for why.",
-    ),
-    days: int = Query(13, ge=1, le=14, description="How many future days to forecast, starting today."),
-) -> TrajectoryResponse:
-    """Multi-day forecast trajectory, for charting a projected outbreak curve
-    (e.g. May 17 -> May 29) rather than a single point.
+def _build_trajectory(municipality: str, pest: str, growth_stage: GrowthStage, days: int) -> TrajectoryResponse:
+    """Shared by GET /forecast/trajectory and POST /image (once a pest is
+    detected in a photo, its 14-day trajectory is fetched the same way) so
+    both run the exact same pipeline.
 
     Key trick: because the model's forecast horizon (FORECAST_HORIZON_DAYS,
     currently 14) is >= the number of future days requested here, EVERY
@@ -269,6 +286,23 @@ def infer_forecast_trajectory(
         )
 
     return TrajectoryResponse(status="ok", points=points, message="Trajectory forecast successful")
+
+
+@router.get("/forecast/trajectory", response_model=TrajectoryResponse)
+def infer_forecast_trajectory(
+    municipality: str = Query(..., description="Must match a municipality in app/data/lgu_users.py"),
+    pest: str = Query(..., pattern="^(BPH|RSB)$"),
+    growth_stage: GrowthStage = Query(
+        ...,
+        description="Applied to every day across every window — see /forecast/live for why.",
+    ),
+    days: int = Query(13, ge=1, le=14, description="How many future days to forecast, starting today."),
+) -> TrajectoryResponse:
+    """Multi-day forecast trajectory, for charting a projected outbreak curve
+    (e.g. May 17 -> May 29) rather than a single point. See _build_trajectory
+    for the actual logic, shared with POST /image.
+    """
+    return _build_trajectory(municipality, pest, growth_stage, days)
 
 
 @router.get("/forecast/explain", response_model=ExplanationResponse)

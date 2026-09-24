@@ -51,6 +51,10 @@ def load_ml_models() -> None:
             bilstm_forecaster.load(pest)
         except (FileNotFoundError, OSError, ValueError):
             print(f"[startup] BiLSTM weights for {pest} not found — /api/inference/forecast will report model_not_loaded for {pest}")
+        try:
+            resnet_classifier.load(pest)
+        except (FileNotFoundError, OSError):
+            print(f"[startup] ResNet-50 weights for {pest} not found — /api/inference/image will skip {pest} detection")
 
         try:
             resnet_classifier.load(pest)

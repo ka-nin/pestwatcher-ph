@@ -59,9 +59,15 @@ export async function fetchPestForecastExplanation(municipality, pest, growthSta
   return parseJsonOrThrow(res, 'Failed to fetch pest forecast explanation');
 }
 
-export async function submitImageInference(imageBlob) {
+// municipality/growthStage are optional: without them the backend still
+// classifies the photo, it just skips the 14-day BiLSTM forecast that
+// normally rides along in the same response (see
+// app/routers/inference.py's /image endpoint).
+export async function submitImageInference(imageBlob, municipality, growthStage) {
   const formData = new FormData();
   formData.append('file', imageBlob, 'scan.jpg');
+  if (municipality) formData.append('municipality', municipality);
+  if (growthStage) formData.append('growth_stage', growthStage);
   const res = await fetch(`${API_BASE_URL}/api/inference/image`, {
     method: 'POST',
     body: formData,
