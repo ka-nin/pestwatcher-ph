@@ -47,7 +47,7 @@ export function useReports() {
           // Only LGU-verified sightings count as an active threat — a
           // pending or rejected report hasn't been corroborated and
           // shouldn't alarm nearby farmers (it also never nudges the
-          // forecast; see server-python/app/decision/report_signal.py,
+          // forecast; see server-python/app/decision/report_anchor.py,
           // which applies the same verified-only rule server-side).
           .filter((r) => r.status === 'verified')
           .map((r) => {
@@ -77,7 +77,7 @@ export function useReports() {
               longitude: r.longitude,
               // "pending" until an LGU technician reviews it in admin-web —
               // only a "verified" report has actually influenced the
-              // forecast (see server-python/app/decision/report_signal.py).
+              // forecast (see server-python/app/decision/report_anchor.py).
               status: r.status || 'pending',
             };
           })

@@ -50,7 +50,7 @@ class ReportRecord(ReportRequest):
     pest_code: str | None = None
     # Every report starts unverified — an LGU technician reviews it in
     # admin-web before it's allowed to nudge the forecast (see
-    # app/decision/report_signal.py). Old records written before this field
+    # app/decision/report_anchor.py). Old records written before this field
     # existed default to "pending" on load.
     status: ReportStatus = "pending"
     verified_by: str | None = None
@@ -74,6 +74,11 @@ class ReportRecord(ReportRequest):
     # yet ("model_not_loaded" is a normal state elsewhere in this API too).
     ai_pest_detected: str | None = None
     ai_confidence: float | None = None
+    # Set when an LGU technician deletes the report (soft delete, kept as an
+    # audit trail). A deleted report never feeds the forecast or the farmers'
+    # feed and is only listed by GET /api/reports/deleted.
+    deleted_at: str | None = None
+    deleted_by: str | None = None
 
 
 class ReportStatusUpdate(BaseModel):

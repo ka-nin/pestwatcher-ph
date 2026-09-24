@@ -7,7 +7,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from app.config import get_settings
 from app.data.municipalities import municipality_coordinates
 from app.decision.etl_thresholds import derive_risk_level
-from app.decision.report_signal import apply_adjustment
+from app.decision.report_anchor import ANCHOR_DAYS, ReportAnchor, find_anchor, shifted, weight
 from app.models.resnet_model import resnet_classifier
 from app.routers.weather import fetch_recent_daily_weather
 from app.schemas.inference import (
@@ -78,6 +78,10 @@ async def infer_image(
         return ImageInferenceResponse(
             status="no_pest_detected",
             message="No tracked pest (BPH/RSB) was detected in this photo with sufficient confidence.",
+            pest_scores=result.pest_scores,
+            grid_used=result.grid_tiles is not None,
+            grid_tiles=result.grid_tiles,
+            bph_grid_count=result.grid_count,
         )
 
     forecast: TrajectoryResponse | None = None
@@ -91,14 +95,67 @@ async def infer_image(
         risk_level=result.risk_level,
         message="Prediction successful",
         forecast=forecast,
+        pests_detected=result.pests_detected,
+        pest_scores=result.pest_scores,
+        grid_used=result.grid_tiles is not None,
+        grid_tiles=result.grid_tiles,
+        bph_grid_count=result.grid_count,
     )
 
 
-def _run_forecast(pest: str, window: list[DailyObservation], municipality: str) -> ForecastInferenceResponse:
-    """Shared by both endpoints below: predict, apply the (separate,
-    non-learned) ETL bucketing — see app/decision/etl_thresholds.py — then
-    let LGU-verified reports for this municipality bump that level one tier
-    if there's enough recent corroborated ground truth (app/decision/report_signal.py).
+def _window_for_target(
+    pest: str, target_date: date, growth_stage: GrowthStage, weather_by_date: dict[str, dict]
+) -> list[DailyObservation] | None:
+    """The 14-day weather window the model needs to predict `target_date`
+    (it ends FORECAST_HORIZON_DAYS before it). None if the fetched weather
+    doesn't reach back far enough."""
+    window_days = PEST_PARAMS[pest].crf_window_days
+    window_end = target_date - timedelta(days=FORECAST_HORIZON_DAYS)
+    window_dates = [(window_end - timedelta(days=window_days - 1 - i)).isoformat() for i in range(window_days)]
+
+    if not all(d in weather_by_date for d in window_dates):
+        return None
+
+    return [
+        DailyObservation(
+            tmax=weather_by_date[d]["tmax"],
+            tmin=weather_by_date[d]["tmin"],
+            relative_humidity=weather_by_date[d]["relative_humidity"],
+            rainfall=weather_by_date[d]["rainfall"],
+            growth_stage=growth_stage,
+        )
+        for d in window_dates
+    ]
+
+
+def _report_gap(
+    anchor: ReportAnchor | None, pest: str, growth_stage: GrowthStage, weather_by_date: dict[str, dict]
+) -> float | None:
+    """Verified report value minus what the model predicted for the report
+    day (see app/decision/report_anchor.py). None means "don't shift" — no
+    report in range, or the weather/model needed for the baseline isn't there."""
+    if anchor is None:
+        return None
+    window = _window_for_target(pest, anchor.anchor_date, growth_stage, weather_by_date)
+    if window is None:
+        return None
+    baseline = bilstm_forecaster.predict(pest, window)
+    if baseline is None:
+        return None
+    return anchor.verified_value - baseline.predicted_value
+
+
+def _run_forecast(
+    pest: str,
+    window: list[DailyObservation],
+    anchor: ReportAnchor | None = None,
+    gap: float | None = None,
+) -> ForecastInferenceResponse:
+    """Shared by both endpoints below: predict, shift (fading over ANCHOR_DAYS) by the latest verified
+    report's gap when one is active (app/decision/report_anchor.py), then
+    apply the (separate, non-learned) ETL bucketing — see
+    app/decision/etl_thresholds.py. POST /forecast has no weather history to
+    work out a gap from, so it always runs the plain model.
     """
     result = bilstm_forecaster.predict(pest, window)
 
@@ -108,18 +165,21 @@ def _run_forecast(pest: str, window: list[DailyObservation], municipality: str) 
             message=f"BiLSTM model for {pest} not loaded yet — placeholder response",
         )
 
+    day_weight = weight(anchor, date.today()) if anchor is not None and gap is not None else 0.0
+    anchored = day_weight > 0
+    value = shifted(result.predicted_value, gap, day_weight) if anchored else result.predicted_value
+
     growth_stage_bucket = GROWTH_STAGE_BUCKETS[window[-1].growth_stage]
-    risk_level = derive_risk_level(pest, growth_stage_bucket, result.predicted_value)
-    adjusted_level, signal = apply_adjustment(risk_level, municipality, pest, growth_stage_bucket)
+    risk_level = derive_risk_level(pest, growth_stage_bucket, value)
 
     return ForecastInferenceResponse(
         status="ok",
-        predicted_value=result.predicted_value,
+        predicted_value=value,
         unit=result.unit,
-        risk_level=adjusted_level,
+        risk_level=risk_level,
         message="Forecast successful",
-        adjusted_by_reports=adjusted_level != risk_level,
-        verified_report_count=signal.verified_report_count,
+        adjusted_by_reports=anchored,
+        verified_report_count=anchor.verified_report_count if anchored else 0,
     )
 
 
@@ -159,7 +219,7 @@ def infer_forecast(payload: ForecastInferenceRequest) -> ForecastInferenceRespon
         for obs in payload.daily_observations
     ]
 
-    return _run_forecast(payload.pest, window, payload.municipality)
+    return _run_forecast(payload.pest, window)
 
 
 def _live_forecast(municipality: str, pest: str, growth_stage: GrowthStage) -> ForecastInferenceResponse:
@@ -174,7 +234,12 @@ def _live_forecast(municipality: str, pest: str, growth_stage: GrowthStage) -> F
     latitude, longitude = coordinates
 
     window_days = PEST_PARAMS[pest].crf_window_days
-    daily_weather = fetch_recent_daily_weather(latitude, longitude, days=window_days)
+    anchor = find_anchor(municipality, pest, date.today(), GROWTH_STAGE_BUCKETS[growth_stage])
+
+    # Only pay for the longer weather history when a report is actually
+    # active — computing its gap needs the model's prediction for the report day.
+    fetch_days = window_days if anchor is None else window_days + FORECAST_HORIZON_DAYS + ANCHOR_DAYS
+    daily_weather = fetch_recent_daily_weather(latitude, longitude, days=fetch_days)
 
     window = [
         DailyObservation(
@@ -184,10 +249,11 @@ def _live_forecast(municipality: str, pest: str, growth_stage: GrowthStage) -> F
             rainfall=day["rainfall"],
             growth_stage=growth_stage,
         )
-        for day in daily_weather
+        for day in daily_weather[-window_days:]
     ]
 
-    return _run_forecast(pest, window, municipality)
+    gap = _report_gap(anchor, pest, growth_stage, {day["date"]: day for day in daily_weather})
+    return _run_forecast(pest, window, anchor, gap)
 
 
 @router.get("/forecast/live", response_model=ForecastInferenceResponse)
@@ -232,37 +298,25 @@ def _build_trajectory(municipality: str, pest: str, growth_stage: GrowthStage, d
         )
     latitude, longitude = coordinates
 
-    window_days = PEST_PARAMS[pest].crf_window_days
     today = date.today()
 
     # Generous on purpose: the last target's window could start as far back
-    # as (today - horizon - window_days + 1); this fetch covers that plus
-    # margin rather than computing the exact minimum.
-    fetch_days = window_days + days + FORECAST_HORIZON_DAYS
+    # as (today - horizon - window_days + 1), and an active report's gap
+    # needs the model's prediction for a report day up to ANCHOR_DAYS ago;
+    # this fetch covers both plus margin rather than computing the minimum.
+    fetch_days = PEST_PARAMS[pest].crf_window_days + days + FORECAST_HORIZON_DAYS + ANCHOR_DAYS
     daily_weather = fetch_recent_daily_weather(latitude, longitude, days=fetch_days)
     weather_by_date = {day["date"]: day for day in daily_weather}
+
+    anchor = find_anchor(municipality, pest, today, GROWTH_STAGE_BUCKETS[growth_stage])
+    gap = _report_gap(anchor, pest, growth_stage, weather_by_date)
 
     points: list[TrajectoryPoint] = []
     for offset in range(days):
         target_date = today + timedelta(days=offset)
-        window_end = target_date - timedelta(days=FORECAST_HORIZON_DAYS)
-        window_dates = [
-            (window_end - timedelta(days=window_days - 1 - i)).isoformat() for i in range(window_days)
-        ]
-
-        if not all(d in weather_by_date for d in window_dates):
+        window = _window_for_target(pest, target_date, growth_stage, weather_by_date)
+        if window is None:
             continue  # not enough fetched history for this point — skip rather than fail the whole trajectory
-
-        window = [
-            DailyObservation(
-                tmax=weather_by_date[d]["tmax"],
-                tmin=weather_by_date[d]["tmin"],
-                relative_humidity=weather_by_date[d]["relative_humidity"],
-                rainfall=weather_by_date[d]["rainfall"],
-                growth_stage=growth_stage,
-            )
-            for d in window_dates
-        ]
 
         result = bilstm_forecaster.predict(pest, window)
         if result is None:
@@ -272,16 +326,18 @@ def _build_trajectory(municipality: str, pest: str, growth_stage: GrowthStage, d
                 message=f"BiLSTM model for {pest} not loaded yet",
             )
 
+        day_weight = weight(anchor, target_date) if anchor is not None and gap is not None else 0.0
+        anchored = day_weight > 0
+        value = shifted(result.predicted_value, gap, day_weight) if anchored else result.predicted_value
+
         growth_stage_bucket = GROWTH_STAGE_BUCKETS[growth_stage]
-        risk_level = derive_risk_level(pest, growth_stage_bucket, result.predicted_value)
-        adjusted_level, report_signal = apply_adjustment(risk_level, municipality, pest, growth_stage_bucket)
         points.append(
             TrajectoryPoint(
                 date=target_date.isoformat(),
-                predicted_value=result.predicted_value,
+                predicted_value=value,
                 unit=result.unit,
-                risk_level=adjusted_level,
-                adjusted_by_reports=adjusted_level != risk_level,
+                risk_level=derive_risk_level(pest, growth_stage_bucket, value),
+                adjusted_by_reports=anchored,
             )
         )
 

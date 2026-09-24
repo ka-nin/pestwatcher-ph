@@ -40,6 +40,8 @@ def _to_schema(row: ReportDB) -> ReportRecord:
         "photo_path": row.photo_path,
         "ai_pest_detected": row.ai_pest_detected,
         "ai_confidence": row.ai_confidence,
+        "deleted_at": row.deleted_at,
+        "deleted_by": row.deleted_by,
     }
     if data["photo_path"]:
         data["photo_url"] = f"/uploads/{data['photo_path']}"
@@ -99,7 +101,7 @@ def backfill_pest_codes() -> None:
 
 def list_reports(province: str | None = None, municipality: str | None = None) -> list[ReportRecord]:
     with session_scope() as db:
-        query = db.query(ReportDB)
+        query = db.query(ReportDB).filter(ReportDB.deleted_at.is_(None))
         if province:
             query = query.filter(func.lower(ReportDB.province) == province.lower())
         if municipality:
@@ -108,14 +110,31 @@ def list_reports(province: str | None = None, municipality: str | None = None) -
         return [_to_schema(r) for r in rows]
 
 
+def list_deleted_reports(municipality: str) -> list[ReportRecord]:
+    """The audit trail: soft-deleted reports for one municipality, most
+    recently deleted first."""
+    with session_scope() as db:
+        rows = (
+            db.query(ReportDB)
+            .filter(ReportDB.deleted_at.is_not(None), func.lower(ReportDB.municipality) == municipality.lower())
+            .order_by(ReportDB.deleted_at.desc())
+            .all()
+        )
+        return [_to_schema(r) for r in rows]
+
+
 def list_verified_reports(municipality: str) -> list[ReportRecord]:
-    """Used by app/decision/report_signal.py to gather ground-truth signal
+    """Used by app/decision/report_anchor.py to find the latest ground truth
     for one municipality — recency and pest matching are filtered by the
     caller, not here."""
     with session_scope() as db:
         rows = (
             db.query(ReportDB)
-            .filter(ReportDB.status == "verified", ReportDB.municipality == municipality)
+            .filter(
+                ReportDB.status == "verified",
+                ReportDB.municipality == municipality,
+                ReportDB.deleted_at.is_(None),
+            )
             .all()
         )
         return [_to_schema(r) for r in rows]
@@ -137,6 +156,7 @@ def count_recent_similar_reports(username: str, municipality: str, pest_type: st
                 ReportDB.municipality == municipality,
                 ReportDB.pest_type == pest_type,
                 ReportDB.submitted_at >= since_iso,
+                ReportDB.deleted_at.is_(None),
             )
             .count()
         )
@@ -156,7 +176,7 @@ def update_report_status(
 ) -> ReportRecord | None:
     with session_scope() as db:
         row = db.get(ReportDB, report_id)
-        if row is None:
+        if row is None or row.deleted_at is not None:
             return None
         row.status = status
         row.verified_by = verified_by
@@ -165,5 +185,25 @@ def update_report_status(
             row.verified_value = verified_value if verified_value is not None else row.estimated_value
         else:
             row.verified_value = None
+        db.flush()
+        return _to_schema(row)
+
+
+def get_report(report_id: str) -> ReportRecord | None:
+    with session_scope() as db:
+        row = db.get(ReportDB, report_id)
+        return _to_schema(row) if row else None
+
+
+def delete_report(report_id: str, deleted_by: str) -> ReportRecord | None:
+    """Soft delete: the row stays (audit trail) with who deleted it and when,
+    but every read that feeds the forecast or the farmers' feed skips it, so
+    it stops counting immediately. None if missing or already deleted."""
+    with session_scope() as db:
+        row = db.get(ReportDB, report_id)
+        if row is None or row.deleted_at is not None:
+            return None
+        row.deleted_at = datetime.now(timezone.utc).isoformat()
+        row.deleted_by = deleted_by
         db.flush()
         return _to_schema(row)

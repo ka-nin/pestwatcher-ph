@@ -53,13 +53,8 @@ def load_ml_models() -> None:
             print(f"[startup] BiLSTM weights for {pest} not found — /api/inference/forecast will report model_not_loaded for {pest}")
         try:
             resnet_classifier.load(pest)
-        except (FileNotFoundError, OSError):
-            print(f"[startup] ResNet-50 weights for {pest} not found — /api/inference/image will skip {pest} detection")
-
-        try:
-            resnet_classifier.load(pest)
         except (FileNotFoundError, OSError, ValueError):
-            print(f"[startup] ResNet-50 weights for {pest} not found — /api/inference/image will report model_not_loaded for {pest}")
+            print(f"[startup] ResNet-50 weights for {pest} not found — /api/inference/image will skip {pest} detection")
 
 app.add_middleware(
     CORSMiddleware,

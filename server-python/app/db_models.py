@@ -91,3 +91,9 @@ class ReportDB(Base):
     photo_path: Mapped[str | None] = mapped_column(String, nullable=True)
     ai_pest_detected: Mapped[str | None] = mapped_column(String, nullable=True)
     ai_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Soft delete (audit trail): a deleted report keeps its row, but is hidden
+    # from the forecast, the farmers' feed and the normal review tabs — see
+    # app/data/reports_store.py. Added after the table first existed, so
+    # app/db.py:init_db() also adds these columns to an already-created table.
+    deleted_at: Mapped[str | None] = mapped_column(String, nullable=True)
+    deleted_by: Mapped[str | None] = mapped_column(String, nullable=True)

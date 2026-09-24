@@ -1,10 +1,10 @@
 """Maps a farmer's free-text pest_type to the BiLSTM/ETL pest code.
 
-Extracted from app/decision/report_signal.py so the same keyword list is
+Extracted from app/decision/report_anchor.py so the same keyword list is
 used both when a report is first submitted (app/routers/reports.py sets
 pest_code at insert time) and when scoring older rows that predate the
 pest_code column (see app/data/reports_store.py:backfill_pest_codes()).
-Previously this lived only in report_signal.py and ran as a live substring
+Previously this lived only in the old report_signal.py and ran as a live substring
 scan on every forecast request; it's now a one-time lookup at write time.
 """
 

@@ -32,10 +32,11 @@ class ForecastInferenceResponse(BaseModel):
     unit: Literal["hoppers_per_hill", "pct_damage"] | None = None
     risk_level: Literal["Low", "Medium", "High"] | None = None
     message: str
-    # True when risk_level was bumped one tier by verified farmer reports —
-    # see app/decision/report_signal.py. Only set on /forecast/live, which
-    # is the only forecast endpoint that knows the municipality to look
-    # reports up by.
+    # True when predicted_value was shifted to start from the latest verified
+    # farmer report — see app/decision/report_anchor.py. Only set on
+    # /forecast/live, which is the only single-value endpoint that knows the
+    # municipality to look reports up by. verified_report_count is how many
+    # matching reports were verified on the report day that drove the shift.
     adjusted_by_reports: bool = False
     verified_report_count: int = 0
 
@@ -72,11 +73,23 @@ class ImageInferenceResponse(BaseModel):
     """
 
     status: Literal["ok", "model_not_loaded", "no_pest_detected"]
+    # The single strongest pest (drives the forecast below).
     pest_detected: Literal["BPH", "RSB"] | None = None
     confidence: float | None = None
     risk_level: Literal["Low", "Moderate", "High", "Critical"] | None = None
     message: str
     forecast: TrajectoryResponse | None = None
+    # Every pest that cleared its own cutoff, strongest first — a photo with
+    # both BPH and RSB lists both here even though only one is pest_detected.
+    pests_detected: list[Literal["BPH", "RSB"]] = []
+    pest_scores: dict[str, float] = {}
+    # Only set when the BPH grid ran (a photo bigger than one insect close-up,
+    # see app/preprocessing/tiling.py): tiles scored, and merged hit groups.
+    # The group count is an approximate density hint — NOT an exact insect
+    # count and NOT hoppers/hill, which comes from verified reports.
+    grid_used: bool = False
+    grid_tiles: int | None = None
+    bph_grid_count: int | None = None
 
 
 class ExplanationFeature(BaseModel):

@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react'
 import {
   API_BASE_URL,
+  deleteReport,
+  fetchDeletedReports,
   fetchReports,
   updateReportStatus,
   type LguUser,
   type ReportRecord,
   type ReportStatus,
 } from '../../lib/api'
+import ConfirmDeleteModal from '../../components/ConfirmDeleteModal'
 import './ReportsPage.css'
 
 interface ReportsPageProps {
   user: LguUser
+  accessToken: string
 }
 
 const SEVERITY_TONE: Record<string, 'green' | 'yellow' | 'red' | 'neutral'> = {
@@ -25,11 +29,14 @@ const STATUS_TONE: Record<ReportStatus, 'green' | 'red' | 'neutral'> = {
   pending: 'neutral',
 }
 
-const FILTERS: { key: ReportStatus | 'all'; label: string }[] = [
-  { key: 'pending', label: 'Pending Review' },
-  { key: 'verified', label: 'Verified' },
-  { key: 'rejected', label: 'Rejected' },
+type ReportFilter = ReportStatus | 'all' | 'deleted'
+
+const FILTERS: { key: ReportFilter; label: string }[] = [
   { key: 'all', label: 'All' },
+  { key: 'verified', label: 'Verified' },
+  { key: 'pending', label: 'Pending' },
+  { key: 'rejected', label: 'Rejected' },
+  { key: 'deleted', label: 'Deleted' },
 ]
 
 function formatDate(iso: string) {
@@ -44,13 +51,15 @@ function formatTimestamp(iso: string) {
   return d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
-function ReportsPage({ user }: ReportsPageProps) {
+function ReportsPage({ user, accessToken }: ReportsPageProps) {
   const [reports, setReports] = useState<ReportRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [filter, setFilter] = useState<ReportStatus | 'all'>('pending')
+  const [filter, setFilter] = useState<ReportFilter>('pending')
   const [actioningId, setActioningId] = useState<string | null>(null)
   const [draftValues, setDraftValues] = useState<Record<string, string>>({})
+  const [pendingDelete, setPendingDelete] = useState<ReportRecord | null>(null)
+  const [deletedReports, setDeletedReports] = useState<ReportRecord[]>([])
 
   // Tenant-scoped: an LGU tech only ever sees their own municipality's
   // sightings, not the whole province's — see fetchReports' doc comment.
@@ -77,6 +86,22 @@ function ReportsPage({ user }: ReportsPageProps) {
     }
   }, [user.municipality])
 
+  useEffect(() => {
+    let cancelled = false
+
+    fetchDeletedReports(accessToken)
+      .then((data) => {
+        if (!cancelled) setDeletedReports(data)
+      })
+      .catch(() => {
+        // The audit tab just stays empty; the main list is unaffected.
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken])
+
   const handleReview = async (id: string, status: Extract<ReportStatus, 'verified' | 'rejected'>) => {
     setActioningId(id)
     try {
@@ -91,7 +116,24 @@ function ReportsPage({ user }: ReportsPageProps) {
     }
   }
 
-  const visible = filter === 'all' ? reports : reports.filter((r) => r.status === filter)
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return
+    const id = pendingDelete.id
+    setActioningId(id)
+    try {
+      const deleted = await deleteReport(accessToken, id)
+      setReports((prev) => prev.filter((r) => r.id !== id))
+      setDeletedReports((prev) => [deleted, ...prev])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to delete this report — try again')
+    } finally {
+      setActioningId(null)
+      setPendingDelete(null)
+    }
+  }
+
+  const visible =
+    filter === 'deleted' ? deletedReports : filter === 'all' ? reports : reports.filter((r) => r.status === filter)
   const pendingCount = reports.filter((r) => r.status === 'pending').length
 
   return (
@@ -129,9 +171,11 @@ function ReportsPage({ user }: ReportsPageProps) {
         {!loading && visible.length === 0 && !error && (
           <div className="panel reports-empty">
             <p className="stat-card-loading">
-              {reports.length === 0
-                ? `No pending reports for ${user.municipality} right now.`
-                : 'No reports in this view.'}
+              {filter === 'deleted'
+                ? 'No deleted reports — anything an LGU technician deletes is kept here as an audit trail.'
+                : reports.length === 0
+                  ? `No pending reports for ${user.municipality} right now.`
+                  : 'No reports in this view.'}
             </p>
           </div>
         )}
@@ -154,7 +198,7 @@ function ReportsPage({ user }: ReportsPageProps) {
                 )}
                 {report.ai_confidence != null && (
                   <span className="report-ai-badge">
-                    AI: {report.ai_pest_detected} · {Math.round(report.ai_confidence * 100)}%
+                    AI: {report.ai_pest_detected ?? 'No pest detected'} ·{Math.round(report.ai_confidence * 100)}%
                   </span>
                 )}
               </div>
@@ -164,6 +208,7 @@ function ReportsPage({ user }: ReportsPageProps) {
                   <div className="report-card-badges">
                     <span className={`badge badge-${severityTone}`}>{report.severity.toUpperCase()}</span>
                     <span className={`badge badge-${statusTone}`}>{report.status.toUpperCase()}</span>
+                    {report.deleted_at && <span className="badge badge-red">DELETED</span>}
                   </div>
                   <span className="report-card-date">{formatDate(report.date_spotted)}</span>
                 </div>
@@ -204,6 +249,11 @@ function ReportsPage({ user }: ReportsPageProps) {
 
                 <div className="report-card-footer">
                   <span>Reported by {report.username}</span>
+                  {report.deleted_at && (
+                    <span className="report-deleted-note">
+                      Deleted by {report.deleted_by ?? 'unknown'} · {formatTimestamp(report.deleted_at)}
+                    </span>
+                  )}
                   {report.status !== 'pending' && report.verified_by && (
                     <span>
                       {report.status === 'verified' ? 'Verified' : 'Rejected'} by {report.verified_by}
@@ -212,7 +262,7 @@ function ReportsPage({ user }: ReportsPageProps) {
                   )}
                 </div>
 
-                {report.status === 'pending' && (
+                {report.status === 'pending' && !report.deleted_at && (
                   <>
                     <label className="report-value-input">
                       Confirm count/damage value
@@ -243,11 +293,33 @@ function ReportsPage({ user }: ReportsPageProps) {
                     </div>
                   </>
                 )}
+
+                {!report.deleted_at && (
+                <div className="report-card-actions">
+                  <button
+                    type="button"
+                    className="report-action-btn report-action-delete"
+                    disabled={isActioning}
+                    onClick={() => setPendingDelete(report)}
+                  >
+                    Delete report
+                  </button>
+                </div>
+                )}
               </div>
             </article>
           )
         })}
       </section>
+
+      {pendingDelete && (
+        <ConfirmDeleteModal
+          report={pendingDelete}
+          busy={actioningId === pendingDelete.id}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </>
   )
 }

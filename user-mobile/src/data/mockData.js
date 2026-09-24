@@ -438,7 +438,7 @@ export const etlThresholds = {
 // Limited to what the BiLSTM forecast model actually covers (BPH, RSB —
 // see server-python/ml/config.py PEST_PARAMS). Anything else a farmer
 // spots still gets logged, just bucketed as "Others" — it won't match a
-// pest code in app/decision/report_signal.py, so it can be reviewed by an
+// pest code in app/decision/report_anchor.py, so it can be reviewed by an
 // LGU tech but never nudges a forecast.
 // `value` is what's actually submitted to the backend (matched by keyword
 // in server-python/app/decision/pest_matching.py) — kept exactly as before

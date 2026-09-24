@@ -9,6 +9,7 @@ import {
   CloudRain,
   Droplets,
   ChevronRight,
+  Bell,
   Camera,
   LogOut,
 } from 'lucide-react';
@@ -17,7 +18,6 @@ import { currentLocation, dashboardSummary } from '../data/mockData';
 import { fetchWeatherForecast, fetchPestForecast, fetchPestForecastTrajectory } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { useReports } from '../hooks/useReports';
 import LanguageToggle from '../components/LanguageToggle';
 import logoImg from '../assets/logo-shield.png';
 import './Home.css';
@@ -42,11 +42,31 @@ const PEST_META = {
   RSB: { labelKey: 'pestLabelRsb', trendTitleKey: 'homeTrendTitleRsb' },
 };
 
+// Two weeks, matching the model's 14-day forecast window.
+const TREND_DAYS = 14;
+
+// Two-line axis label (weekday over date) so 14 slim bars stay readable;
+// falls back to the plain `day` text for the static mock data.
+function TrendTick({ x, y, payload, data }) {
+  const item = data[payload.index];
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text dy={12} textAnchor="middle" fontSize={10} fill="var(--color-text-muted)">
+        {item?.dow ?? item?.day}
+      </text>
+      {item?.dom != null && (
+        <text dy={24} textAnchor="middle" fontSize={9} fill="var(--color-text-muted)" opacity={0.7}>
+          {item.dom}
+        </text>
+      )}
+    </g>
+  );
+}
+
 export default function Home() {
   const navigate = useNavigate();
   const { user, growthStage, logout } = useAuth();
   const { language, t } = useLanguage();
-  const { reports } = useReports();
   const [weather, setWeather] = useState(null);
   const [weatherUpdatedAt, setWeatherUpdatedAt] = useState(null);
   // Both pests' forecasts and trends are kept (not just the worse one) so
@@ -96,8 +116,8 @@ export default function Home() {
         const [bphForecast, rsbForecast, bphTrajectory, rsbTrajectory] = await Promise.all([
           fetchPestForecast(user.municipality, 'BPH', growthStage),
           fetchPestForecast(user.municipality, 'RSB', growthStage),
-          fetchPestForecastTrajectory(user.municipality, 'BPH', growthStage, 7),
-          fetchPestForecastTrajectory(user.municipality, 'RSB', growthStage, 7),
+          fetchPestForecastTrajectory(user.municipality, 'BPH', growthStage, TREND_DAYS),
+          fetchPestForecastTrajectory(user.municipality, 'RSB', growthStage, TREND_DAYS),
         ]);
         if (cancelled) return;
 
@@ -124,10 +144,15 @@ export default function Home() {
 
         const toTrend = (trajectory) =>
           trajectory.status === 'ok' && trajectory.points.length
-            ? trajectory.points.map((p) => ({
-                day: new Date(p.date).toLocaleDateString('en-US', { weekday: 'short' }),
-                level: (RISK_RANK[p.risk_level] ?? 0) + 1,
-              }))
+            ? trajectory.points.map((p) => {
+                const date = new Date(`${p.date}T00:00:00`);
+                return {
+                  key: p.date,
+                  dow: date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2),
+                  dom: date.getDate(),
+                  level: (RISK_RANK[p.risk_level] ?? 0) + 1,
+                };
+              })
             : null;
 
         setTrends({
@@ -169,10 +194,6 @@ export default function Home() {
     'en-US',
     { hour: '2-digit', minute: '2-digit', hour12: true }
   )}`;
-
-  const highRiskReports = reports.filter((r) => r.risk === 'high' || r.risk === 'medium');
-  const nearbyZones = [...new Set(highRiskReports.map((r) => r.location))];
-  const nearbyMaxKm = Math.max(...highRiskReports.map((r) => r.distanceKm).filter((n) => Number.isFinite(n)), 0);
 
   return (
     <div className="home-screen">
@@ -283,36 +304,34 @@ export default function Home() {
               <span><i style={{ background: LEVEL_COLOR[3] }} /> {t('homeTrendDanger')}</span>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={110}>
-            <BarChart data={trendData} barCategoryGap="34%" margin={{ top: 4, right: 0, left: 0, bottom: 0 }} key={activePest}>
-              <XAxis
-                dataKey="day"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }}
-              />
-              <YAxis hide domain={[0, 3]} />
-              <Bar dataKey="level" radius={[7, 7, 2, 2]} minPointSize={6}>
-                {trendData.map((entry, i) => (
-                  <Cell key={i} fill={LEVEL_COLOR[entry.level]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="trend-chart">
+            <ResponsiveContainer width="100%" height={128}>
+              <BarChart data={trendData} barCategoryGap="22%" margin={{ top: 4, right: 0, left: 0, bottom: 0 }} key={activePest}>
+                <XAxis
+                  dataKey={(d) => d.key ?? d.day}
+                  axisLine={false}
+                  tickLine={false}
+                  interval={0}
+                  height={32}
+                  tick={<TrendTick data={trendData} />}
+                />
+                <YAxis hide domain={[0, 3]} />
+                <Bar dataKey="level" radius={[5, 5, 2, 2]} minPointSize={6}>
+                  {trendData.map((entry, i) => (
+                    <Cell key={i} fill={LEVEL_COLOR[entry.level]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            {trendData.length === TREND_DAYS && <span className="trend-week-divider" aria-hidden="true" />}
+          </div>
         </section>
 
-        {nearbyZones.length > 0 && (
-          <button className="nearby-zones-strip" onClick={() => navigate('/alerts')}>
-            <AlertTriangle size={18} color="var(--color-accent-orange)" />
-            <span className="nearby-zones-text">
-              <strong>{nearbyZones.length} {t('homeNearbyZones')}</strong>
-              <small>
-                {nearbyZones.join(' & ')} · {t('homeWithin')} {nearbyMaxKm}km
-              </small>
-            </span>
-            <ChevronRight size={16} color="var(--color-text-muted)" />
-          </button>
-        )}
+        <button className="nearby-alerts-link" onClick={() => navigate('/alerts')}>
+          <Bell size={18} color="var(--color-primary)" />
+          <span className="nearby-alerts-text">{t('homeViewNearbyAlerts')}</span>
+          <ChevronRight size={16} color="var(--color-text-muted)" />
+        </button>
 
         <button className="scan-strip" onClick={() => navigate('/scan')}>
           <span className="scan-strip-icon">

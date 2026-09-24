@@ -148,6 +148,13 @@ export default function ScanResult() {
   }
 
   const photoDetected = inference.pest_detected && inference.pest_detected !== 'Healthy';
+  // A photo can hold both pests; the backend lists every one it found, while
+  // pest_detected is only the strongest (which drives the forecast below).
+  const detectedPests = inference.pests_detected?.length
+    ? inference.pests_detected
+    : photoDetected
+      ? [inference.pest_detected]
+      : [];
   const guideId = resolvedPest ? GUIDE_ID_BY_PEST[resolvedPest] : 'bph';
   const entry = pestGuide.find((p) => p.id === guideId) || pestGuide[0];
 
@@ -182,11 +189,22 @@ export default function ScanResult() {
         <section className="scan-result-signal">
           <span className="scan-result-signal-label">{t('scanResultFromPhoto')}</span>
           <div className="scan-result-confidence">
-            <span className={`scan-result-photo-chip${photoDetected ? ' detected' : ''}`}>
-              {inference.pest_detected || t('scanResultNoneDetected')}
-            </span>
+            {detectedPests.length > 0 ? (
+              detectedPests.map((pest) => (
+                <span key={pest} className="scan-result-photo-chip detected">
+                  {pest}
+                </span>
+              ))
+            ) : (
+              <span className="scan-result-photo-chip">{t('scanResultNoneDetected')}</span>
+            )}
             <span>{Math.round((inference.confidence ?? 0) * 100)}% confidence</span>
           </div>
+          {inference.grid_used && inference.bph_grid_count > 0 && (
+            <p className="scan-result-summary">
+              {t('scanResultGridPrefix')} {inference.bph_grid_count} {t('scanResultGridSuffix')}
+            </p>
+          )}
         </section>
 
         <h1>{displayName}</h1>
