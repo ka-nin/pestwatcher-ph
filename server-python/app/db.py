@@ -7,7 +7,7 @@ than wiring up async SQLAlchemy for no real benefit at this scale.
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import get_settings
@@ -43,3 +43,10 @@ def init_db() -> None:
     import app.db_models  # noqa: F401  (registers models on Base.metadata)
 
     Base.metadata.create_all(bind=engine)
+
+    # create_all() never alters a table that already exists, and there's no
+    # migration framework — so columns added later are patched in here, once
+    # and idempotently, instead of forcing a dev database reset.
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE reports ADD COLUMN IF NOT EXISTS deleted_at VARCHAR"))
+        conn.execute(text("ALTER TABLE reports ADD COLUMN IF NOT EXISTS deleted_by VARCHAR"))

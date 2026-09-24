@@ -244,3 +244,79 @@
   color: #c23b3b;
   border-color: #f3d3d3;
 }
+
+.report-action-delete {
+  background: #fff;
+  color: #8a8a8a;
+  border-color: #e3e3e3;
+}
+
+.report-action-delete:hover:not(:disabled) {
+  color: #c23b3b;
+  border-color: #f3d3d3;
+}
+
+/* Delete confirmation dialog — reuses .modal-backdrop/.modal-panel from
+   Dashboard.css (same look as the day-detail modal), plus a blurred backdrop. */
+.modal-backdrop-blur {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  background: rgba(20, 20, 15, 0.35);
+}
+
+.confirm-modal {
+  max-width: 400px;
+  text-align: center;
+}
+
+.confirm-modal-icon {
+  width: 46px;
+  height: 46px;
+  margin: 2px auto 12px;
+  border-radius: 50%;
+  background: #fdeaea;
+  color: #c23b3b;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 46px;
+}
+
+.confirm-modal-title {
+  font-size: 16px;
+}
+
+.confirm-modal-text {
+  margin: 14px 0 20px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #666;
+}
+
+.confirm-modal-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.confirm-modal-actions .report-action-btn {
+  padding: 11px;
+  font-size: 13px;
+}
+
+.confirm-modal-cancel {
+  color: #555;
+  border-color: #e3e3e3;
+}
+
+.report-action-danger {
+  background: #c23b3b;
+  color: #fff;
+}
+
+.report-action-danger:hover:not(:disabled) {
+  background: #a92f2f;
+}
+
+.report-deleted-note {
+  color: #c23b3b;
+  font-weight: 600;
+}

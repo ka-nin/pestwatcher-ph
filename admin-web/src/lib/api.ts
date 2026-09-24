@@ -215,6 +215,8 @@ export interface ReportRecord {
   ai_confidence: number | null
   estimated_value: number | null
   verified_value: number | null
+  deleted_at: string | null
+  deleted_by: string | null
 }
 
 // Scoped by municipality, not province — an LGU technician's account is
@@ -251,6 +253,28 @@ export async function updateReportStatus(
 
   if (!res.ok) {
     throw new Error('Failed to update report')
+  }
+
+  return res.json()
+}
+
+// Soft delete: the report is kept as an audit trail and comes back with
+// deleted_at / deleted_by set (see server-python/app/routers/reports.py).
+export async function deleteReport(token: string, id: string): Promise<ReportRecord> {
+  const res = await authFetch(token, `/api/reports/${encodeURIComponent(id)}`, { method: 'DELETE' })
+
+  if (!res.ok) {
+    throw new Error('Failed to delete report')
+  }
+
+  return res.json()
+}
+
+export async function fetchDeletedReports(token: string): Promise<ReportRecord[]> {
+  const res = await authFetch(token, '/api/reports/deleted')
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch deleted reports')
   }
 
   return res.json()

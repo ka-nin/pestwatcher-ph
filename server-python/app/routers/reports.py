@@ -2,13 +2,16 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
 from app.config import get_settings
 from app.data import reports_store
+from app.data.lgu_users import find_lgu_user
 from app.decision.pest_matching import derive_pest_code
+from app.dependencies import require_lgu
 from app.models.resnet_model import resnet_classifier
 from app.rate_limit import RateLimitExceeded, RateLimiter
+from app.security import TokenPayload
 from app.schemas.reports import ReportRecord, ReportResponse, ReportStatusUpdate
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
@@ -23,7 +26,7 @@ ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 # requesting IP instead. A genuine farmer with a real outbreak on hand
 # won't hit either limit; both exist to stop a script (or a mis-tapping
 # button) from flooding an LGU's review queue or artificially inflating
-# app/decision/report_signal.py's verified-report risk signal.
+# app/decision/report_anchor.py's verified-report forecast anchor.
 REPORT_RATE_LIMIT_MAX = 5
 REPORT_RATE_LIMIT_WINDOW_SECONDS = 10 * 60
 DUPLICATE_REPORT_WINDOW_MINUTES = 10
@@ -104,16 +107,17 @@ async def submit_report(
         contents = await file.read()
         (upload_dir / photo_path).write_bytes(contents)
 
-        # Best-effort: predict_best() returns None until at least one
-        # pest's weights are loaded (app/models/resnet_model.py) — a report
-        # with a photo but no AI read is a normal, expected state, same as
+        # Best-effort: predict() returns None until at least one pest's
+        # weights are loaded (app/models/resnet_model.py) — a report with a
+        # photo but no AI read is a normal, expected state, same as
         # /api/inference/image's "model_not_loaded". Runs every loaded
         # pest's classifier and keeps whichever fires strongest, since a
         # report photo isn't necessarily of the pest the farmer picked.
-        best = resnet_classifier.predict_best(upload_dir / photo_path)
-        if best is not None:
-            ai_pest_detected = best[1].label
-            ai_confidence = best[1].confidence
+        # label stays None when neither pest was detected.
+        prediction = resnet_classifier.predict(upload_dir / photo_path)
+        if prediction is not None:
+            ai_pest_detected = prediction.label
+            ai_confidence = prediction.confidence
 
     record = ReportRecord(
         id=uuid.uuid4().hex,
@@ -145,7 +149,7 @@ async def submit_report(
 def update_report_status(report_id: str, payload: ReportStatusUpdate) -> ReportRecord:
     """LGU review action from admin-web: mark a farmer's sighting verified or
     rejected. Only "verified" reports feed into the forecast adjustment in
-    app/decision/report_signal.py — a pending or rejected report never
+    app/decision/report_anchor.py — a pending or rejected report never
     influences what a farmer sees on their dashboard."""
     updated = reports_store.update_report_status(
         report_id, payload.status, payload.verified_by, payload.verified_value
@@ -153,3 +157,34 @@ def update_report_status(report_id: str, payload: ReportStatusUpdate) -> ReportR
     if updated is None:
         raise HTTPException(status_code=404, detail=f"Report '{report_id}' not found")
     return updated
+
+
+@router.get("/deleted", response_model=list[ReportRecord])
+def list_deleted_reports(lgu: TokenPayload = Depends(require_lgu)) -> list[ReportRecord]:
+    """Audit trail for admin-web's "Deleted Reports" tab: the technician's
+    own municipality only, and only with an LGU login (the public feed
+    endpoint above never returns deleted reports)."""
+    account = find_lgu_user(lgu.username)
+    if account is None:
+        raise HTTPException(status_code=403, detail="LGU account not found")
+    return reports_store.list_deleted_reports(account.municipality)
+
+
+@router.delete("/{report_id}", response_model=ReportRecord)
+def delete_report(report_id: str, lgu: TokenPayload = Depends(require_lgu)) -> ReportRecord:
+    """LGU-only soft delete of a sighting (any status), limited to the
+    technician's own municipality. The report is kept as an audit trail —
+    who deleted it and when — but immediately stops feeding the forecast
+    (app/decision/report_anchor.py) and the farmers' alerts feed."""
+    report = reports_store.get_report(report_id)
+    if report is None or report.deleted_at is not None:
+        raise HTTPException(status_code=404, detail=f"Report '{report_id}' not found")
+
+    account = find_lgu_user(lgu.username)
+    if account is None or account.municipality.lower() != report.municipality.lower():
+        raise HTTPException(status_code=403, detail="You can only delete reports from your own municipality")
+
+    deleted = reports_store.delete_report(report_id, deleted_by=lgu.username)
+    if deleted is None:
+        raise HTTPException(status_code=404, detail=f"Report '{report_id}' not found")
+    return deleted

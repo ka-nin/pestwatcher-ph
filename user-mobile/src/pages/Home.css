@@ -348,41 +348,43 @@
   display: inline-block;
 }
 
-/* Nearby high-risk zones — flat warning strip, tappable */
-.nearby-zones-strip {
+/* 14-day trend chart: a faint line marks the boundary between week 1 and week 2
+   (7 of 14 equal-width bars, so it sits exactly at the horizontal middle). */
+.trend-chart {
+  position: relative;
+}
+
+.trend-week-divider {
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  bottom: 30px;
+  border-left: 1px dashed var(--color-text-muted);
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+/* View nearby alerts — plain link strip (no risk claim; the forecast above is the source of truth) */
+.nearby-alerts-link {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   width: 100%;
   min-height: var(--tap-target);
   text-align: left;
-  background: rgba(217, 123, 41, 0.12);
-  border: 1px solid rgba(217, 123, 41, 0.25);
+  background: var(--color-surface);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
   padding: var(--space-3) var(--space-4);
   cursor: pointer;
 }
 
-.nearby-zones-text {
+.nearby-alerts-text {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.nearby-zones-text strong {
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--color-text);
-}
-
-.nearby-zones-text small {
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* AI Pest Scan — flat white strip, tappable */

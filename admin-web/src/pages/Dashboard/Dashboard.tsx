@@ -10,6 +10,7 @@ import './Dashboard.css'
 
 interface DashboardProps {
   user: LguUser
+  accessToken: string
   onLogout: () => void
 }
 
@@ -76,7 +77,7 @@ const navIcons: Record<PageKey, React.ReactNode> = {
   ),
 }
 
-function Dashboard({ user, onLogout }: DashboardProps) {
+function Dashboard({ user, accessToken, onLogout }: DashboardProps) {
   const [activePage, setActivePage] = useState<PageKey>('status')
   const [weather, setWeather] = useState<WeatherForecast | null>(null)
   const [weatherError, setWeatherError] = useState('')
@@ -191,7 +192,7 @@ function Dashboard({ user, onLogout }: DashboardProps) {
 
           {activePage === 'forecast' && <PestForecastPage user={user} />}
 
-          {activePage === 'reports' && <ReportsPage user={user} />}
+          {activePage === 'reports' && <ReportsPage user={user} accessToken={accessToken} />}
         </main>
       </div>
     </div>

@@ -51,7 +51,7 @@ function App() {
     )
   }
 
-  return <Dashboard user={session.user} onLogout={handleLogout} />
+  return <Dashboard user={session.user} accessToken={session.accessToken} onLogout={handleLogout} />
 }
 
 export default App

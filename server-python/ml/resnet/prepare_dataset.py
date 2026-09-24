@@ -16,6 +16,13 @@ source image lands in the same split — otherwise near-duplicate crops from
 one heavily-annotated image (some images have 40+ boxes) could leak across
 train/test and inflate reported accuracy.
 
+Background patches (on by default) are added as extra negatives: squares cut
+from the same images but from areas that overlap no annotated box, sized like
+this pest's own insect crops (see crops.extract_background). Every crop above
+is an insect, so without them the model has never seen empty leaf, water or
+soil and fires on it when a photo is cut into a grid (app/preprocessing/
+tiling.py). Pass --no-background to rebuild the original crop-only dataset.
+
 Run from server-python/:
     .venv/Scripts/python.exe -m ml.resnet.prepare_dataset --pest BPH
     .venv/Scripts/python.exe -m ml.resnet.prepare_dataset --pest RSB
@@ -27,7 +34,7 @@ import json
 import shutil
 from pathlib import Path
 
-from ml.resnet.crops import extract_crops
+from ml.resnet.crops import extract_background, extract_crops, padded_box_sides
 
 RESNET_DIR = Path(__file__).resolve().parent
 PROCESSED_DIR = RESNET_DIR / "datasets" / "processed"
@@ -37,6 +44,13 @@ PEST_SOURCE_DIRS = {
     "RSB": RESNET_DIR / "sb",
 }
 NEGATIVE_DIR = RESNET_DIR / "negative"
+
+# Background patches per source image, by which folder the image came from:
+# the target pest's own photos are the scenes the model will actually see, so
+# they get the most; the big negative folder already contributes thousands of
+# insect crops, so it gets a light touch. Together ~3,000 patches for BPH,
+# roughly a third of the existing negatives.
+BACKGROUND_PER_IMAGE = {"positive": 2.0, "other_pest": 1.0, "negative": 0.4}
 
 TRAIN_FRACTION = 0.70
 VAL_FRACTION = 0.15
@@ -71,6 +85,7 @@ def distribute_crops(source_dir: Path, label: str, pest_out_dir: Path) -> dict[s
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pest", choices=["BPH", "RSB"], required=True)
+    parser.add_argument("--no-background", action="store_true", help="skip background patches (original crop-only dataset)")
     args = parser.parse_args()
     pest = args.pest
 
@@ -98,14 +113,30 @@ def main() -> None:
 
     summary: dict[str, dict[str, int]] = {"positive": {"train": 0, "val": 0, "test": 0}, "negative": {"train": 0, "val": 0, "test": 0}}
 
+    background_dirs: list[Path] = []
+    if not args.no_background:
+        target_sides = padded_box_sides(positive_source)
+        for role, source, prefix in (
+            ("positive", positive_source, "pos"),
+            ("other_pest", negative_pest_source, "otherpest"),
+            ("negative", NEGATIVE_DIR, "neg"),
+        ):
+            out_dir = crops_tmp_dir / f"background_{role}"
+            n = extract_background(source, out_dir, prefix, BACKGROUND_PER_IMAGE[role], target_sides)
+            print(f"{pest}: extracted {n} background patches from {source.name}/")
+            background_dirs.append(out_dir)
+        summary["background_in_negative"] = {"train": 0, "val": 0, "test": 0}
+
     pos_counts = distribute_crops(positive_crops_dir, "positive", pest_out_dir)
     for split, n in pos_counts.items():
         summary["positive"][split] += n
 
-    for source_dir in (other_pest_crops_dir, negative_crops_dir):
+    for source_dir in (other_pest_crops_dir, negative_crops_dir, *background_dirs):
         neg_counts = distribute_crops(source_dir, "negative", pest_out_dir)
         for split, n in neg_counts.items():
             summary["negative"][split] += n
+            if source_dir in background_dirs:
+                summary["background_in_negative"][split] += n
 
     shutil.rmtree(crops_tmp_dir)
 

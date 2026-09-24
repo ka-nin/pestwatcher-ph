@@ -20,3 +20,10 @@ def require_superadmin(authorization: str | None = Header(default=None)) -> Toke
     if user.role != "SuperAdmin":
         raise HTTPException(status_code=403, detail="SuperAdmin access required")
     return user
+
+
+def require_lgu(authorization: str | None = Header(default=None)) -> TokenPayload:
+    user = get_current_user(authorization)
+    if user.role != "LGU_Tech":
+        raise HTTPException(status_code=403, detail="LGU technician access required")
+    return user
