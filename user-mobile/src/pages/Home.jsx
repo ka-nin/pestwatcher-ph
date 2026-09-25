@@ -8,6 +8,8 @@ import {
   Thermometer,
   CloudRain,
   Droplets,
+  ChevronLeft,
+  TrendingUp,
   ChevronRight,
   Bell,
   Camera,
@@ -35,8 +37,9 @@ const RISK_META = {
 };
 
 const RISK_RANK = { Low: 0, Medium: 1, High: 2 };
+const LEVEL_KEY = ['low', 'medium', 'high'];
+const capitalize = (word) => word[0].toUpperCase() + word.slice(1);
 const WEATHER_REFRESH_MS = 2 * 60 * 1000;
-const RISK_CARD_CYCLE_MS = 10 * 1000;
 const PEST_META = {
   BPH: { labelKey: 'pestLabelBph', trendTitleKey: 'homeTrendTitleBph' },
   RSB: { labelKey: 'pestLabelRsb', trendTitleKey: 'homeTrendTitleRsb' },
@@ -172,20 +175,36 @@ export default function Home() {
     };
   }, [user, growthStage]);
 
-  // Alternates both the risk card and the trend chart between BPH and RSB
-  // together, every 10s — a single activePest drives both, so they never
-  // fall out of sync. Only runs once both forecasts have actually loaded.
-  useEffect(() => {
-    if (!forecasts.BPH || !forecasts.RSB) return;
-    const intervalId = setInterval(() => {
-      setActivePest((prev) => (prev === 'BPH' ? 'RSB' : 'BPH'));
-    }, RISK_CARD_CYCLE_MS);
-    return () => clearInterval(intervalId);
-  }, [forecasts.BPH, forecasts.RSB]);
+  // The risk card and the trend chart both follow activePest, so they never
+  // fall out of sync. It only changes when the farmer taps the arrows/dots
+  // on the card (both pests' data is already loaded, so the switch is instant).
+  const togglePest = () => setActivePest((prev) => (prev === 'BPH' ? 'RSB' : 'BPH'));
 
   const forecast = forecasts[activePest];
   const bothPestsAvailable = Boolean(forecasts.BPH && forecasts.RSB);
-  const riskLevel = forecast?.risk_level?.toLowerCase() || 'low';
+
+  // The chip/icon/message describe TODAY (the first bar of the trend chart) so
+  // the card and the chart never disagree; `forecast` above is the level 14
+  // days out, which is now only surfaced as the "rising to ..." outlook line.
+  const activeTrend = trends[activePest];
+  const todayPoint = activeTrend?.[0];
+  const riskLevel = todayPoint ? LEVEL_KEY[todayPoint.level - 1] : forecast?.risk_level?.toLowerCase() || 'low';
+  let outlook = null;
+  if (todayPoint) {
+    const peakLevel = Math.max(...activeTrend.map((p) => p.level));
+    if (peakLevel > todayPoint.level) {
+      const peakPoint = activeTrend.find((p) => p.level === peakLevel);
+      outlook = {
+        level: LEVEL_KEY[peakLevel - 1],
+        dateLabel: new Date(`${peakPoint.key}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      };
+    }
+  }
+  const messageKey = outlook
+    ? 'riskMessageRising'
+    : todayPoint && riskLevel === 'medium'
+      ? 'riskMessageSteadyMedium'
+      : `riskMessage${capitalize(riskLevel)}`;
   const risk = RISK_META[riskLevel] || RISK_META.low;
   const RiskIcon = risk.icon;
   const trendData = trends[activePest] || dashboardSummary.trend;
@@ -232,18 +251,39 @@ export default function Home() {
                 {loading ? t('homeCalculating') : t(`riskLabel${riskLevel[0].toUpperCase()}${riskLevel.slice(1)}`)}
               </span>
               {bothPestsAvailable && (
-                <div className="hero-risk-dots" aria-hidden="true">
-                  <span className={activePest === 'BPH' ? 'is-active' : ''} />
-                  <span className={activePest === 'RSB' ? 'is-active' : ''} />
+                <div className="hero-risk-switch">
+                  <button type="button" className="hero-risk-arrow" onClick={togglePest} aria-label={t('homeSwitchPest')}>
+                    <ChevronLeft size={18} />
+                  </button>
+                  <div className="hero-risk-dots">
+                    {['BPH', 'RSB'].map((code) => (
+                      <button
+                        type="button"
+                        key={code}
+                        className={activePest === code ? 'is-active' : ''}
+                        onClick={() => setActivePest(code)}
+                        aria-label={t(PEST_META[code].labelKey)}
+                      />
+                    ))}
+                  </div>
+                  <button type="button" className="hero-risk-arrow" onClick={togglePest} aria-label={t('homeSwitchPest')}>
+                    <ChevronRight size={18} />
+                  </button>
                 </div>
               )}
             </div>
             <h2>{t(PEST_META[activePest].labelKey)}</h2>
+            {!loading && outlook && (
+              <p className="hero-risk-outlook" style={{ color: RISK_META[outlook.level].accent }}>
+                <TrendingUp size={14} strokeWidth={2.4} />
+                {t(`riskOutlook${capitalize(outlook.level)}`)} {outlook.dateLabel}
+              </p>
+            )}
             <p>
               {loading
                 ? t('homeForecastLoading')
                 : forecast
-                  ? t(`riskMessage${riskLevel[0].toUpperCase()}${riskLevel.slice(1)}`)
+                  ? t(messageKey)
                   : t('homeForecastUnavailable')}
             </p>
           </div>
