@@ -235,6 +235,18 @@ export async function fetchReports(municipality?: string): Promise<ReportRecord[
   return res.json()
 }
 
+// Province-wide sightings, for the dashboard map only (read-only pins). The
+// Reports tab stays municipality-scoped via fetchReports above.
+export async function fetchProvinceReports(province: string): Promise<ReportRecord[]> {
+  const res = await fetch(`${API_BASE_URL}/api/reports?${new URLSearchParams({ province })}`)
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch reports')
+  }
+
+  return res.json()
+}
+
 export async function updateReportStatus(
   id: string,
   status: Extract<ReportStatus, 'verified' | 'rejected'>,

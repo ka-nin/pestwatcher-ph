@@ -80,6 +80,14 @@ function ProvinceMap({ latitude, longitude, label, reports = [] }: ProvinceMapPr
       .addTo(map)
       .bindPopup(label)
 
+    // Province-wide pins can be far apart, so frame them all (plus the
+    // municipality center) instead of staying at the fixed zoom-11 view.
+    if (pinnableReports.length > 0) {
+      const bounds = L.latLngBounds([[latitude, longitude]])
+      pinnableReports.forEach((r) => bounds.extend([r.latitude as number, r.longitude as number]))
+      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 })
+    }
+
     // Farmer-reported sightings with a known location — colored by severity,
     // clicking one flies the map in to that exact spot.
     pinnableReports.forEach((report) => {

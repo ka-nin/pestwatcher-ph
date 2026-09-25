@@ -6,25 +6,20 @@ Run these in order. Steps marked [ONE-TIME] only need to be done once
 per machine (or once after a fresh git clone). Steps marked [EVERY
 TIME] are what you run each time you sit down to work.
 
-Prerequisites (both OS): Node.js 24.x, Python 3.11+, Docker Desktop,
-Git. Docker Desktop must be OPEN/RUNNING before any docker command.
+Prerequisites (both OS): Node.js 24.x, Python 3.11.x (TensorFlow 2.21
+in requirements.txt does not support 3.13+), Docker Desktop, Git.
+Docker Desktop must be OPEN/RUNNING before any docker command.
 
 
 --------------------------------------------------------------------
 1. [ONE-TIME] CLONE AND INSTALL
 --------------------------------------------------------------------
+Same commands on both OS. Run "npm install" from the repo ROOT — it
+is an npm workspace and installs admin-web + user-mobile in one go.
 
---- macOS / Linux ---
-git clone https://github.com/ka-nin/pestwatcher-ph.git
-cd pestwatcher-ph
+git clone https://github.com/ka-nin/rice-pest-system.git
+cd rice-pest-system
 npm install
-npm install-scripts approve esbuild
-
---- Windows (PowerShell or cmd) ---
-git clone https://github.com/ka-nin/pestwatcher-ph.git
-cd pestwatcher-ph
-npm install
-npm install-scripts approve esbuild
 
 
 --------------------------------------------------------------------
@@ -47,24 +42,24 @@ pip install -r requirements.txt
 copy .env.example .env
 cd ..
 
+(pip install is large — TensorFlow + SHAP — so expect a few minutes.)
 
---------------------------------------------------------------------
-3. [ONE-TIME] HTTPS CERTIFICATE (only needed for user-mobile)
---------------------------------------------------------------------
-The certs/ folder is gitignored, so this must be redone on every
-machine. Requires OpenSSL (already on macOS/Linux; on Windows, use
-Git Bash, which ships with OpenSSL, or install it separately).
-
---- macOS / Linux / Windows (Git Bash) ---
-cd server-python
-mkdir -p certs
-openssl req -x509 -newkey rsa:2048 -nodes -keyout certs/dev-key.pem -out certs/dev-cert.pem -days 365 -subj "/CN=localhost"
-cd ..
+NOTE — ResNet image model: ml/weights/*/resnet50_*.keras is gitignored
+(too big for GitHub), so a fresh clone does NOT have it. Get the two
+files (resnet50_bph.keras, resnet50_rsb.keras) from a teammate and put
+them in server-python/ml/weights/bph/ and .../rsb/. Without them,
+photo-based pest detection will fail; the BiLSTM forecast files ARE
+in git and work as-is.
 
 
 --------------------------------------------------------------------
-4. [ONE-TIME] FRONTEND ENV FILES
+3. [ONE-TIME] FRONTEND ENV FILES
 --------------------------------------------------------------------
+Both frontends talk to the backend over plain HTTP on port 8000.
+The .env.example files already contain the right value
+(VITE_API_URL=http://localhost:8000), so just copy them.
+(No custom HTTPS certificate is needed anymore — the old certs/ step
+and the HTTPS backend on port 8443 were removed.)
 
 --- macOS / Linux ---
 cp admin-web/.env.example admin-web/.env
@@ -74,16 +69,9 @@ cp user-mobile/.env.example user-mobile/.env
 copy admin-web\.env.example admin-web\.env
 copy user-mobile\.env.example user-mobile\.env
 
-Then edit user-mobile/.env so it reads:
-    VITE_API_URL=https://localhost:8443
-
-And create a second file user-mobile/.env.http-preview containing:
-    VITE_API_URL=http://localhost:8000
-(used automatically by "npm run dev:preview" — see step 6)
-
 
 --------------------------------------------------------------------
-5. [EVERY TIME] START THE DATABASE
+4. [EVERY TIME] START THE DATABASE
 --------------------------------------------------------------------
 Same command on both OS. Run from the repo root. Docker Desktop must
 already be running.
@@ -98,41 +86,32 @@ This starts:
 
 
 --------------------------------------------------------------------
-6. [EVERY TIME] START THE BACKEND
+5. [EVERY TIME] START THE BACKEND
 --------------------------------------------------------------------
-Run ONE of these depending on which frontend you need. You can run
-both at once (they're separate processes on separate ports).
+One backend serves BOTH frontends (plain HTTP, port 8000).
 
---- macOS / Linux: backend for admin-web (plain HTTP, port 8000) ---
+--- macOS / Linux ---
 cd server-python
 source .venv/bin/activate
 uvicorn app.main:app --reload --port 8000
 
---- Windows: backend for admin-web (plain HTTP, port 8000) ---
+--- Windows ---
 cd server-python
 .venv\Scripts\activate
 uvicorn app.main:app --reload --port 8000
 
---- macOS / Linux: backend for user-mobile (HTTPS, port 8443) ---
+--- Windows shortcut (from repo root or server-python, no activate) ---
 cd server-python
-source .venv/bin/activate
-uvicorn app.main:app --reload --port 8443 --ssl-keyfile certs/dev-key.pem --ssl-certfile certs/dev-cert.pem
+npm run dev
 
---- Windows: backend for user-mobile (HTTPS, port 8443) ---
-cd server-python
-.venv\Scripts\activate
-uvicorn app.main:app --reload --port 8443 --ssl-keyfile certs/dev-key.pem --ssl-certfile certs/dev-cert.pem
-
->>> ONE-TIME PER BROWSER SESSION: open https://localhost:8443/api/health
-    directly in your browser and click through the "not secure" warning
-    (Advanced -> Proceed). Skipping this makes user-mobile fail with
-    "Failed to fetch."
+Check it: http://localhost:8000/api/health
+API docs: http://localhost:8000/docs
 
 
 --------------------------------------------------------------------
-7. [EVERY TIME] START THE FRONTENDS
+6. [EVERY TIME] START THE FRONTENDS
 --------------------------------------------------------------------
-Same commands on both OS.
+Same commands on both OS. Use a separate terminal for each.
 
 --- admin-web (LGU dashboard + SuperAdmin console) ---
 cd admin-web
@@ -143,15 +122,32 @@ npm run dev
 cd user-mobile
 npm run dev
 -> https://localhost:5174
+   (self-signed cert from @vitejs/plugin-basic-ssl — click through
+   the "not secure" warning once: Advanced -> Proceed. This is only
+   for the frontend; the backend stays on plain http://localhost:8000
+   and that works fine from a localhost page.)
 
 --- user-mobile (embedded webview / VS Code mobile-view preview) ---
 cd user-mobile
 npm run dev:preview
 -> http://localhost:5174   (plain HTTP, no cert warning, no camera)
 
+--- Testing on a real phone (same Wi-Fi) ---
+The dev server is exposed on your LAN. On the phone, "localhost"
+means the phone itself, so:
+  1. Find your computer's LAN IP (macOS/Linux: ifconfig / ip a;
+     Windows: ipconfig), e.g. 192.168.1.138.
+  2. In user-mobile/.env set  VITE_API_URL=http://192.168.1.138:8000
+  3. In server-python/.env add https://192.168.1.138:5174 to
+     CORS_ORIGINS, then restart the backend and "npm run dev".
+  4. Start the backend so it's reachable from the LAN:
+       uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+  5. Open https://192.168.1.138:5174 on the phone.
+Revert step 2 when you're back to desktop-only testing.
+
 
 --------------------------------------------------------------------
-8. LOGIN CREDENTIALS (seeded automatically into the database)
+7. LOGIN CREDENTIALS (seeded automatically into the database)
 --------------------------------------------------------------------
 SuperAdmin : sysadmin         / PestWatch!FhkKbrMn6Y
 LGU_Tech   : munoz_tech_01    / PestWatch!Mu2026        (Sci. City of Munoz, Nueva Ecija)
@@ -162,7 +158,7 @@ Farmer     : farmer_demo      / RicePest!Demo2026       (Sci. City of Munoz, Nue
 
 
 --------------------------------------------------------------------
-9. STOPPING EVERYTHING
+8. STOPPING EVERYTHING
 --------------------------------------------------------------------
 
 --- macOS / Linux: stop the dev servers + backend ---
@@ -170,7 +166,7 @@ pkill -f "vite"
 pkill -f "uvicorn"
 
 --- Windows: stop the dev servers + backend ---
-Close the terminal windows/tabs running them, or:
+Close the terminal windows/tabs running them (Ctrl+C), or:
     taskkill /F /IM node.exe
     taskkill /F /IM python.exe
 (these kill ALL Node/Python processes system-wide — fine if this is
@@ -185,18 +181,42 @@ permanently delete the database contents.)
 
 
 --------------------------------------------------------------------
-10. TROUBLESHOOTING
+9. TROUBLESHOOTING
 --------------------------------------------------------------------
-- "Failed to fetch" in user-mobile
-    -> Is the HTTPS backend (port 8443) running? Did you do the
-       one-time browser cert-trust step in section 6?
+- "Failed to fetch" in user-mobile / admin-web
+    -> Is the backend running on port 8000? Check
+       http://localhost:8000/api/health. Is VITE_API_URL in the
+       frontend's .env exactly http://localhost:8000 (restart the
+       Vite server after editing .env)?
+
+- Browser shows a CORS error
+    -> The page's origin must be listed in CORS_ORIGINS in
+       server-python/.env (restart the backend after editing). If
+       your .env predates the latest .env.example, compare the two.
 
 - Backend can't connect to the database
     -> Is Docker Desktop open? Did you run "docker compose up -d"?
+       DATABASE_URL in server-python/.env should match
+       .env.example (localhost:5432, user/db "pestwatcher").
+
+- Backend crashes on startup with ModuleNotFoundError
+    -> Venv not active, or requirements changed since you last
+       installed. Activate .venv and rerun
+       "pip install -r requirements.txt".
+
+- Backend crashes on startup mentioning a .keras / model file
+    -> Missing ResNet weights — see the NOTE in section 2.
+
+- pip install fails on tensorflow
+    -> You're on an unsupported Python (need 3.11.x). Check
+       "python --version" and recreate the venv.
 
 - admin-web and user-mobile open the same URL
     -> Check admin-web/vite.config.ts has port: 5173 and
        user-mobile/vite.config.js has port: 5174.
+
+- Frontend fails with missing-package errors after pulling
+    -> Rerun "npm install" from the repo ROOT.
 
 - Need to wipe and re-seed the database from scratch
     -> docker compose down -v && docker compose up -d
