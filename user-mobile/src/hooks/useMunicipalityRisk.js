@@ -39,6 +39,8 @@ export function useMunicipalityRisk(ownMunicipality) {
             municipality: row.municipality,
             province: row.province,
             risk: overallRisk(row),
+            bphRisk: row.bph.risk_level,
+            rsbRisk: row.rsb.risk_level,
           }))
           .sort((a, b) => {
             if (a.municipality === ownMunicipality) return -1;

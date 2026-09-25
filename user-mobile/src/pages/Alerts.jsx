@@ -10,6 +10,7 @@ import { useMunicipalityRisk } from '../hooks/useMunicipalityRisk';
 import './Alerts.css';
 
 const RISK_LABEL_KEY = { Low: 'riskLabelLow', Medium: 'riskLabelMedium', High: 'riskLabelHigh' };
+const RISK_WORD_KEY = { Low: 'riskWordLow', Medium: 'riskWordMedium', High: 'riskWordHigh' };
 
 function riskLabelKeyFor(severity) {
   if (!severity) return 'riskLabelLow';
@@ -75,11 +76,24 @@ export default function Alerts() {
                     <span className="municipality-risk-you">{t('alertsYouAreHere')}</span>
                   )}
                 </span>
-                {row.risk ? (
-                  <RiskBadge level={row.risk.toLowerCase()} label={t(RISK_LABEL_KEY[row.risk] || 'riskLabelLow')} />
-                ) : (
-                  <span className="municipality-risk-na">{t('alertsNa')}</span>
-                )}
+                <span className="municipality-risk-pest-badges">
+                  <span className="municipality-risk-pest-badge">
+                    <span className="municipality-risk-pest-code">BPH</span>
+                    {row.bphRisk ? (
+                      <RiskBadge level={row.bphRisk.toLowerCase()} label={t(RISK_WORD_KEY[row.bphRisk] || 'riskWordLow')} />
+                    ) : (
+                      <span className="municipality-risk-na">{t('alertsNa')}</span>
+                    )}
+                  </span>
+                  <span className="municipality-risk-pest-badge">
+                    <span className="municipality-risk-pest-code">RSB</span>
+                    {row.rsbRisk ? (
+                      <RiskBadge level={row.rsbRisk.toLowerCase()} label={t(RISK_WORD_KEY[row.rsbRisk] || 'riskWordLow')} />
+                    ) : (
+                      <span className="municipality-risk-na">{t('alertsNa')}</span>
+                    )}
+                  </span>
+                </span>
               </div>
             ))}
           </div>

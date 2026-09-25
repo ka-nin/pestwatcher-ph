@@ -43,6 +43,9 @@ export const translations = {
     riskLabelLow: 'Mababang Panganib',
     riskLabelMedium: 'Katamtamang Panganib',
     riskLabelHigh: 'Mataas na Panganib',
+    riskWordLow: 'Mababa',
+    riskWordMedium: 'Katamtaman',
+    riskWordHigh: 'Mataas',
     riskMessageLow:
       'Mababa ang posibilidad ng pagtaas ng peste sa loob ng dalawang linggo. Ipagpatuloy ang normal na pagmamanman. Hindi kinakailangan ang agarang pag-iispray ng pestisidyo.',
     riskMessageMedium:
@@ -228,6 +231,9 @@ export const translations = {
     riskLabelLow: 'Low Risk',
     riskLabelMedium: 'Moderate Risk',
     riskLabelHigh: 'High Risk',
+    riskWordLow: 'Low',
+    riskWordMedium: 'Medium',
+    riskWordHigh: 'High',
     riskMessageLow:
       'Pest levels are unlikely to rise over the next two weeks. Continue normal monitoring — no need for immediate pesticide spraying.',
     riskMessageMedium:
