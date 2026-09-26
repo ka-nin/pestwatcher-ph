@@ -33,6 +33,7 @@ export const translations = {
     homeTrendWarning: 'Babala',
     homeTrendDanger: 'Panganib',
     homeViewNearbyAlerts: 'Tingnan ang mga alerto sa paligid',
+    homeSwitchPest: 'Ipakita ang ibang peste',
     homeScanTitle: 'AI Pest Scan',
     homeScanSubtitle: 'Magsuri ng peste gamit ang iyong camera',
     homeReportCta: 'Mag-ulat ng Nakita Nang Manu-mano',
@@ -52,6 +53,12 @@ export const translations = {
       'May pagtaas ng panganib na inaasahan sa loob ng dalawang linggo. Bantayan ang bukid at maghanda ng aksyon.',
     riskMessageHigh:
       'Mataas ang inaasahang panganib sa loob ng dalawang linggo. Inirerekomenda ang agarang interbensyon.',
+    riskMessageRising:
+      'May inaasahang pagtaas ng panganib sa loob ng dalawang linggo. Bantayan ang bukid at maghanda ng aksyon.',
+    riskMessageSteadyMedium:
+      'Katamtaman ang panganib ngayon at hindi inaasahang tataas pa sa loob ng dalawang linggo. Patuloy na bantayan ang bukid.',
+    riskOutlookMedium: 'Tataas sa Katamtamang Panganib pagsapit ng',
+    riskOutlookHigh: 'Tataas sa Mataas na Panganib pagsapit ng',
     pestLabelBph: 'Kayumangging Hanip',
     pestLabelRsb: 'Aksip o Atip',
 
@@ -221,6 +228,7 @@ export const translations = {
     homeTrendWarning: 'Warning',
     homeTrendDanger: 'Danger',
     homeViewNearbyAlerts: 'View nearby alerts',
+    homeSwitchPest: 'Show the other pest',
     homeScanTitle: 'AI Pest Scan',
     homeScanSubtitle: 'Scan for pests using your camera',
     homeReportCta: 'Report Sighting Manually',
@@ -240,6 +248,12 @@ export const translations = {
       'Risk is expected to increase over the next two weeks. Keep a close watch on the field and prepare a response.',
     riskMessageHigh:
       'High risk is expected over the next two weeks. Immediate intervention is recommended.',
+    riskMessageRising:
+      'Risk is expected to rise over the next two weeks. Keep a close watch on the field and prepare a response.',
+    riskMessageSteadyMedium:
+      'Risk is moderate today and is not expected to get higher over the next two weeks. Keep watching the field.',
+    riskOutlookMedium: 'Rising to Moderate Risk by',
+    riskOutlookHigh: 'Rising to High Risk by',
     pestLabelBph: 'Brown Planthopper',
     pestLabelRsb: 'Rice Stem Borer',
 
