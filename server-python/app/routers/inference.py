@@ -7,7 +7,6 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from app.config import get_settings
 from app.data.municipalities import municipality_coordinates
 from app.decision.etl_thresholds import derive_risk_level
-from app.decision.report_anchor import ANCHOR_DAYS, ReportAnchor, find_anchor, shifted, weight
 from app.models.resnet_model import resnet_classifier
 from app.routers.weather import fetch_recent_daily_weather
 from app.schemas.inference import (
@@ -128,34 +127,17 @@ def _window_for_target(
     ]
 
 
-def _report_gap(
-    anchor: ReportAnchor | None, pest: str, growth_stage: GrowthStage, weather_by_date: dict[str, dict]
-) -> float | None:
-    """Verified report value minus what the model predicted for the report
-    day (see app/decision/report_anchor.py). None means "don't shift" — no
-    report in range, or the weather/model needed for the baseline isn't there."""
-    if anchor is None:
-        return None
-    window = _window_for_target(pest, anchor.anchor_date, growth_stage, weather_by_date)
-    if window is None:
-        return None
-    baseline = bilstm_forecaster.predict(pest, window)
-    if baseline is None:
-        return None
-    return anchor.verified_value - baseline.predicted_value
+def _run_forecast(pest: str, window: list[DailyObservation]) -> ForecastInferenceResponse:
+    """Shared by both endpoints below: predict, then apply the (separate,
+    non-learned) ETL bucketing — see app/decision/etl_thresholds.py.
 
-
-def _run_forecast(
-    pest: str,
-    window: list[DailyObservation],
-    anchor: ReportAnchor | None = None,
-    gap: float | None = None,
-) -> ForecastInferenceResponse:
-    """Shared by both endpoints below: predict, shift (fading over ANCHOR_DAYS) by the latest verified
-    report's gap when one is active (app/decision/report_anchor.py), then
-    apply the (separate, non-learned) ETL bucketing — see
-    app/decision/etl_thresholds.py. POST /forecast has no weather history to
-    work out a gap from, so it always runs the plain model.
+    Verified farmer reports are never allowed to change what the system
+    shows as today's prediction — this used to shift predicted_value toward
+    the latest verified report (app/decision/report_anchor.py), but that
+    adjustment has been removed: reports are compared against the plain
+    forecast after the fact instead (see GET /gap-analysis) and folded into
+    the next periodic retrain (ml/bilstm/ingest_reports.py), not used to
+    move today's number.
     """
     result = bilstm_forecaster.predict(pest, window)
 
@@ -165,9 +147,7 @@ def _run_forecast(
             message=f"BiLSTM model for {pest} not loaded yet — placeholder response",
         )
 
-    day_weight = weight(anchor, date.today()) if anchor is not None and gap is not None else 0.0
-    anchored = day_weight > 0
-    value = shifted(result.predicted_value, gap, day_weight) if anchored else result.predicted_value
+    value = result.predicted_value
 
     growth_stage_bucket = GROWTH_STAGE_BUCKETS[window[-1].growth_stage]
     risk_level = derive_risk_level(pest, growth_stage_bucket, value)
@@ -178,8 +158,8 @@ def _run_forecast(
         unit=result.unit,
         risk_level=risk_level,
         message="Forecast successful",
-        adjusted_by_reports=anchored,
-        verified_report_count=anchor.verified_report_count if anchored else 0,
+        adjusted_by_reports=False,
+        verified_report_count=0,
     )
 
 
@@ -224,7 +204,12 @@ def infer_forecast(payload: ForecastInferenceRequest) -> ForecastInferenceRespon
 
 def _live_forecast(municipality: str, pest: str, growth_stage: GrowthStage) -> ForecastInferenceResponse:
     """Shared by GET /forecast/live and the superadmin cross-municipality
-    overview (app/routers/admin.py) so both run the exact same pipeline."""
+    overview (app/routers/admin.py) so both run the exact same pipeline.
+
+    Verified farmer reports are never applied here — see _run_forecast's
+    docstring. Only the plain weather window the model needs is fetched;
+    the wider report-anchor lookback this used to require is gone.
+    """
     coordinates = municipality_coordinates(municipality)
     if coordinates is None:
         raise HTTPException(
@@ -234,12 +219,7 @@ def _live_forecast(municipality: str, pest: str, growth_stage: GrowthStage) -> F
     latitude, longitude = coordinates
 
     window_days = PEST_PARAMS[pest].crf_window_days
-    anchor = find_anchor(municipality, pest, date.today(), GROWTH_STAGE_BUCKETS[growth_stage])
-
-    # Only pay for the longer weather history when a report is actually
-    # active — computing its gap needs the model's prediction for the report day.
-    fetch_days = window_days if anchor is None else window_days + FORECAST_HORIZON_DAYS + ANCHOR_DAYS
-    daily_weather = fetch_recent_daily_weather(latitude, longitude, days=fetch_days)
+    daily_weather = fetch_recent_daily_weather(latitude, longitude, days=window_days)
 
     window = [
         DailyObservation(
@@ -252,8 +232,7 @@ def _live_forecast(municipality: str, pest: str, growth_stage: GrowthStage) -> F
         for day in daily_weather[-window_days:]
     ]
 
-    gap = _report_gap(anchor, pest, growth_stage, {day["date"]: day for day in daily_weather})
-    return _run_forecast(pest, window, anchor, gap)
+    return _run_forecast(pest, window)
 
 
 @router.get("/forecast/live", response_model=ForecastInferenceResponse)
@@ -301,15 +280,15 @@ def _build_trajectory(municipality: str, pest: str, growth_stage: GrowthStage, d
     today = date.today()
 
     # Generous on purpose: the last target's window could start as far back
-    # as (today - horizon - window_days + 1), and an active report's gap
-    # needs the model's prediction for a report day up to ANCHOR_DAYS ago;
-    # this fetch covers both plus margin rather than computing the minimum.
-    fetch_days = PEST_PARAMS[pest].crf_window_days + days + FORECAST_HORIZON_DAYS + ANCHOR_DAYS
+    # as (today - horizon - window_days + 1); this fetch covers that plus
+    # margin rather than computing the minimum.
+    fetch_days = PEST_PARAMS[pest].crf_window_days + days + FORECAST_HORIZON_DAYS
     daily_weather = fetch_recent_daily_weather(latitude, longitude, days=fetch_days)
     weather_by_date = {day["date"]: day for day in daily_weather}
 
-    anchor = find_anchor(municipality, pest, today, GROWTH_STAGE_BUCKETS[growth_stage])
-    gap = _report_gap(anchor, pest, growth_stage, weather_by_date)
+    # Verified reports are no longer applied to the trajectory shown to
+    # users — see _run_forecast's docstring. find_anchor/_report_gap are no
+    # longer called here; the plain model output is always what's returned.
 
     points: list[TrajectoryPoint] = []
     for offset in range(days):
@@ -326,9 +305,7 @@ def _build_trajectory(municipality: str, pest: str, growth_stage: GrowthStage, d
                 message=f"BiLSTM model for {pest} not loaded yet",
             )
 
-        day_weight = weight(anchor, target_date) if anchor is not None and gap is not None else 0.0
-        anchored = day_weight > 0
-        value = shifted(result.predicted_value, gap, day_weight) if anchored else result.predicted_value
+        value = result.predicted_value
 
         growth_stage_bucket = GROWTH_STAGE_BUCKETS[growth_stage]
         points.append(
@@ -337,7 +314,7 @@ def _build_trajectory(municipality: str, pest: str, growth_stage: GrowthStage, d
                 predicted_value=value,
                 unit=result.unit,
                 risk_level=derive_risk_level(pest, growth_stage_bucket, value),
-                adjusted_by_reports=anchored,
+                adjusted_by_reports=False,
             )
         )
 

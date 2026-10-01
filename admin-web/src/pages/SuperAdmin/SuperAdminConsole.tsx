@@ -4,6 +4,7 @@ import type { SuperAdminUser } from '../../lib/api'
 import OverviewPage from './OverviewPage'
 import LguAccountsPage from './LguAccountsPage'
 import SettingsPage from './SettingsPage'
+import ModelInsightsPage from './ModelInsightsPage'
 import '../Dashboard/Dashboard.css'
 import './SuperAdminConsole.css'
 
@@ -14,11 +15,12 @@ interface SuperAdminConsoleProps {
   onSessionExpired: () => void
 }
 
-type PageKey = 'overview' | 'accounts' | 'settings'
+type PageKey = 'overview' | 'accounts' | 'insights' | 'settings'
 
 const navItems: { key: PageKey; label: string }[] = [
   { key: 'overview', label: 'Municipalities Overview' },
   { key: 'accounts', label: 'LGU Accounts' },
+  { key: 'insights', label: 'Model Insights' },
   { key: 'settings', label: 'System Settings' },
 ]
 
@@ -29,6 +31,12 @@ const navIcons: Record<PageKey, React.ReactNode> = {
       <circle cx="9" cy="8" r="3" />
       <path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6" strokeLinecap="round" />
       <path d="M16 4.5a3 3 0 0 1 0 5.8M20 20c0-2.8-2.2-5.1-5-5.8" strokeLinecap="round" />
+    </>
+  ),
+  insights: (
+    <>
+      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="16" cy="8" r="2.2" />
     </>
   ),
   settings: (
@@ -113,6 +121,9 @@ function SuperAdminConsole({ user, accessToken, onLogout, onSessionExpired }: Su
           )}
           {activePage === 'accounts' && (
             <LguAccountsPage accessToken={accessToken} onSessionExpired={onSessionExpired} />
+          )}
+          {activePage === 'insights' && (
+            <ModelInsightsPage accessToken={accessToken} onSessionExpired={onSessionExpired} />
           )}
           {activePage === 'settings' && (
             <SettingsPage accessToken={accessToken} onSessionExpired={onSessionExpired} />

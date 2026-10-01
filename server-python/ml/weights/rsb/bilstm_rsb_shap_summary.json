@@ -1,0 +1,53 @@
+{
+  "sample_size": 60,
+  "features": [
+    {
+      "label": "Growth Stage: Ripening",
+      "value": 0.23591663514186317,
+      "group": "sequence",
+      "share": 0.132574958548309
+    },
+    {
+      "label": "Growth Stage: Tillering",
+      "value": 0.18842717567173775,
+      "group": "sequence",
+      "share": 0.10588793362975006
+    },
+    {
+      "label": "Diurnal Temperature Range",
+      "value": 0.183990296629842,
+      "group": "sequence",
+      "share": 0.10339459925886317
+    },
+    {
+      "label": "Growth Stage: Flowering",
+      "value": 0.1799690937555018,
+      "group": "sequence",
+      "share": 0.1011348569390415
+    },
+    {
+      "label": "Max Temperature",
+      "value": 0.14618007283232828,
+      "group": "sequence",
+      "share": 0.08214688669445075
+    },
+    {
+      "label": "Min Temperature",
+      "value": 0.10637314023261221,
+      "group": "sequence",
+      "share": 0.059777110030888043
+    },
+    {
+      "label": "Growth Stage: Elongation",
+      "value": 0.10488345365713485,
+      "group": "sequence",
+      "share": 0.058939970522370023
+    },
+    {
+      "label": "Growth Stage: Panicle",
+      "value": 0.10003256443151258,
+      "group": "sequence",
+      "share": 0.05621398031136776
+    }
+  ]
+}

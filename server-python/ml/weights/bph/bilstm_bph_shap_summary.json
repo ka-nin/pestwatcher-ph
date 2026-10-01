@@ -1,0 +1,53 @@
+{
+  "sample_size": 60,
+  "features": [
+    {
+      "label": "Growth Stage: Ripening",
+      "value": 1.784450173954004,
+      "group": "sequence",
+      "share": 0.1942344444981038
+    },
+    {
+      "label": "Growth Stage: Tillering",
+      "value": 0.8839415474330357,
+      "group": "sequence",
+      "share": 0.09621557269599362
+    },
+    {
+      "label": "Rainfall",
+      "value": 0.7076159559035052,
+      "group": "sequence",
+      "share": 0.07702282423967237
+    },
+    {
+      "label": "Relative Humidity",
+      "value": 0.6956989553210102,
+      "group": "sequence",
+      "share": 0.07572567847342462
+    },
+    {
+      "label": "Vapor Pressure Deficit",
+      "value": 0.6507821156113778,
+      "group": "sequence",
+      "share": 0.07083655490082343
+    },
+    {
+      "label": "Min Temperature",
+      "value": 0.46981163811954046,
+      "group": "sequence",
+      "share": 0.05113821830434883
+    },
+    {
+      "label": "Growth Stage: Seedling",
+      "value": 0.44945311457104253,
+      "group": "sequence",
+      "share": 0.048922226751341766
+    },
+    {
+      "label": "Diurnal Temperature Range",
+      "value": 0.42806451761868325,
+      "group": "sequence",
+      "share": 0.04659411341521539
+    }
+  ]
+}

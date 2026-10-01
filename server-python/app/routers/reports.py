@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -7,12 +7,21 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from app.config import get_settings
 from app.data import reports_store
 from app.data.lgu_users import find_lgu_user
+from app.data.municipalities import municipality_coordinates
+from app.decision.etl_thresholds import derive_risk_level
+from app.decision.gap_implication import describe_gap
 from app.decision.pest_matching import derive_pest_code
+from app.decision.report_anchor import anchor_from_report, shifted, weight
 from app.dependencies import require_lgu
+from app.models.bilstm_model import bilstm_forecaster
 from app.models.resnet_model import resnet_classifier
 from app.rate_limit import RateLimitExceeded, RateLimiter
+from app.routers.inference import _window_for_target
+from app.routers.weather import fetch_daily_weather_range
 from app.security import TokenPayload
+from app.schemas.inference import GapAnalysisDay, GapAnalysisResponse
 from app.schemas.reports import ReportRecord, ReportResponse, ReportStatusUpdate
+from ml.config import FORECAST_HORIZON_DAYS, GROWTH_STAGE_BUCKETS, PEST_PARAMS
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
@@ -157,6 +166,144 @@ def update_report_status(report_id: str, payload: ReportStatusUpdate) -> ReportR
     if updated is None:
         raise HTTPException(status_code=404, detail=f"Report '{report_id}' not found")
     return updated
+
+
+@router.get("/{report_id}/gap-analysis", response_model=GapAnalysisResponse)
+def get_report_gap_analysis(report_id: str) -> GapAnalysisResponse:
+    """Per-report 'Analyze Gap' button on admin-web's Farmer Reports tab:
+    for ONE verified report, shows the 14-day forecast starting on the
+    report's own date two ways — the plain weather-only model (historical)
+    and what the forecast would look like if this report were allowed to
+    anchor it (report-based, via app/decision/report_anchor.py's fading
+    shift) — plus a plain-language implication (app/decision/gap_implication.py).
+
+    Read-only, same as every other gap-analysis path: neither trajectory
+    here is what a farmer or technician sees as a live prediction (see
+    app/routers/inference.py's _run_forecast docstring for why verified
+    reports no longer shift that).
+    """
+    report = reports_store.get_report(report_id)
+    if report is None or report.deleted_at is not None:
+        raise HTTPException(status_code=404, detail=f"Report '{report_id}' not found")
+
+    pest_code = report.pest_code or derive_pest_code(report.pest_type)
+    if pest_code not in PEST_PARAMS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Report '{report_id}' isn't for a tracked pest (BPH/RSB) — nothing to analyze.",
+        )
+
+    growth_stage = report.crop_growth_stage if report.crop_growth_stage in GROWTH_STAGE_BUCKETS else "Tillering"
+    growth_stage_bucket = GROWTH_STAGE_BUCKETS[growth_stage]
+
+    anchor = anchor_from_report(report, growth_stage_bucket)
+    if anchor is None:
+        return GapAnalysisResponse(
+            status="report_not_verified",
+            report_id=report_id,
+            municipality=report.municipality,
+            pest=pest_code,
+            days=[],
+            implication="This report hasn't been verified yet, or has no usable count/severity — verify it first.",
+            message="Report is not usable as a gap-analysis anchor.",
+        )
+
+    coordinates = municipality_coordinates(report.municipality)
+    if coordinates is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No coordinates on file for municipality '{report.municipality}'.",
+        )
+    latitude, longitude = coordinates
+
+    window_days = PEST_PARAMS[pest_code].crf_window_days
+    report_date = anchor.anchor_date
+
+    # A full 14-day trajectory, starting on the report's own date — this is
+    # a DISPLAY length, deliberately independent of ANCHOR_DAYS (13), which
+    # is the separate fade-window constant report_anchor.py's weight() uses
+    # internally. The two happen to be close, but conflating them previously
+    # cut this endpoint's trajectory one day short (13 days shown, not 14) —
+    # weight() naturally reaches 0% once a displayed day falls outside its
+    # own fade window, so DISPLAY_DAYS running one day longer than
+    # ANCHOR_DAYS is expected, not a bug: it just means the report-based
+    # line has already fully settled back to the historical one by then.
+    DISPLAY_DAYS = 14
+
+    # The window for the LAST day we'll show (report_date + DISPLAY_DAYS - 1)
+    # ends FORECAST_HORIZON_DAYS before that target, and itself needs
+    # window_days of history before it starts — see _window_for_target.
+    fetch_start = report_date - timedelta(days=FORECAST_HORIZON_DAYS + window_days)
+    fetch_end = report_date + timedelta(days=DISPLAY_DAYS - 1)
+    daily_weather = fetch_daily_weather_range(latitude, longitude, fetch_start, fetch_end)
+    weather_by_date = {day["date"]: day for day in daily_weather}
+
+    # The "gap" (app/decision/report_anchor.py) is defined relative to the
+    # model's OWN baseline for the report's day specifically — not
+    # recomputed per day, which would be a different quantity. If that
+    # baseline can't be computed (missing weather history that far back),
+    # no day in this trajectory can be report-anchored either.
+    baseline_window = _window_for_target(pest_code, report_date, growth_stage, weather_by_date)
+    baseline_result = bilstm_forecaster.predict(pest_code, baseline_window) if baseline_window is not None else None
+    if baseline_window is not None and baseline_result is None:
+        return GapAnalysisResponse(
+            status="model_not_loaded",
+            report_id=report_id,
+            municipality=report.municipality,
+            pest=pest_code,
+            days=[],
+            implication="",
+            message=f"BiLSTM model for {pest_code} not loaded yet.",
+        )
+    gap = anchor.verified_value - baseline_result.predicted_value if baseline_result is not None else None
+
+    days: list[GapAnalysisDay] = []
+    unit: str | None = None
+
+    for offset in range(DISPLAY_DAYS):
+        target_date = report_date + timedelta(days=offset)
+        window = _window_for_target(pest_code, target_date, growth_stage, weather_by_date)
+        day_weight = weight(anchor, target_date)
+
+        historical_value: float | None = None
+        historical_risk_level = None
+        report_based_value: float | None = None
+        report_based_risk_level = None
+
+        if window is not None:
+            result = bilstm_forecaster.predict(pest_code, window)
+            if result is not None:
+                unit = result.unit
+                historical_value = result.predicted_value
+                historical_risk_level = derive_risk_level(pest_code, growth_stage_bucket, historical_value)
+
+                if gap is not None:
+                    report_based_value = shifted(historical_value, gap, day_weight)
+                    report_based_risk_level = derive_risk_level(pest_code, growth_stage_bucket, report_based_value)
+
+        days.append(
+            GapAnalysisDay(
+                date=target_date.isoformat(),
+                historical_value=historical_value,
+                historical_risk_level=historical_risk_level,
+                report_based_value=report_based_value,
+                report_based_risk_level=report_based_risk_level,
+                report_weight=day_weight,
+            )
+        )
+
+    implication = describe_gap(days, pest_code)
+
+    return GapAnalysisResponse(
+        status="ok",
+        report_id=report_id,
+        municipality=report.municipality,
+        pest=pest_code,
+        unit=unit,
+        days=days,
+        implication=implication,
+        message="Gap analysis successful",
+    )
 
 
 @router.get("/deleted", response_model=list[ReportRecord])

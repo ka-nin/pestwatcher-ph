@@ -103,3 +103,35 @@ class ExplanationResponse(BaseModel):
     status: Literal["ok", "model_not_loaded"]
     features: list[ExplanationFeature]
     message: str
+
+
+class GapAnalysisDay(BaseModel):
+    """One day's side-by-side comparison for
+    GET /api/reports/{report_id}/gap-analysis — what the model predicts with
+    weather alone (historical) vs. what it would predict if this one
+    verified report were allowed to anchor it (report-based). Both values
+    are always the plain model's own forecast; the report-based column is
+    never what actually shows up live (see app/routers/inference.py's
+    _run_forecast docstring — reports no longer shift a live prediction).
+    """
+
+    date: str
+    historical_value: float | None = None
+    historical_risk_level: Literal["Low", "Medium", "High"] | None = None
+    report_based_value: float | None = None
+    report_based_risk_level: Literal["Low", "Medium", "High"] | None = None
+    # How much of the report's influence is still active on this day (1.0 on
+    # the report's own date, fading to 0.0 — see app/decision/report_anchor.py).
+    report_weight: float = 0.0
+
+
+class GapAnalysisResponse(BaseModel):
+    status: Literal["ok", "model_not_loaded", "report_not_verified"]
+    report_id: str
+    municipality: str
+    pest: Literal["BPH", "RSB"]
+    unit: Literal["hoppers_per_hill", "pct_damage"] | None = None
+    days: list[GapAnalysisDay]
+    # Plain-language takeaway — see app/decision/gap_implication.py.
+    implication: str
+    message: str

@@ -1,0 +1,27 @@
+{
+  "note": "Measured 2026-09-24 on the held-out BPH test crops: old model = crops only (resnet50_bph_v1_crops_only.keras), new = crops + 2,703 background patches (resnet50_bph.keras). Percent of crops the model called BPH at score >= 0.5.",
+  "rows": [
+    {
+      "label": "Empty background",
+      "kind": "falseAlarm",
+      "n": 404,
+      "old": 29.2,
+      "new": 1.2
+    },
+    {
+      "label": "Other insects",
+      "kind": "falseAlarm",
+      "n": 760,
+      "old": 1.2,
+      "new": 0.5
+    },
+    {
+      "label": "Real BPH caught",
+      "kind": "recall",
+      "n": 344,
+      "old": 99.1,
+      "new": 98.8
+    }
+  ],
+  "background_patches_added": 2703
+}

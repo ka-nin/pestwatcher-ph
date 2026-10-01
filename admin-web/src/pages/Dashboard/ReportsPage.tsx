@@ -10,6 +10,7 @@ import {
   type ReportStatus,
 } from '../../lib/api'
 import ConfirmDeleteModal from '../../components/ConfirmDeleteModal'
+import GapAnalysisModal from '../../components/GapAnalysisModal'
 import './ReportsPage.css'
 
 interface ReportsPageProps {
@@ -60,6 +61,7 @@ function ReportsPage({ user, accessToken }: ReportsPageProps) {
   const [draftValues, setDraftValues] = useState<Record<string, string>>({})
   const [pendingDelete, setPendingDelete] = useState<ReportRecord | null>(null)
   const [deletedReports, setDeletedReports] = useState<ReportRecord[]>([])
+  const [gapAnalysisReport, setGapAnalysisReport] = useState<ReportRecord | null>(null)
 
   // Tenant-scoped: an LGU tech only ever sees their own municipality's
   // sightings, not the whole province's — see fetchReports' doc comment.
@@ -296,6 +298,15 @@ function ReportsPage({ user, accessToken }: ReportsPageProps) {
 
                 {!report.deleted_at && (
                 <div className="report-card-actions">
+                  {report.status === 'verified' && (
+                    <button
+                      type="button"
+                      className="report-action-btn report-action-analyze"
+                      onClick={() => setGapAnalysisReport(report)}
+                    >
+                      Analyze Gap
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="report-action-btn report-action-delete"
@@ -319,6 +330,10 @@ function ReportsPage({ user, accessToken }: ReportsPageProps) {
           onConfirm={handleConfirmDelete}
           onCancel={() => setPendingDelete(null)}
         />
+      )}
+
+      {gapAnalysisReport && (
+        <GapAnalysisModal report={gapAnalysisReport} onClose={() => setGapAnalysisReport(null)} />
       )}
     </>
   )

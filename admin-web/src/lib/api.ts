@@ -178,6 +178,45 @@ export async function fetchPestForecastTrajectory(
   return res.json()
 }
 
+// ---- Gap Analysis: per-report "Analyze Gap" button on the Farmer Reports
+// tab. For one verified report, shows the 14-day forecast starting on the
+// report's own date two ways — plain weather-only (historical) and what the
+// forecast would look like if this report were allowed to anchor it
+// (report-based) — plus a plain-language implication. Read-only: neither
+// trajectory here is what a farmer/technician sees as a live prediction —
+// see server-python/app/routers/inference.py's _run_forecast docstring.
+
+export interface GapAnalysisDay {
+  date: string
+  historical_value: number | null
+  historical_risk_level: RiskLevel | null
+  report_based_value: number | null
+  report_based_risk_level: RiskLevel | null
+  report_weight: number
+}
+
+export interface GapAnalysisResponse {
+  status: 'ok' | 'model_not_loaded' | 'report_not_verified'
+  report_id: string
+  municipality: string
+  pest: PestKey
+  unit: 'hoppers_per_hill' | 'pct_damage' | null
+  days: GapAnalysisDay[]
+  implication: string
+  message: string
+}
+
+export async function fetchReportGapAnalysis(reportId: string): Promise<GapAnalysisResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/reports/${encodeURIComponent(reportId)}/gap-analysis`)
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => null)
+    throw new Error(data?.message ?? 'Failed to fetch gap analysis')
+  }
+
+  return res.json()
+}
+
 export interface ExplanationFeature {
   label: string
   value: number
@@ -406,6 +445,24 @@ export async function fetchAdminOverview(token: string): Promise<OverviewRespons
   return res.json()
 }
 
+export interface MunicipalityGapAnalysis {
+  province: string
+  municipality: string
+  bph: GapAnalysisResponse
+  rsb: GapAnalysisResponse
+}
+
+export interface GapAnalysisOverviewResponse {
+  growthStageUsed: string
+  municipalities: MunicipalityGapAnalysis[]
+}
+
+export async function fetchAdminGapAnalysis(token: string): Promise<GapAnalysisOverviewResponse> {
+  const res = await authFetch(token, '/api/admin/gap-analysis')
+  if (!res.ok) throw new Error('Failed to fetch municipality gap analysis')
+  return res.json()
+}
+
 // Public equivalent of fetchAdminOverview — every municipality on file
 // (not just ones with an LGU account) and no auth, so any logged-in LGU
 // technician's Status page can show province-wide risk context alongside
@@ -423,5 +480,87 @@ export interface EtlThresholdsResponse {
 export async function fetchEtlThresholds(token: string): Promise<EtlThresholdsResponse> {
   const res = await authFetch(token, '/api/admin/etl-thresholds')
   if (!res.ok) throw new Error('Failed to fetch ETL thresholds')
+  return res.json()
+}
+
+// ---- Model Insights (SuperAdmin) — see server-python/app/data/model_insights.py
+
+export interface ModelStatusItem {
+  name: string
+  detail: string
+  loaded: boolean
+  updated: string | null
+}
+
+export interface ResnetTestMetrics {
+  accuracy: number
+  positive_precision: number
+  positive_recall: number
+  positive_f1: number
+  confusion_matrix: [[number, number], [number, number]]
+}
+
+export interface RegressionTestMetrics {
+  rmse: number
+  mae: number
+  r2: number
+}
+
+export interface PredictionPointDto {
+  date: string
+  municipality: string
+  actual: number
+  predicted: number
+}
+
+export interface ShapFeatureDto {
+  label: string
+  value: number
+  share: number
+  group: 'sequence' | 'static'
+}
+
+export interface BilstmInsights {
+  metrics: RegressionTestMetrics | null
+  predictions: { n: number; points: PredictionPointDto[] } | null
+  shap: { sample_size: number; features: ShapFeatureDto[] } | null
+}
+
+export interface GridEvalRowDto {
+  recall: number | null
+  false_alarm: number | null
+  count_mae_on_bph: number | null
+  mean_groups_on_bph_free: number | null
+  correlation: number | null
+}
+
+export interface GridEvalBlock {
+  n_bph: number
+  n_bph_free: number
+  grid: Record<string, GridEvalRowDto>
+}
+
+export interface ModelInsightsResponse {
+  models: ModelStatusItem[]
+  resnet: Record<'BPH' | 'RSB', ResnetTestMetrics | null>
+  bilstm: Record<'BPH' | 'RSB', BilstmInsights>
+  resnetBphComparison: {
+    note: string
+    rows: { label: string; kind: 'falseAlarm' | 'recall'; n: number; old: number; new: number }[]
+    background_patches_added: number
+  } | null
+  grid: {
+    current: { threshold: number; minTiles: number }
+    evaluation: { single_416px: GridEvalBlock; mosaic_832px: GridEvalBlock } | null
+  }
+}
+
+export async function fetchModelInsights(token: string): Promise<ModelInsightsResponse> {
+  const res = await authFetch(token, '/api/admin/model-insights')
+
+  if (!res.ok) {
+    throw new Error('Failed to load model insights')
+  }
+
   return res.json()
 }
