@@ -7,11 +7,14 @@ the rest of the API (inference/reports/weather) still trusts the caller,
 same as before this router was added.
 """
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.data.lgu_users import add_lgu_user, delete_lgu_user, find_lgu_user
 from app.data.lgu_users import list_lgu_users as fetch_lgu_users
 from app.data.lgu_users import update_lgu_user as persist_lgu_user_update
+from app.data.model_insights import build_model_insights
 from app.data.municipalities import upsert_municipality
 from app.decision.etl_thresholds import PEST_THRESHOLDS
 from app.dependencies import require_superadmin
@@ -130,3 +133,13 @@ def get_etl_thresholds() -> EtlThresholdsResponse:
             for pest, stages in PEST_THRESHOLDS.items()
         }
     )
+
+
+@router.get("/model-insights")
+def get_model_insights() -> dict[str, Any]:
+    """Model status plus the saved evaluation results (ResNet-50 metrics and
+    BPH grid test, BiLSTM regression metrics, test predictions and SHAP
+    summary) behind admin-web's Model Insights page. Read from the artifacts
+    next to the weights (see app/data/model_insights.py) — nothing is
+    recomputed per request."""
+    return build_model_insights()

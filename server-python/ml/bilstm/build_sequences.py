@@ -47,8 +47,15 @@ from ml.config import (
     FORECAST_HORIZON_DAYS,
     GROWTH_STAGE_BUCKETS,
     PEST_PARAMS,
+    PROCESSED_DATA_DIR,
     SEQUENCES_DIR,
 )
+
+# Produced by ml/bilstm/ingest_reports.py (run that first, as part of the
+# periodic retrain, to pick up verified farmer reports since the last run).
+# Optional: if it doesn't exist yet, training proceeds on the historical
+# CSV alone, same as before this file existed.
+REPORTS_DAILY_CSV = PROCESSED_DATA_DIR / "weather_pest_daily_from_reports.csv"
 
 GROWTH_STAGES = ["Seedling", "Tillering", "Elongation", "Panicle", "Flowering", "Ripening"]
 
@@ -90,7 +97,36 @@ RSB_TARGET_BY_STAGE_BUCKET = {
 
 
 def load_clean_daily() -> pd.DataFrame:
+    """The historical dataset, plus any verified-report-derived rows from
+    ml/bilstm/ingest_reports.py when that script has been run — this is the
+    "continuous learning" seam: a report never touches a live forecast (see
+    app/routers/inference.py's _run_forecast docstring), but it does show up
+    here as training data for the next periodic retrain.
+
+    A report-derived row's municipality+date can duplicate a row already in
+    CLEAN_DAILY_CSV (e.g. a report for a date the historical set already
+    covers) — the report-derived row wins, since a verified farmer report is
+    more direct ground truth for that pest than the historical dataset's own
+    value. Only one pest's columns are ever set on a report-derived row; the
+    other pest's columns are left as whatever the historical row already had
+    (or NaN if there wasn't one), not overwritten with NaN.
+    """
     df = pd.read_csv(CLEAN_DAILY_CSV, parse_dates=["Date"])
+
+    if REPORTS_DAILY_CSV.exists():
+        reports_df = pd.read_csv(REPORTS_DAILY_CSV, parse_dates=["Date"])
+        if not reports_df.empty:
+            pest_columns = ["BPH_Hoppers_per_Hill", "RSB_Dead_Hearts_Pct", "RSB_White_Ears_Pct"]
+            df = df.set_index(["Municipality", "Date"])
+            reports_df = reports_df.set_index(["Municipality", "Date"])
+            for col in pest_columns:
+                df[col] = reports_df[col].combine_first(df[col]) if col in reports_df else df[col]
+            # New (municipality, date) pairs the historical set never had at all.
+            new_keys = reports_df.index.difference(df.index)
+            if len(new_keys):
+                df = pd.concat([df, reports_df.loc[new_keys]])
+            df = df.reset_index()
+
     df["growth_stage_bucket"] = df["Rice_Growth_Stage"].map(GROWTH_STAGE_BUCKETS)
     return df.sort_values(["Municipality", "Date"]).reset_index(drop=True)
 

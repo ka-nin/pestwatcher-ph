@@ -256,6 +256,164 @@
   border-color: #f3d3d3;
 }
 
+.report-action-analyze {
+  background: #fff;
+  color: #2f6b32;
+  border-color: #cfe4cf;
+}
+
+.report-action-analyze:hover:not(:disabled) {
+  background: #f1faf0;
+}
+
+/* Gap analysis modal */
+.modal-panel.gap-modal-panel {
+  max-width: 820px;
+  width: 92vw;
+}
+
+.gap-modal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: #666;
+}
+
+.gap-modal-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gap-modal-legend-swatch {
+  width: 18px;
+  height: 0;
+  border-top: 2px solid;
+  display: inline-block;
+}
+
+.gap-modal-legend-swatch-historical {
+  border-top-style: dashed;
+  border-top-color: #777;
+}
+
+.gap-modal-legend-swatch-report {
+  border-top-style: solid;
+  border-top-color: #2f6b32;
+}
+
+.gap-modal-implication {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #faf9f4;
+  border: 1px solid #eee7d6;
+}
+
+.gap-modal-implication-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #999;
+  margin-bottom: 6px;
+}
+
+.gap-modal-implication p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #333;
+}
+
+.gap-modal-table-wrap {
+  margin-top: 16px;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid #eee6d9;
+  border-radius: 10px;
+}
+
+.gap-modal-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.gap-modal-table col.gap-modal-col-date {
+  width: 14%;
+}
+
+.gap-modal-table col.gap-modal-col-gap {
+  width: 14%;
+}
+
+.gap-modal-table col.gap-modal-col-weight {
+  width: 13%;
+}
+
+.gap-modal-table th {
+  position: sticky;
+  top: 0;
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 8px 10px;
+  background: #faf9f4;
+  border-bottom: 1px solid #eee6d9;
+}
+
+.gap-modal-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #f3efe3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gap-modal-table tr:last-child td {
+  border-bottom: none;
+}
+
+.gap-modal-table-value {
+  font-variant-numeric: tabular-nums;
+  margin-right: 6px;
+}
+
+.gap-modal-table-badge {
+  font-size: 9.5px;
+  padding: 1px 7px;
+}
+
+.gap-modal-table-weight {
+  color: #999;
+  font-variant-numeric: tabular-nums;
+}
+
+.gap-modal-table-gap {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gap-modal-table-gap-red {
+  color: #c23b3b;
+}
+
+.gap-modal-table-gap-green {
+  color: #2f6b32;
+}
+
+.gap-modal-table-gap-neutral {
+  color: #999;
+  font-weight: 400;
+}
+
 /* Delete confirmation dialog — reuses .modal-backdrop/.modal-panel from
    Dashboard.css (same look as the day-detail modal), plus a blurred backdrop. */
 .modal-backdrop-blur {

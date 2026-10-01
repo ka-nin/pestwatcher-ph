@@ -33,6 +33,7 @@ from datetime import date, datetime
 from app.data.reports_store import list_verified_reports
 from app.decision.etl_thresholds import PEST_THRESHOLDS, GrowthStageBucket
 from app.decision.pest_matching import derive_pest_code
+from app.schemas.reports import ReportRecord
 
 # A report's influence fades linearly to zero over this many days.
 ANCHOR_DAYS = 13
@@ -121,3 +122,30 @@ def weight(anchor: ReportAnchor, target_date: date) -> float:
 
 def shifted(predicted_value: float, gap: float, weight_on_day: float) -> float:
     return max(0.0, predicted_value + gap * weight_on_day)
+
+
+def anchor_from_report(record: ReportRecord, growth_stage_bucket: GrowthStageBucket) -> ReportAnchor | None:
+    """Builds a ReportAnchor from one SPECIFIC already-known verified report
+    (rather than searching for the latest one, like find_anchor does) — for
+    GET /api/reports/{report_id}/gap-analysis, where the caller already
+    knows exactly which report they want to analyze. None if the report
+    isn't usable as an anchor: not verified, no number and no severity word
+    that maps to one, or an unparseable date.
+    """
+    if record.status != "verified":
+        return None
+    pest_code = record.pest_code or derive_pest_code(record.pest_type)
+    if pest_code is None:
+        return None
+
+    value = record.verified_value
+    if value is None:
+        value = severity_value(pest_code, growth_stage_bucket, record.severity)
+    if value is None:
+        return None
+
+    report_date = _report_date(record.verified_at, record.submitted_at)
+    if report_date is None:
+        return None
+
+    return ReportAnchor(anchor_date=report_date, verified_value=value, verified_report_count=1)
