@@ -155,14 +155,29 @@ async def submit_report(
 
 
 @router.patch("/{report_id}", response_model=ReportRecord)
-def update_report_status(report_id: str, payload: ReportStatusUpdate) -> ReportRecord:
+def update_report_status(
+    report_id: str, payload: ReportStatusUpdate, lgu: TokenPayload = Depends(require_lgu)
+) -> ReportRecord:
     """LGU review action from admin-web: mark a farmer's sighting verified or
-    rejected. Only "verified" reports feed into the forecast adjustment in
-    app/decision/report_anchor.py — a pending or rejected report never
-    influences what a farmer sees on their dashboard."""
-    updated = reports_store.update_report_status(
-        report_id, payload.status, payload.verified_by, payload.verified_value
-    )
+    rejected. Only "verified" reports feed Gap Analysis (app/decision/report_anchor.py)
+    and the periodic retrain (ml/bilstm/ingest_reports.py) — a pending or
+    rejected report never influences either.
+
+    LGU-only, scoped to the technician's own municipality — same pattern as
+    delete_report below. verified_by is taken from the authenticated token,
+    never the request body: a client-supplied verified_by would let anyone
+    forge who verified a report, which matters here since verification is
+    what ultimately feeds model retraining.
+    """
+    report = reports_store.get_report(report_id)
+    if report is None or report.deleted_at is not None:
+        raise HTTPException(status_code=404, detail=f"Report '{report_id}' not found")
+
+    account = find_lgu_user(lgu.username)
+    if account is None or account.municipality.lower() != report.municipality.lower():
+        raise HTTPException(status_code=403, detail="You can only review reports from your own municipality")
+
+    updated = reports_store.update_report_status(report_id, payload.status, lgu.username, payload.verified_value)
     if updated is None:
         raise HTTPException(status_code=404, detail=f"Report '{report_id}' not found")
     return updated

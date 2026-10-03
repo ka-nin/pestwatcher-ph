@@ -47,7 +47,7 @@ PEST_PARAMS: dict[str, PestParams] = {
     ),
     "RSB": PestParams(
         gdd_base_temp_c=15.0,  # per thesis RSB literature review
-        crf_window_days=14,  # confirm vs. 28-day alternative cited in RSB literature review
+        crf_window_days=14,  # tested 28 (the RSB literature review's other cited alternative): R2 dropped from 0.206 to 0.135, so 14 is confirmed the better choice, not just the convenient one. See bilstm_rsb_test_metrics.json.
         hp_window_days=14,
         hp_rh_threshold_pct=80.0,
         resnet_weights_path=WEIGHTS_DIR / "rsb" / "resnet50_rsb.keras",

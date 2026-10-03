@@ -27,3 +27,7 @@ pillow==11.0.0  # ml/resnet image cropping/loading
 
 # Uncomment as you build out ml/resnet explainability
 # lime==0.2.0.1
+
+# Tests (see tests/)
+pytest==8.3.4
+httpx==0.28.1  # required by starlette.testclient.TestClient

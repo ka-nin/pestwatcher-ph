@@ -109,7 +109,7 @@ function ReportsPage({ user, accessToken }: ReportsPageProps) {
     try {
       const draft = draftValues[id]
       const verifiedValue = status === 'verified' && draft !== undefined && draft !== '' ? Number(draft) : undefined
-      const updated = await updateReportStatus(id, status, user.username, verifiedValue)
+      const updated = await updateReportStatus(accessToken, id, status, verifiedValue)
       setReports((prev) => prev.map((r) => (r.id === id ? updated : r)))
     } catch {
       setError('Unable to update this report — try again')

@@ -287,17 +287,16 @@ export async function fetchProvinceReports(province: string): Promise<ReportReco
 }
 
 export async function updateReportStatus(
+  token: string,
   id: string,
   status: Extract<ReportStatus, 'verified' | 'rejected'>,
-  verifiedBy: string,
   verifiedValue?: number | null,
 ): Promise<ReportRecord> {
-  const res = await fetch(`${API_BASE_URL}/api/reports/${id}`, {
+  const res = await authFetch(token, `/api/reports/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       status,
-      verified_by: verifiedBy,
       ...(verifiedValue != null ? { verified_value: verifiedValue } : {}),
     }),
   })
