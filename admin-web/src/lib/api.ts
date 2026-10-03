@@ -274,9 +274,18 @@ export async function fetchReports(municipality?: string): Promise<ReportRecord[
   return res.json()
 }
 
-// LGU-only — verified_by is derived server-side from the token, never sent
-// by the client (see server-python/app/routers/reports.py's
-// update_report_status docstring for why).
+// Province-wide sightings, for the dashboard map only (read-only pins). The
+// Reports tab stays municipality-scoped via fetchReports above.
+export async function fetchProvinceReports(province: string): Promise<ReportRecord[]> {
+  const res = await fetch(`${API_BASE_URL}/api/reports?${new URLSearchParams({ province })}`)
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch reports')
+  }
+
+  return res.json()
+}
+
 export async function updateReportStatus(
   token: string,
   id: string,

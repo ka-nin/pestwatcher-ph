@@ -3,7 +3,7 @@ import {
   API_BASE_URL,
   fetchMunicipalitiesRisk,
   fetchPestForecastTrajectory,
-  fetchReports,
+  fetchProvinceReports,
   type GrowthStage,
   type LguUser,
   type MunicipalityOverview,
@@ -141,7 +141,7 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
   useEffect(() => {
     let cancelled = false
 
-    fetchReports(user.municipality)
+    fetchProvinceReports(user.province)
       .then((data) => {
         if (!cancelled) setReports(data)
       })
@@ -152,7 +152,7 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
     return () => {
       cancelled = true
     }
-  }, [user.municipality])
+  }, [user.province])
 
   useEffect(() => {
     let cancelled = false
@@ -387,7 +387,7 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
           <div className="panel-head">
             <div>
               <div className="panel-title">{user.province} Province Map</div>
-              <div className="panel-subtitle">Farmer-reported sightings, pinned by severity — click a pin to zoom in</div>
+              <div className="panel-subtitle">Farmer-reported sightings across the province, pinned by severity — click a pin to zoom in</div>
             </div>
             <span className="badge badge-green">LIVE</span>
           </div>
