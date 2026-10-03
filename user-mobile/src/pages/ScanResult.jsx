@@ -12,7 +12,7 @@ import './ScanResult.css';
 
 const RISK_LABEL = {
   low: { fil: 'Mababang Panganib', en: 'Low Risk' },
-  medium: { fil: 'Katamtamang Panganib', en: 'Moderate Risk' },
+  medium: { fil: 'Katamtamang Panganib', en: 'Medium Risk' },
   high: { fil: 'Mataas na Panganib', en: 'High Risk' },
 };
 

@@ -13,14 +13,17 @@ const FILTERS = [
   { id: 'Prevention', labelKey: 'guideFilterPrevention' },
 ];
 
-// Same tints the risk badges use — pulled from the shared tokens in
-// index.css rather than re-typed here, so a "High Danger" chip and a
-// "High Risk" badge can't drift apart visually.
+// Same tints and vocabulary (Low/Medium/High) the live forecast risk
+// badges use everywhere else — pulled from the shared tokens in index.css
+// rather than re-typed here, so a danger chip and a forecast badge can't
+// drift apart visually or in wording.
 const DANGER_STYLE = {
-  'High Danger': { bg: 'var(--risk-high-bg)', color: 'var(--risk-high-fg)' },
-  'Warning Limit': { bg: 'var(--risk-medium-bg)', color: 'var(--risk-medium-fg)' },
-  'Critical Risk': { bg: 'var(--risk-critical-bg)', color: 'var(--risk-critical-fg)' },
+  Low: { bg: 'var(--risk-low-bg)', color: 'var(--risk-low-fg)' },
+  Medium: { bg: 'var(--risk-medium-bg)', color: 'var(--risk-medium-fg)' },
+  High: { bg: 'var(--risk-high-bg)', color: 'var(--risk-high-fg)' },
 };
+
+const DANGER_LABEL_KEY = { Low: 'riskWordLow', Medium: 'riskWordMedium', High: 'riskWordHigh' };
 
 export default function Guide() {
   const navigate = useNavigate();
@@ -76,7 +79,7 @@ export default function Guide() {
 
         <div className="guide-list">
           {results.map((entry) => {
-            const dangerStyle = DANGER_STYLE[entry.dangerLevel] || DANGER_STYLE['Warning Limit'];
+            const dangerStyle = DANGER_STYLE[entry.dangerLevel] || DANGER_STYLE.Medium;
             return (
               <button
                 key={entry.id}
@@ -98,7 +101,7 @@ export default function Guide() {
                       className="guide-card-danger"
                       style={{ background: dangerStyle.bg, color: dangerStyle.color }}
                     >
-                      {entry.dangerLevel}
+                      {t(DANGER_LABEL_KEY[entry.dangerLevel] || 'riskWordMedium')}
                     </span>
                   </div>
                   <h3>{language === 'en' ? entry.nameEn || entry.name : entry.name}</h3>

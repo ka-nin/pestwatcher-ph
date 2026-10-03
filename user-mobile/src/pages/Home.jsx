@@ -339,9 +339,9 @@ export default function Home() {
           <div className="trend-header">
             <h3>{t(PEST_META[activePest].trendTitleKey)}</h3>
             <div className="trend-legend">
-              <span><i style={{ background: LEVEL_COLOR[1] }} /> {t('homeTrendSafe')}</span>
-              <span><i style={{ background: LEVEL_COLOR[2] }} /> {t('homeTrendWarning')}</span>
-              <span><i style={{ background: LEVEL_COLOR[3] }} /> {t('homeTrendDanger')}</span>
+              <span><i style={{ background: LEVEL_COLOR[1] }} /> {t('riskWordLow')}</span>
+              <span><i style={{ background: LEVEL_COLOR[2] }} /> {t('riskWordMedium')}</span>
+              <span><i style={{ background: LEVEL_COLOR[3] }} /> {t('riskWordHigh')}</span>
             </div>
           </div>
           <div className="trend-chart">

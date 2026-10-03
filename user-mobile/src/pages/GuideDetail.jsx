@@ -5,18 +5,21 @@ import { PestHeroMedia } from '../data/pestIcons';
 import { useLanguage } from '../context/LanguageContext';
 import './GuideDetail.css';
 
+// Same shared tokens + Low/Medium/High vocabulary as Guide.jsx's list view.
 const DANGER_STYLE = {
-  'High Danger': { bg: '#fbe0de', color: '#a52f28' },
-  'Warning Limit': { bg: '#fbeacd', color: '#8a5a10' },
-  'Critical Risk': { bg: '#f6d2ce', color: '#8f1f1a' },
+  Low: { bg: 'var(--risk-low-bg)', color: 'var(--risk-low-fg)' },
+  Medium: { bg: 'var(--risk-medium-bg)', color: 'var(--risk-medium-fg)' },
+  High: { bg: 'var(--risk-high-bg)', color: 'var(--risk-high-fg)' },
 };
+
+const DANGER_LABEL_KEY = { Low: 'riskWordLow', Medium: 'riskWordMedium', High: 'riskWordHigh' };
 
 export default function GuideDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { language, t } = useLanguage();
   const entry = pestGuide.find((p) => p.id === id) || pestGuide[0];
-  const dangerStyle = DANGER_STYLE[entry.dangerLevel] || DANGER_STYLE['Warning Limit'];
+  const dangerStyle = DANGER_STYLE[entry.dangerLevel] || DANGER_STYLE.Medium;
   const isEn = language === 'en';
 
   const displayName = isEn ? entry.nameEn || entry.name : entry.name;
@@ -41,7 +44,7 @@ export default function GuideDetail() {
             className="guide-detail-danger"
             style={{ background: dangerStyle.bg, color: dangerStyle.color }}
           >
-            {entry.dangerLevel}
+            {t(DANGER_LABEL_KEY[entry.dangerLevel] || 'riskWordMedium')}
           </span>
         </div>
         <h1>{displayName}</h1>
