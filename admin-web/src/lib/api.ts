@@ -274,18 +274,20 @@ export async function fetchReports(municipality?: string): Promise<ReportRecord[
   return res.json()
 }
 
+// LGU-only — verified_by is derived server-side from the token, never sent
+// by the client (see server-python/app/routers/reports.py's
+// update_report_status docstring for why).
 export async function updateReportStatus(
+  token: string,
   id: string,
   status: Extract<ReportStatus, 'verified' | 'rejected'>,
-  verifiedBy: string,
   verifiedValue?: number | null,
 ): Promise<ReportRecord> {
-  const res = await fetch(`${API_BASE_URL}/api/reports/${id}`, {
+  const res = await authFetch(token, `/api/reports/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       status,
-      verified_by: verifiedBy,
       ...(verifiedValue != null ? { verified_value: verifiedValue } : {}),
     }),
   })

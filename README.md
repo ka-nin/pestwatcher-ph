@@ -2,10 +2,11 @@
 
 Monorepo for a rice pest risk monitoring system: a FastAPI backend serving a
 trained BiLSTM outbreak-forecasting model (live weather in, 14-day BPH/RSB
-risk forecasts out) plus a ResNet-50 image classifier stub, a React admin
-dashboard for LGU technicians wired end-to-end to that live pipeline, a React
-+ Vite mobile-shell web app for farmers (also wired end-to-end, minus the
-still-unimplemented image classifier), and a shared TypeScript types package.
+risk forecasts out) and a trained ResNet-50 image classifier (optical field
+photo in, BPH/RSB detection out), a React admin dashboard for LGU
+technicians wired end-to-end to both, a React + Vite mobile-shell web app
+for farmers (also wired end-to-end, including camera-based photo scans),
+and a shared TypeScript types package.
 
 ```
 pestwatcher-ph/

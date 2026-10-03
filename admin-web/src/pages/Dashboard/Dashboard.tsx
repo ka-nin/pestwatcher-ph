@@ -176,6 +176,7 @@ function Dashboard({ user, accessToken, onLogout }: DashboardProps) {
               weather={weather}
               weatherError={weatherError}
               climateMetrics={climateMetrics}
+              onNavigateToReports={() => setActivePage('reports')}
             />
           )}
 

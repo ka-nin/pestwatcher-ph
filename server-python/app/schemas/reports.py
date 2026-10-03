@@ -83,7 +83,6 @@ class ReportRecord(ReportRequest):
 
 class ReportStatusUpdate(BaseModel):
     status: Literal["verified", "rejected"]
-    verified_by: str
     # Only meaningful when status is "verified". Lets the technologist
     # correct the farmer's estimated_value instead of just rubber-stamping
     # it; omit to accept the farmer's own estimate as-is.

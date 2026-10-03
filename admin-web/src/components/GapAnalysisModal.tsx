@@ -15,9 +15,13 @@ function formatValue(value: number | null, unitLabel: string) {
 function formatGap(historical: number | null, reportBased: number | null, unitLabel: string) {
   if (historical === null || reportBased === null) return null
   const diff = reportBased - historical
-  const sign = diff > 0 ? '+' : diff < 0 ? '−' : '±'
+  // Sign (and tone, below) are decided from the DISPLAYED magnitude, not
+  // the raw diff — a tiny nonzero diff that rounds to "0" must show as ±0
+  // in neutral color, never +0/−0 colored as if it were a real gap.
   const magnitude = unitLabel === '%' ? Math.abs(diff).toFixed(1) : Math.round(Math.abs(diff)).toString()
-  return { diff, label: `${sign}${magnitude}${unitLabel === '%' ? '%' : ''}` }
+  const isZeroDisplayed = Number(magnitude) === 0
+  const sign = isZeroDisplayed ? '±' : diff > 0 ? '+' : '−'
+  return { diff, isZeroDisplayed, label: `${sign}${magnitude}${unitLabel === '%' ? '%' : ''}` }
 }
 
 interface GapAnalysisModalProps {
@@ -128,7 +132,8 @@ function GapAnalysisModal({ report, onClose }: GapAnalysisModalProps) {
                 <tbody>
                   {result.days.map((day) => {
                     const gap = formatGap(day.historical_value, day.report_based_value, unitLabel)
-                    const gapTone = gap === null || gap.diff === 0 ? 'neutral' : gap.diff > 0 ? 'red' : 'green'
+                    const gapTone =
+                      gap === null || gap.isZeroDisplayed ? 'neutral' : gap.diff > 0 ? 'red' : 'green'
                     return (
                       <tr key={day.date}>
                         <td>{formatDayLabel(day.date)}</td>

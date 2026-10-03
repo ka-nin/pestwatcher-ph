@@ -781,8 +781,11 @@
   gap: 16px;
 }
 
-.surveillance-panel,
-.risk-panel {
+.surveillance-panel-full {
+  grid-column: 1 / -1;
+}
+
+.surveillance-panel {
   padding: 18px;
 }
 
@@ -801,22 +804,10 @@
   overflow: hidden;
 }
 
-.surveillance-box {
-  position: absolute;
-  top: 28%;
-  left: 22%;
-  width: 45%;
-  height: 40%;
-  border-radius: 4px;
-  border: 2px solid;
-}
-
-.surveillance-box-teal {
-  border-color: #2fb6a8;
-}
-
-.surveillance-box-red {
-  border-color: #d3564f;
+.surveillance-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .surveillance-caption {
@@ -841,39 +832,6 @@
 
 .surveillance-footer a:hover {
   text-decoration: underline;
-}
-
-/* Risk factor bars */
-.risk-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.risk-bar-label {
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.risk-bar-track {
-  height: 8px;
-  border-radius: 999px;
-  background: #f0eee6;
-  overflow: hidden;
-}
-
-.risk-bar-fill {
-  height: 100%;
-  border-radius: 999px;
-}
-
-.risk-bar-up {
-  background: #e8837c;
-}
-
-.risk-bar-down {
-  background: #8fcf9a;
 }
 
 @media (max-width: 1100px) {

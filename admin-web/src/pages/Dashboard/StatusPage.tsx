@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
+  API_BASE_URL,
   fetchMunicipalitiesRisk,
   fetchPestForecastTrajectory,
   fetchReports,
@@ -26,6 +27,7 @@ interface StatusPageProps {
   weather: WeatherForecast | null
   weatherError: string
   climateMetrics: ClimateMetrics | null
+  onNavigateToReports: () => void
 }
 
 const TRAJECTORY_DAYS = 14
@@ -105,25 +107,11 @@ function buildWeeklyRows(points: TrajectoryPoint[]): { range: string; cells: (Tr
   return rows
 }
 
-const surveillance = [
-  { label: 'BPH Detected', confidence: '89% conf', box: 'teal' },
-  { label: 'Healthy', confidence: '97% conf', box: 'teal' },
-  { label: 'Dead Hearts', confidence: '82% conf', box: 'red' },
-  { label: 'BPH Detected', confidence: '76% conf', box: 'teal' },
-]
+function formatSyncedAt(iso: string) {
+  return new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
 
-const riskFactors = [
-  { label: 'Humidity', value: 25, direction: 'up' as const },
-  { label: 'Visual Symptoms', value: 18, direction: 'up' as const },
-  { label: 'GDD', value: 12, direction: 'up' as const },
-  { label: 'Rainfall', value: 8, direction: 'up' as const },
-  { label: 'Wind Speed', value: -5, direction: 'down' as const },
-  { label: 'Natural Predators', value: -3, direction: 'down' as const },
-]
-
-const maxRiskFactor = Math.max(...riskFactors.map((f) => Math.abs(f.value)))
-
-function StatusPage({ user, weather, weatherError, climateMetrics }: StatusPageProps) {
+function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToReports }: StatusPageProps) {
   const [trajectories, setTrajectories] = useState<Partial<Record<'bph' | 'rsb', TrajectoryPoint[]>>>({})
   const [forecastError, setForecastError] = useState('')
   const [selectedCell, setSelectedCell] = useState<{
@@ -193,6 +181,13 @@ function StatusPage({ user, weather, weatherError, climateMetrics }: StatusPageP
     bph: findPeak(trajectories.bph ?? []) ?? undefined,
     rsb: findPeak(trajectories.rsb ?? []) ?? undefined,
   }
+
+  // Real recent AI reads from farmer-submitted photos — reports.ai_pest_detected/
+  // ai_confidence are set server-side by the ResNet-50 classifier at submission
+  // time (see server-python/app/routers/reports.py). `reports` is already
+  // sorted most-recent-first by the API.
+  const recentSurveillance = reports.filter((r) => r.photo_url && r.ai_confidence != null).slice(0, 4)
+  const lastSyncedAt = reports.find((r) => r.photo_url)?.submitted_at
 
   return (
     <>
@@ -492,54 +487,46 @@ function StatusPage({ user, weather, weatherError, climateMetrics }: StatusPageP
       </section>
 
       <section className="row-3">
-        <div className="panel surveillance-panel">
+        <div className="panel surveillance-panel surveillance-panel-full">
           <div className="panel-head">
             <div className="panel-title">Optical Field Surveillance (ResNet-50)</div>
             <span className="panel-hint">Farmer uploads</span>
           </div>
 
-          <div className="surveillance-grid">
-            {surveillance.map((item, i) => (
-              <div className="surveillance-item" key={i}>
-                <div className="surveillance-thumb">
-                  <span className={`surveillance-box surveillance-box-${item.box}`} />
+          {recentSurveillance.length === 0 ? (
+            <p className="stat-card-loading">
+              No AI-classified farmer photos yet for {user.municipality} — a photo submitted through a report is
+              classified automatically and will appear here.
+            </p>
+          ) : (
+            <div className="surveillance-grid">
+              {recentSurveillance.map((report) => (
+                <div className="surveillance-item" key={report.id}>
+                  <div className="surveillance-thumb">
+                    {report.photo_url && (
+                      <img src={`${API_BASE_URL}${report.photo_url}`} alt="Farmer-submitted pest sighting" />
+                    )}
+                  </div>
+                  <div className="surveillance-caption">
+                    {report.ai_pest_detected ?? 'No pest detected'} ·{' '}
+                    {Math.round((report.ai_confidence ?? 0) * 100)}% conf
+                  </div>
                 </div>
-                <div className="surveillance-caption">
-                  {item.label} · {item.confidence}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           <div className="surveillance-footer">
-            <span>Last synced: 10:30 AM (PST)</span>
-            <a href="#">View All Reports</a>
-          </div>
-        </div>
-
-        <div className="panel risk-panel">
-          <div className="panel-head">
-            <div>
-              <div className="panel-title">Risk Factor Attribution - Current Alert</div>
-              <div className="panel-subtitle">SHAP values for the active BPH peak</div>
-            </div>
-          </div>
-
-          <div className="risk-bars">
-            {riskFactors.map((f) => (
-              <div className="risk-bar-row" key={f.label}>
-                <div className="risk-bar-label">
-                  {f.direction === 'up' ? '+' : ''}
-                  {f.value}% {f.label}
-                </div>
-                <div className="risk-bar-track">
-                  <div
-                    className={`risk-bar-fill risk-bar-${f.direction}`}
-                    style={{ width: `${(Math.abs(f.value) / maxRiskFactor) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+            <span>{lastSyncedAt ? `Last synced: ${formatSyncedAt(lastSyncedAt)}` : 'No photos synced yet'}</span>
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault()
+                onNavigateToReports()
+              }}
+            >
+              View All Reports
+            </a>
           </div>
         </div>
       </section>
