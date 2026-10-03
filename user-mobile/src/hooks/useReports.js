@@ -7,7 +7,7 @@ import { haversineKm } from '../utils/geo';
 
 const SEVERITY_LABEL = {
   low: 'Low Risk',
-  medium: 'Moderate Risk',
+  medium: 'Medium Risk',
   high: 'High Risk',
 };
 
