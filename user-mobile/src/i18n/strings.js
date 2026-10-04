@@ -92,6 +92,8 @@ export const translations = {
     guideResultsTitle: 'Mga Kilalang Peste sa Palayan',
     guideResultsCount: 'nahanap',
     guideEmpty: 'Walang natagpuang resulta.',
+    guideTrackedBadge: 'Sinusubaybayan',
+    guideReferenceBadge: 'Sanggunian',
 
     // Guide detail
     guideDetailDescription: 'KAHULUGAN',
@@ -284,6 +286,8 @@ export const translations = {
     guideResultsTitle: 'Known Pests in the Rice Field',
     guideResultsCount: 'found',
     guideEmpty: 'No results found.',
+    guideTrackedBadge: 'Tracked',
+    guideReferenceBadge: 'Reference',
 
     // Guide detail
     guideDetailDescription: 'DESCRIPTION',

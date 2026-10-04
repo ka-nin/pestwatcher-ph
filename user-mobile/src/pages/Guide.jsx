@@ -13,17 +13,15 @@ const FILTERS = [
   { id: 'Prevention', labelKey: 'guideFilterPrevention' },
 ];
 
-// Same tints and vocabulary (Low/Medium/High) the live forecast risk
-// badges use everywhere else — pulled from the shared tokens in index.css
-// rather than re-typed here, so a danger chip and a forecast badge can't
-// drift apart visually or in wording.
-const DANGER_STYLE = {
-  Low: { bg: 'var(--risk-low-bg)', color: 'var(--risk-low-fg)' },
-  Medium: { bg: 'var(--risk-medium-bg)', color: 'var(--risk-medium-fg)' },
-  High: { bg: 'var(--risk-high-bg)', color: 'var(--risk-high-fg)' },
-};
+// Whether this entry is one of the two pests the app's BiLSTM forecaster
+// actively tracks (isTracked: true in mockData.js), vs. general reference
+// material (a symptom/disease those pests cause, or a prevention guide).
+// Deliberately NOT a Low/Medium/High danger rating — that scale is reserved
+// for the live forecast risk shown elsewhere, and reusing it here for a
+// static per-entry rating read as if it were that same live number.
+const TRACKED_STYLE = { bg: 'var(--risk-high-bg)', color: 'var(--risk-high-fg)' };
+const REFERENCE_STYLE = { bg: 'var(--color-border)', color: 'var(--color-text-muted)' };
 
-const DANGER_LABEL_KEY = { Low: 'riskWordLow', Medium: 'riskWordMedium', High: 'riskWordHigh' };
 
 export default function Guide() {
   const navigate = useNavigate();
@@ -79,7 +77,7 @@ export default function Guide() {
 
         <div className="guide-list">
           {results.map((entry) => {
-            const dangerStyle = DANGER_STYLE[entry.dangerLevel] || DANGER_STYLE.Medium;
+            const trackedStyle = entry.isTracked ? TRACKED_STYLE : REFERENCE_STYLE;
             return (
               <button
                 key={entry.id}
@@ -99,9 +97,9 @@ export default function Guide() {
                     </span>
                     <span
                       className="guide-card-danger"
-                      style={{ background: dangerStyle.bg, color: dangerStyle.color }}
+                      style={{ background: trackedStyle.bg, color: trackedStyle.color }}
                     >
-                      {t(DANGER_LABEL_KEY[entry.dangerLevel] || 'riskWordMedium')}
+                      {t(entry.isTracked ? 'guideTrackedBadge' : 'guideReferenceBadge')}
                     </span>
                   </div>
                   <h3>{language === 'en' ? entry.nameEn || entry.name : entry.name}</h3>
