@@ -5,21 +5,19 @@ import { PestHeroMedia } from '../data/pestIcons';
 import { useLanguage } from '../context/LanguageContext';
 import './GuideDetail.css';
 
-// Same shared tokens + Low/Medium/High vocabulary as Guide.jsx's list view.
-const DANGER_STYLE = {
-  Low: { bg: 'var(--risk-low-bg)', color: 'var(--risk-low-fg)' },
-  Medium: { bg: 'var(--risk-medium-bg)', color: 'var(--risk-medium-fg)' },
-  High: { bg: 'var(--risk-high-bg)', color: 'var(--risk-high-fg)' },
-};
-
-const DANGER_LABEL_KEY = { Low: 'riskWordLow', Medium: 'riskWordMedium', High: 'riskWordHigh' };
+// Whether this entry is one of the two pests this app's forecaster
+// actively tracks, vs. general reference material — see Guide.jsx's
+// TRACKED_STYLE/REFERENCE_STYLE for why this isn't a Low/Medium/High
+// danger rating.
+const TRACKED_STYLE = { bg: 'var(--risk-high-bg)', color: 'var(--risk-high-fg)' };
+const REFERENCE_STYLE = { bg: 'var(--color-border)', color: 'var(--color-text-muted)' };
 
 export default function GuideDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { language, t } = useLanguage();
   const entry = pestGuide.find((p) => p.id === id) || pestGuide[0];
-  const dangerStyle = DANGER_STYLE[entry.dangerLevel] || DANGER_STYLE.Medium;
+  const trackedStyle = entry.isTracked ? TRACKED_STYLE : REFERENCE_STYLE;
   const isEn = language === 'en';
 
   const displayName = isEn ? entry.nameEn || entry.name : entry.name;
@@ -42,9 +40,9 @@ export default function GuideDetail() {
           <span className="guide-detail-category">{isEn ? entry.category : entry.categoryFil}</span>
           <span
             className="guide-detail-danger"
-            style={{ background: dangerStyle.bg, color: dangerStyle.color }}
+            style={{ background: trackedStyle.bg, color: trackedStyle.color }}
           >
-            {t(DANGER_LABEL_KEY[entry.dangerLevel] || 'riskWordMedium')}
+            {t(entry.isTracked ? 'guideTrackedBadge' : 'guideReferenceBadge')}
           </span>
         </div>
         <h1>{displayName}</h1>
