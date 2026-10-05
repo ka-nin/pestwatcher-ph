@@ -14,6 +14,7 @@ export const translations = {
     // Home
     homeLocationSubtitle: 'Pagtataya ng panganib para sa munisipyong ito',
     homeCalculating: 'Kinakalkula...',
+    homeTrendUnavailable: 'Hindi available ang forecast trend ngayon.',
     homeForecastLoading: 'Kinukuha ang pinakabagong forecast mula sa BiLSTM na modelo...',
     homeForecastUnavailable: 'Hindi pa available ang modelo para sa lugar na ito.',
     homeFarmerTip: 'Payo sa Magsasaka:',
@@ -206,6 +207,7 @@ export const translations = {
     // Home
     homeLocationSubtitle: 'Risk forecast for this municipality',
     homeCalculating: 'Calculating...',
+    homeTrendUnavailable: 'Forecast trend unavailable right now.',
     homeForecastLoading: 'Fetching the latest forecast from the BiLSTM model...',
     homeForecastUnavailable: 'The model isn’t available for this area yet.',
     homeFarmerTip: 'Farmer Tip:',

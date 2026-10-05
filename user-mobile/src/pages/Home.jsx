@@ -223,7 +223,13 @@ export default function Home() {
       : `riskMessage${capitalize(riskLevel)}`;
   const risk = RISK_META[riskLevel] || RISK_META.low;
   const RiskIcon = risk.icon;
-  const trendData = trends[activePest] || dashboardSummary.trend;
+  // Real forecast only. This used to fall back to dashboardSummary.trend from
+  // mockData.js whenever `trends[activePest]` was null — which is its initial
+  // state and also what a failed fetch leaves behind — so a loading or broken
+  // screen silently drew a hardcoded fixture curve that looked like a real
+  // forecast. The chart below now renders a loading/unavailable message
+  // instead, matching how the risk badge already gates on `loading`.
+  const trendData = trends[activePest];
   const now = new Date();
   const dateTimeLabel = `${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${formatClockTime(now)}`;
 
@@ -362,6 +368,11 @@ export default function Home() {
             </div>
           </div>
           <div className="trend-chart">
+            {!trendData?.length ? (
+              <p className="trend-empty">
+                {loading ? t('homeCalculating') : t('homeTrendUnavailable')}
+              </p>
+            ) : (
             <ResponsiveContainer width="100%" height={128}>
               <BarChart data={trendData} barCategoryGap="22%" margin={{ top: 4, right: 0, left: 0, bottom: 0 }} key={activePest}>
                 <XAxis
@@ -380,7 +391,8 @@ export default function Home() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-            {trendData.length === TREND_DAYS && <span className="trend-week-divider" aria-hidden="true" />}
+            )}
+            {trendData?.length === TREND_DAYS && <span className="trend-week-divider" aria-hidden="true" />}
           </div>
         </section>
 

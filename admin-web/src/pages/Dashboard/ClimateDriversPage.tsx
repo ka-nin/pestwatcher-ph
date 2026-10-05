@@ -6,6 +6,8 @@ import {
   type LguUser,
   type WeatherForecast,
 } from '../../lib/api'
+import { ASSUMED_GROWTH_STAGE } from '../../lib/etl'
+import { GDD_BASE_TEMP_C } from '../../lib/climate'
 import './ClimateDriversPage.css'
 
 interface ClimateMetrics {
@@ -21,9 +23,8 @@ interface ClimateDriversPageProps {
   climateMetrics: ClimateMetrics | null
 }
 
-const GDD_BASE_TEMP_C = 10
 const SHAP_PEST = 'BPH' as const
-const SHAP_GROWTH_STAGE: GrowthStage = 'Tillering'
+const SHAP_GROWTH_STAGE: GrowthStage = ASSUMED_GROWTH_STAGE
 
 const CHART_WIDTH = 340
 const CHART_HEIGHT = 130

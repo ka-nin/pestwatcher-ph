@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchReportGapAnalysis, type GapAnalysisResponse, type ReportRecord } from '../lib/api'
-import { ETL_BANDS, RISK_TONE } from '../lib/etl'
+import { etlBandFor, RISK_TONE } from '../lib/etl'
 import GapAnalysisChart from './GapAnalysisChart'
 
 function formatDayLabel(iso: string) {
@@ -58,7 +58,7 @@ function GapAnalysisModal({ report, onClose }: GapAnalysisModalProps) {
   }, [report.id])
 
   const bandKey = result?.pest === 'RSB' ? 'rsb' : 'bph'
-  const band = ETL_BANDS[bandKey]
+  const band = etlBandFor(bandKey)
   const unitLabel = result?.unit === 'pct_damage' ? '%' : '/hill'
 
   return (

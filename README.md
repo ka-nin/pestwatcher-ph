@@ -170,10 +170,16 @@ npm run build --workspace=user-mobile
 its `main` and `types` both point at `src/index.ts`, and Vite compiles it on the
 fly. Edit the file and consumers pick it up immediately; there's nothing to rebuild.
 
-It's currently consumed only by `admin-web` and isn't used by `server-python`
-(Python and TypeScript don't share a type system) — if you want the two to stay
-in sync, keep the Pydantic schemas in `server-python/app/schemas/` and the
-TypeScript interfaces in `admin-web/src/lib/api.ts` updated together by hand.
+**Nothing actually imports it yet.** `admin-web` declares it as a dependency but
+defines its own response types inline in `src/lib/api.ts`, and `user-mobile` is
+plain JS. So the package is the contract to migrate toward, not one that is
+enforced today — don't assume a type here is what the API returns.
+
+`server-python` can't consume it either (Python and TypeScript don't share a
+type system), so keeping the two in step means updating the Pydantic schemas in
+`server-python/app/schemas/` and the TypeScript in `admin-web/src/lib/api.ts`
+together, by hand. The shared package is the place to record the enums both
+sides agree on — risk levels, pest codes, growth stages, report statuses.
 
 ## Troubleshooting
 

@@ -12,7 +12,7 @@ import {
   type TrajectoryPoint,
   type WeatherForecast,
 } from '../../lib/api'
-import { ETL_BANDS, RISK_TONE } from '../../lib/etl'
+import { ASSUMED_GROWTH_STAGE, etlBandFor, RISK_TONE } from '../../lib/etl'
 import DayDetailModal from '../../components/DayDetailModal'
 import ProvinceMap from './ProvinceMap'
 
@@ -31,7 +31,7 @@ interface StatusPageProps {
 }
 
 const TRAJECTORY_DAYS = 14
-const ACTIVE_GROWTH_STAGE: GrowthStage = 'Tillering'
+const ACTIVE_GROWTH_STAGE: GrowthStage = ASSUMED_GROWTH_STAGE
 
 const peakCardMeta = [
   {
@@ -366,7 +366,7 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
                 <span className="stat-card-big-unit">{meta.unit}</span>
               </div>
               <div className="stat-card-etl">
-                ETL: <strong>{ETL_BANDS[meta.key].highMin}{meta.etlSuffix}</strong>
+                ETL: <strong>{etlBandFor(meta.key, ACTIVE_GROWTH_STAGE).highMin}{meta.etlSuffix}</strong>
               </div>
               <div className="stat-card-risk-row">
                 <span className="stat-card-risk-label">Risk</span>
@@ -438,7 +438,7 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
                 <div className="heatmap-block-head">
                   <span className="heatmap-block-title">{meta.title}</span>
                   <span className="heatmap-block-note">
-                    ETL: {ETL_BANDS[meta.key].highMin}
+                    ETL: {etlBandFor(meta.key, ACTIVE_GROWTH_STAGE).highMin}
                     {meta.pest === 'RSB' ? '% Dead Hearts' : ' hoppers/hill'}
                   </span>
                 </div>

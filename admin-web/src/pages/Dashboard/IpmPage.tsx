@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react'
 import {
   fetchPestForecast,
   fetchPestForecastTrajectory,
-  type GrowthStage,
   type LguUser,
   type PestForecast,
   type RiskLevel,
   type TrajectoryPoint,
 } from '../../lib/api'
-import { ETL_BANDS, RISK_TONE } from '../../lib/etl'
+import { ASSUMED_GROWTH_STAGE, etlBandFor, RISK_TONE } from '../../lib/etl'
 import './IpmPage.css'
 
 interface IpmPageProps {
@@ -16,8 +15,8 @@ interface IpmPageProps {
 }
 
 const ETL_HIGH_LIMIT: Record<'bph' | 'rsb', number> = {
-  bph: ETL_BANDS.bph.highMin,
-  rsb: ETL_BANDS.rsb.highMin,
+  bph: etlBandFor('bph').highMin,
+  rsb: etlBandFor('rsb').highMin,
 }
 
 const riskTone = RISK_TONE
@@ -27,7 +26,7 @@ const pestCardMeta = [
     key: 'bph' as const,
     pest: 'BPH' as const,
     title: 'Brown Planthopper',
-    stage: 'Tillering' as GrowthStage,
+    stage: ASSUMED_GROWTH_STAGE,
     unit: 'hoppers/hill',
     actionsTitle: 'Recommended Actions',
     actions: [
@@ -41,7 +40,7 @@ const pestCardMeta = [
     key: 'rsb' as const,
     pest: 'RSB' as const,
     title: 'Rice Stem Borer',
-    stage: 'Tillering' as GrowthStage,
+    stage: ASSUMED_GROWTH_STAGE,
     unit: '% Dead Hearts',
     actionsTitle: 'Routine Monitoring',
     actions: [

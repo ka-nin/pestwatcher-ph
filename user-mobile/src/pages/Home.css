@@ -419,6 +419,20 @@
   position: relative;
 }
 
+/* Shown instead of the bar chart when there is no real forecast to draw —
+   the chart no longer falls back to mock data (see Home.jsx). Matches the
+   chart's height so the card doesn't jump as the forecast arrives. */
+.trend-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 128px;
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
 .trend-week-divider {
   position: absolute;
   left: 50%;

@@ -6,6 +6,7 @@ import PestForecastPage from './PestForecastPage'
 import IpmPage from './IpmPage'
 import ClimateDriversPage from './ClimateDriversPage'
 import ReportsPage from './ReportsPage'
+import { GDD_BASE_TEMP_C, HUMIDITY_PERSISTENCE_THRESHOLD, OUTLOOK_DAYS } from '../../lib/climate'
 import './Dashboard.css'
 
 interface DashboardProps {
@@ -14,9 +15,9 @@ interface DashboardProps {
   onLogout: () => void
 }
 
-const GDD_BASE_TEMP_C = 10
-const HUMIDITY_PERSISTENCE_THRESHOLD = 80
 
+// The dashboard's forward-looking weather outlook — deliberately NOT the
+// model's input features. See src/lib/climate.ts for how the two differ.
 function deriveClimateMetrics(weather: WeatherForecast) {
   const gdd = weather.daily.temperature_2m_max.reduce((total, tMax, i) => {
     const tMin = weather.daily.temperature_2m_min[i]
@@ -25,10 +26,10 @@ function deriveClimateMetrics(weather: WeatherForecast) {
   }, 0)
 
   const sevenDayRainfall = weather.daily.precipitation_sum
-    .slice(0, 7)
+    .slice(0, OUTLOOK_DAYS)
     .reduce((total, mm) => total + mm, 0)
 
-  const nextWeekHumidity = weather.hourly.relative_humidity_2m.slice(0, 24 * 7)
+  const nextWeekHumidity = weather.hourly.relative_humidity_2m.slice(0, 24 * OUTLOOK_DAYS)
   const humidityPersistence =
     (nextWeekHumidity.filter((rh) => rh >= HUMIDITY_PERSISTENCE_THRESHOLD).length /
       nextWeekHumidity.length) *

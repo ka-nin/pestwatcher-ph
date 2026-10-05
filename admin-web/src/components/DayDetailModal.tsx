@@ -6,7 +6,7 @@ import {
   type PestKey,
   type TrajectoryPoint,
 } from '../lib/api'
-import { ETL_BANDS, RISK_TONE } from '../lib/etl'
+import { etlBandFor, RISK_TONE } from '../lib/etl'
 
 interface DayDetailModalProps {
   municipality: string
@@ -80,7 +80,7 @@ function DayDetailModal({
   }, [onClose])
 
   const tone = RISK_TONE[point.risk_level]
-  const etl = ETL_BANDS[pestKey]
+  const etl = etlBandFor(pestKey, growthStage)
   const maxFeature = features?.length
     ? Math.max(...features.map((f) => Math.abs(f.value)))
     : 1

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchPestForecastTrajectory, type GrowthStage, type LguUser, type TrajectoryPoint } from '../../lib/api'
-import { ETL_BANDS, RISK_TONE } from '../../lib/etl'
+import { ASSUMED_GROWTH_STAGE, etlBandFor, RISK_TONE } from '../../lib/etl'
 import TrajectoryChart, { niceMax } from './TrajectoryChart'
 import './PestForecastPage.css'
 
@@ -9,7 +9,7 @@ interface PestForecastPageProps {
 }
 
 const TRAJECTORY_DAYS = 13
-const ACTIVE_GROWTH_STAGE: GrowthStage = 'Tillering'
+const ACTIVE_GROWTH_STAGE: GrowthStage = ASSUMED_GROWTH_STAGE
 
 const riskTone = RISK_TONE
 
@@ -86,13 +86,13 @@ function PestForecastPage({ user }: PestForecastPageProps) {
               <div className="forecast-chart-head">
                 <span className="forecast-chart-title">{meta.title}</span>
                 <span className="forecast-chart-note">
-                  {meta.pest === 'BPH' ? `Hoppers / hill (0-${ETL_BANDS.bph.highMin * 1.5})` : '% Dead Hearts'}
+                  {meta.pest === 'BPH' ? `Hoppers / hill (0-${etlBandFor('bph', ACTIVE_GROWTH_STAGE).highMin * 1.5})` : '% Dead Hearts'}
                 </span>
               </div>
               <TrajectoryChart
                 points={points}
-                lowMax={ETL_BANDS[meta.key].lowMax}
-                highMin={ETL_BANDS[meta.key].highMin}
+                lowMax={etlBandFor(meta.key, ACTIVE_GROWTH_STAGE).lowMax}
+                highMin={etlBandFor(meta.key, ACTIVE_GROWTH_STAGE).highMin}
                 unitLabel={meta.unitLabel}
               />
             </div>
@@ -106,7 +106,7 @@ function PestForecastPage({ user }: PestForecastPageProps) {
           // Same y-scale as the trajectory chart above, so a bar's fill %
           // here means the same thing it means there — a value near the
           // ETL limit fills most of the bar, not just "highest of a flat week."
-          const band = ETL_BANDS[meta.key]
+          const band = etlBandFor(meta.key, ACTIVE_GROWTH_STAGE)
           const dataMax = points.length ? Math.max(...points.map((p) => p.predicted_value)) : 0
           const referenceMax = niceMax(band.highMin, dataMax)
 
