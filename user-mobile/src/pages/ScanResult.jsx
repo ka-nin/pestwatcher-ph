@@ -7,6 +7,7 @@ import { PestHeroMedia } from '../data/pestIcons';
 import { fetchPestForecast, fetchPestForecastTrajectory } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { pestNames } from '../utils/pestNames';
 import './GuideDetail.css';
 import './ScanResult.css';
 
@@ -163,7 +164,8 @@ export default function ScanResult() {
   const stageThresholds = etlThresholds[guideId]?.[bucket];
   const measurement = forecast?.predicted_value ?? null;
 
-  const displayName = isEn ? entry.nameEn || entry.name : entry.name;
+  const names = pestNames(entry, language);
+  const displayName = names.primary;
   const description = isEn ? entry.descriptionEn || entry.description : entry.description;
   const signs = isEn ? entry.signsEn || entry.signs : entry.signs;
   const prevention = isEn ? entry.preventionEn || entry.prevention : entry.prevention;
@@ -209,11 +211,7 @@ export default function ScanResult() {
 
         <h1>{displayName}</h1>
         <p className="guide-detail-fil">
-          {isEn ? entry.scientificName && <em>{entry.scientificName}</em> : (
-            <>
-              {entry.nameFil} <em>({entry.scientificName})</em>
-            </>
-          )}
+          {names.secondary} {entry.scientificName && <em>({entry.scientificName})</em>}
         </p>
 
         <span className="scan-result-etl-tag scan-result-stage-tag">

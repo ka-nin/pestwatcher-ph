@@ -28,24 +28,6 @@
   color: rgba(255, 255, 255, 0.78);
 }
 
-.alerts-header-filter {
-  flex-shrink: 0;
-  width: var(--tap-target);
-  height: var(--tap-target);
-  border-radius: var(--radius-sm);
-  border: none;
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.alerts-header-filter:active {
-  background: rgba(255, 255, 255, 0.3);
-}
-
 .alerts-body {
   flex: 1;
   padding: var(--space-4) var(--space-4) 116px;

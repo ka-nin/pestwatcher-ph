@@ -38,7 +38,7 @@ export const pestGuide = [
   {
     id: 'bph',
     category: 'Rice Pests',
-    categoryFil: 'RICE PESTS',
+    categoryFil: 'MGA PESTE SA PALAY',
     // One of the two pests this app's BiLSTM forecaster actually tracks
     // (see server-python/ml/config.py's PEST_PARAMS) — everything else in
     // this guide is reference material about symptoms/diseases these two
@@ -85,7 +85,7 @@ export const pestGuide = [
   {
     id: 'stem-borer',
     category: 'Rice Pests',
-    categoryFil: 'RICE PESTS',
+    categoryFil: 'MGA PESTE SA PALAY',
     isTracked: true,
     name: 'Rice Stem Borer',
     nameFil: 'Aksip o Atip',
@@ -128,7 +128,7 @@ export const pestGuide = [
   {
     id: 'rice-yellowing-syndrome',
     category: 'Diseases',
-    categoryFil: 'DISEASES',
+    categoryFil: 'MGA SAKIT',
     isTracked: false,
     name: 'Rice Yellowing Syndrome',
     nameFil: 'Paninilaw ng Palay',
@@ -167,7 +167,7 @@ export const pestGuide = [
   {
     id: 'hopperburn',
     category: 'Diseases',
-    categoryFil: 'DISEASES',
+    categoryFil: 'MGA SAKIT',
     isTracked: false,
     name: 'Hopperburn',
     nameFil: 'Hopperburn',
@@ -204,7 +204,7 @@ export const pestGuide = [
   {
     id: 'sooty-mold',
     category: 'Diseases',
-    categoryFil: 'DISEASES',
+    categoryFil: 'MGA SAKIT',
     isTracked: false,
     name: 'Sooty Mold',
     nameFil: 'Itim na Amag',
@@ -237,7 +237,7 @@ export const pestGuide = [
   {
     id: 'dead-heart',
     category: 'Diseases',
-    categoryFil: 'DISEASES',
+    categoryFil: 'MGA SAKIT',
     isTracked: false,
     name: 'Dead Heart',
     nameFil: 'Tuyong Gitnang Usbong',
@@ -274,7 +274,7 @@ export const pestGuide = [
   {
     id: 'white-head',
     category: 'Diseases',
-    categoryFil: 'DISEASES',
+    categoryFil: 'MGA SAKIT',
     isTracked: false,
     name: 'White Head',
     nameFil: 'Puting Uhay',
@@ -311,7 +311,7 @@ export const pestGuide = [
   {
     id: 'stem-tillers-hole',
     category: 'Diseases',
-    categoryFil: 'DISEASES',
+    categoryFil: 'MGA SAKIT',
     isTracked: false,
     name: 'Stems and Tillers Hole',
     nameFil: 'Butas sa Puno at Sanga',
@@ -348,7 +348,7 @@ export const pestGuide = [
   {
     id: 'bph-prevention',
     category: 'Prevention',
-    categoryFil: 'PREVENTION',
+    categoryFil: 'PAG-IWAS',
     isTracked: false,
     name: 'Pag-iwas sa Brown Planthopper',
     nameEn: 'Preventing Brown Planthopper',
@@ -382,7 +382,7 @@ export const pestGuide = [
   {
     id: 'stem-borer-prevention',
     category: 'Prevention',
-    categoryFil: 'PREVENTION',
+    categoryFil: 'PAG-IWAS',
     isTracked: false,
     name: 'Pag-iwas sa Rice Stem Borer',
     nameEn: 'Preventing Rice Stem Borer',

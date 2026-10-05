@@ -4,6 +4,7 @@ import { pestGuide } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { haversineKm } from '../utils/geo';
+import { pestNames } from '../utils/pestNames';
 
 const SEVERITY_LABEL = {
   low: 'Low Risk',
@@ -56,12 +57,9 @@ export function useReports() {
             const distanceKm = hasCoords
               ? Math.round(haversineKm(user.latitude, user.longitude, r.latitude, r.longitude))
               : null;
-            const isEn = language === 'en';
-            const pestName = guide
-              ? isEn
-                ? guide.nameEn || guide.name
-                : `${guide.name} (${guide.nameFil})`
-              : r.pest_type;
+            const names = guide
+              ? pestNames(guide, language)
+              : { primary: r.pest_type, secondary: '' };
             return {
               id: r.id,
               risk: r.severity,
@@ -69,7 +67,8 @@ export function useReports() {
               distance: distanceKm != null ? `${distanceKm}km` : t('alertsDistanceUnknown'),
               date: formatDate(r.date_spotted),
               distanceKm,
-              pestName,
+              pestName: names.primary,
+              pestNameAlt: names.secondary,
               scientificName: guide?.scientificName || '—',
               location: r.municipality || r.province,
               description: r.notes || t('alertsNoDetails'),
