@@ -137,7 +137,7 @@ export const translations = {
     reportPhotoRemoveAria: 'Alisin ang larawan',
     reportFieldPestType: 'Pest Type / Uri ng Peste',
     reportPestPlaceholder: 'Pumili ng uri ng peste...',
-    reportFieldSeverity: 'Severity Level',
+    reportFieldSeverity: 'Antas ng Panganib / Risk Level',
     reportFieldGrowthStage: 'Yugto ng Paglaki / Growth Stage',
     reportFieldAreaAffected: 'Apektadong Sukat / Area Affected (hectares)',
     reportAreaPlaceholder: 'hal. 0.5',
@@ -170,8 +170,8 @@ export const translations = {
     reportSummaryPhotoYes: 'May kalakip',
     reportSummaryPhotoNo: 'Walang kalakip',
     reportWarnTitle: 'Pakisuri ang inilagay mo',
-    reportWarnHighSmall: 'Karaniwang malaki ang apektadong sukat kapag Mataas ang pinsala, pero {area} ektarya lang ang inilagay mo. Tama ba ang sukat, o dapat bang mas mababa ang antas ng pinsala?',
-    reportWarnLowLarge: 'Karaniwang maliit ang apektadong sukat kapag Mababa ang pinsala, pero {area} ektarya ang inilagay mo. Tama ba ang sukat, o dapat bang mas mataas ang antas ng pinsala?',
+    reportWarnAreaMismatch: 'Ang {area} ektarya na apektadong sukat ay karaniwang {implied} na panganib ({range}), pero {selected} ang pinili mo. Tama ba ang sukat, o dapat bang baguhin ang antas ng panganib?',
+    reportWarnMismatch: 'Para sa {pest} sa yugtong {stage}, ang {value} {unit} ay karaniwang {implied} na panganib ({range}), pero {selected} ang pinili mo. Tama ba ang numero, o dapat bang baguhin ang antas ng panganib?',
 
     // Scan capture / analyzing / gallery
     scanCaptureTitle: 'AI Pagtukoy ng Peste',
@@ -351,7 +351,7 @@ export const translations = {
     reportPhotoRemoveAria: 'Remove photo',
     reportFieldPestType: 'Pest Type',
     reportPestPlaceholder: 'Choose a pest type...',
-    reportFieldSeverity: 'Severity Level',
+    reportFieldSeverity: 'Risk Level',
     reportFieldGrowthStage: 'Growth Stage',
     reportFieldAreaAffected: 'Area Affected (hectares)',
     reportAreaPlaceholder: 'e.g. 0.5',
@@ -384,8 +384,8 @@ export const translations = {
     reportSummaryPhotoYes: 'Attached',
     reportSummaryPhotoNo: 'None',
     reportWarnTitle: 'Check your entry',
-    reportWarnHighSmall: 'High severity usually means a larger affected area, but you entered only {area} has. Is the area correct, or should the severity be lower?',
-    reportWarnLowLarge: 'Low severity usually means a smaller affected area, but you entered {area} has. Is the area correct, or should the severity be higher?',
+    reportWarnAreaMismatch: 'An affected area of {area} has usually counts as {implied} risk ({range}), but you selected {selected}. Is the area correct, or should the risk level change?',
+    reportWarnMismatch: 'For {pest} at the {stage} stage, {value} {unit} usually counts as {implied} risk ({range}), but you selected {selected}. Is the number correct, or should the risk level change?',
 
     // Scan capture / analyzing / gallery
     scanCaptureTitle: 'AI Pest Scan',
