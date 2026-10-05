@@ -103,3 +103,43 @@
   display: inline-block;
   flex-shrink: 0;
 }
+
+/* Tap-to-detail popup, shown when a report pin is tapped. Leaflet's own
+   popup chrome (.leaflet-popup-content-wrapper/-tip) is restyled to match
+   the app's white rounded-card language instead of the default square
+   Leaflet look. */
+.leaflet-popup-content-wrapper {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.leaflet-popup-content {
+  margin: 10px 12px;
+}
+
+.map-report-popup-title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.map-report-popup-risk {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-top: 2px;
+}
+
+.map-report-popup-meta {
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+.map-report-popup-desc {
+  font-size: var(--text-2xs);
+  color: var(--color-text);
+  margin-top: 6px;
+  max-width: 220px;
+}
