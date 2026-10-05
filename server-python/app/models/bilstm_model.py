@@ -151,6 +151,19 @@ class BiLstmOutbreakForecaster:
             verbose=0,
         )
         predicted_value = float(prediction.flatten()[0])
+
+        # ml/bilstm/train.py --log-target fits on log1p(y); the inverse has to
+        # be applied here or every forecast would be served in log space and
+        # the ETL bucketing would read far too low. The flag travels in the
+        # scalers file, so whichever model is on disk is served correctly
+        # without anything else needing to know how it was trained.
+        if self._scalers[pest].get("log_target"):
+            predicted_value = float(np.expm1(predicted_value))
+
+        # A count or a damage percentage can't be negative; an unconstrained
+        # linear output head can be.
+        predicted_value = max(predicted_value, 0.0)
+
         unit = "hoppers_per_hill" if pest == "BPH" else "pct_damage"
         return BiLstmPrediction(predicted_value=predicted_value, unit=unit)
 

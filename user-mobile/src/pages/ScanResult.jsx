@@ -229,13 +229,13 @@ export default function ScanResult() {
 
           {!loadingForecast && forecast && forecastRisk && (
             <>
+              {/* No "adjusted by N verified reports" line: a verified report
+                  never shifts a live forecast any more (see _run_forecast in
+                  server-python/app/routers/inference.py). The backend always
+                  sends adjusted_by_reports=false, so rendering it was dead
+                  code that implied a feedback loop the system doesn't have. */}
               <div className="scan-result-confidence">
                 <RiskBadge level={forecastRisk} label={RISK_LABEL[forecastRisk][language]} />
-                {forecast.adjusted_by_reports && (
-                  <span>
-                    {t('scanResultAdjustedBy')} {forecast.verified_report_count} {t('scanResultVerifiedReports')}
-                  </span>
-                )}
               </div>
               <p className="scan-result-summary">{RISK_SUMMARY[forecastRisk][language]}</p>
             </>

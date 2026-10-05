@@ -188,12 +188,34 @@ the farmer sees today" and "what the farmer reported" cleanly separated.
 
 ## The BiLSTM pipeline, end to end
 
-1. **Raw data** → `ml/datasets/raw/{weather,pest}_raw.csv` (synthetic, generated to spec — see thesis Sources of Data; not yet real PhilRice/PAGASA records).
+1. **Raw data** → `ml/datasets/raw/{weather,pest}_raw.csv`. These are
+   **synthetically augmented from the real agency records the team obtained
+   under signed data-sharing agreements** (DA / RCPC Central Luzon, PhilRice,
+   DOST-PAGASA Region III, BPI). The real records are the seed and the
+   statistical reference; the series here were expanded from them to reach a
+   trainable daily volume across 5 municipalities × 2019–2024.
+
+   > **Fill this in before the defense.** The augmentation has to be
+   > reproducible and citable, so record here: how many real records were
+   > received, for which municipalities and date range, which distributions
+   > and correlations were preserved from the seed, the generation method, and
+   > the random seed. The panel will ask what is measured and what is
+   > generated — this section is the answer, and the thesis needs a matching
+   > "Data Augmentation" subsection under Sources of Data.
 2. **Clean**: `python -m ml.datasets.cleaning.clean_timeseries` → dedupes, fixes sensor errors, interpolates gaps, merges into `ml/datasets/processed/weather_pest_daily_clean.csv` + a `cleaning_report.json` you can cite directly.
 3. **Ingest verified reports** (optional, for a periodic retrain — see "Continuous learning" below): `python -m ml.bilstm.ingest_reports` → folds LGU-verified farmer reports into a second CSV that step 4 merges in automatically.
-4. **Build sequences**: `python -m ml.bilstm.build_sequences` → per-pest `.npz` files (14-day sequence features + static aggregate features + regression target), using per-pest parameters from `ml/config.py`.
-5. **Train**: `python -m ml.bilstm.train --pest BPH` (and `--pest RSB`) → chronological 70/15/15 split with a purge gap (not random — sequences overlap, so a random split would leak), saves `.keras` weights + scalers + test metrics to `ml/weights/{pest}/`.
-6. **Validate**: `python -m ml.validity_test` → re-checks the saved test metrics against a minimum R²/MAE bar, and separately checks live predictions against verified reports via the same comparison `GET /api/reports/{id}/gap-analysis` exposes. Prints a pass/fail per pest.
+4. **Build sequences**: `python -m ml.bilstm.build_sequences` → per-pest `.npz` files (14-day sequence features + static aggregate features + regression target), using per-pest parameters from `ml/config.py`. Add `--features raw` to also build the thesis's RQ2 control set (Tmax/Tmin/RH/rainfall only, no static vector) into `*_raw.npz`.
+5. **Train**: `python -m ml.bilstm.train --pest BPH` (and `--pest RSB`) → chronological 70/15/15 split with a purge gap (not random — sequences overlap, so a random split would leak), saves `.keras` weights + scalers + test metrics to `ml/weights/{pest}/`. Test metrics now carry both halves of RQ1.1: the regression scores and the ETL-derived Low/Medium/High agreement.
+
+   Flags, all of which write to their own suffixed filenames so the deployed model is never overwritten by an experiment:
+   - `--features raw` — the RQ2 control.
+   - `--features lagged` — adds the simulated last-verified-observation features.
+   - `--log-target` — fit on `log1p(y)`, inverted inside `predict()`. Counters the right-skew that otherwise collapses every prediction into the Low band.
+   - `--balance-bands` — inverse-frequency sample weights per ETL band, so rare High windows carry real loss.
+   - `--tag NAME` — extra filename suffix for an experiment run.
+6. **Score the ETL bucketing** (RQ1.1.2, without retraining): `python -m ml.bilstm.etl_metrics` → loads the weights already on disk, re-scores them on the same held-out split, and merges Accuracy/Precision/Recall/F1 (macro) plus a Low/Medium/High confusion matrix into each `bilstm_{pest}_test_metrics.json`.
+7. **Compare feature sets** (RQ2 + RQ3): `python -m ml.bilstm.compare_features --pest BPH` (and `--pest RSB`) → 5-fold expanding-window time-series CV, training both the engineered and the raw configuration on identical folds, then a paired-samples t-test per metric (Shapiro-Wilk first; Wilcoxon signed-rank when normality fails). Writes `bilstm_{pest}_feature_comparison.json` — this is what fills Table 3's rows 2 and 3. Requires step 4 to have been run both ways.
+8. **Validate**: `python -m ml.validity_test` → re-checks the saved test metrics against a minimum R²/MAE bar, and separately checks the model's forecast for each verified report's own date against that report's confirmed ETL band, via `GET /api/reports/{id}/gap-analysis`. Prints a pass/fail per pest and exits non-zero on failure. Needs the database up.
 7. **Serve**: `app/main.py` loads those weights at startup; `app/models/bilstm_model.py` rebuilds the same features at inference time from live weather.
 8. **Explain**: `ml/explainability/shap_report.py` — a `GradientExplainer` against a background sample from the pest's own training sequences, cached per pest after first use.
 

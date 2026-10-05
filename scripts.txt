@@ -176,9 +176,36 @@ python -m ml.bilstm.ingest_reports     # optional; folds verified reports
 python -m ml.bilstm.build_sequences
 python -m ml.bilstm.train --pest BPH
 python -m ml.bilstm.train --pest RSB
-python -m ml.validity_test             # pass/fail check on both pests
+python -m ml.validity_test             # pass/fail check on both pests (needs DB)
 Extras: python -m ml.bilstm.export_insights --pest BPH   (or RSB)
         python -m ml.explainability.shap_report --pest BPH   (or RSB)
+
+--- Thesis evidence: the numbers that fill Table 3 ---
+RQ1.1.2 — ETL Low/Medium/High agreement for the model already on disk
+(no retraining, leaves the weights and the cited R2/RMSE/MAE alone):
+python -m ml.bilstm.etl_metrics
+
+High-risk band recall — the plain model never predicts "High" (MSE on a
+skewed target collapses toward the mean). These two flags counter that;
+--tag keeps the experiment away from the deployed weights:
+python -m ml.bilstm.train --pest BPH --log-target --balance-bands --tag logw
+python -m ml.bilstm.train --pest RSB --log-target --balance-bands --tag logw
+
+Lagged verified-observation features (simulated reporting cadence, so the
+feature is as sparse in training as it is in production):
+python -m ml.bilstm.build_sequences --features lagged
+python -m ml.bilstm.train --pest BPH --features lagged
+python -m ml.bilstm.train --pest RSB --features lagged
+
+RQ2 + RQ3 — engineered vs raw climate features, 5-fold expanding-window
+time-series CV, then a paired t-test per metric (Wilcoxon when the paired
+differences fail Shapiro-Wilk). Build both feature sets first:
+python -m ml.bilstm.build_sequences                  # engineered
+python -m ml.bilstm.build_sequences --features raw   # the control
+python -m ml.bilstm.compare_features --pest BPH
+python -m ml.bilstm.compare_features --pest RSB
+(trains 10 models per pest — expect this to run for a while. Results go to
+ml/weights/{pest}/bilstm_{pest}_feature_comparison.json)
 
 --- Retrain the ResNet image model (needs the image dataset) ---
 python -m ml.resnet.prepare_dataset --pest BPH   (or RSB)

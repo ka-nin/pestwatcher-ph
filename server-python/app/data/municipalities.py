@@ -15,13 +15,18 @@ from app.db import session_scope
 from app.db_models import MunicipalityDB
 from app.schemas.locations import MunicipalityOption
 
-# Same four towns lgu_users.py and farmer_users.py already seed accounts
-# for — kept as a separate literal list rather than importing those seed
-# lists, since seeding order at startup isn't guaranteed and this table
-# should not depend on account data existing first.
+# Every municipality the BiLSTM was actually trained on — these are the five
+# in ml/datasets/processed/weather_pest_daily_clean.csv, so a forecast for any
+# of them is interpolation rather than extrapolation. Four of them also have
+# seeded LGU/farmer accounts (lgu_users.py, farmer_users.py); Cabanatuan City
+# is in the training data but has no seeded account, which is why it is listed
+# here rather than derived from the account tables. Kept as a separate literal
+# list for that reason, and because seeding order at startup isn't guaranteed.
 _SEED_MUNICIPALITIES = [
     MunicipalityOption(municipality="Science City of Muñoz", province="Nueva Ecija",
                         latitude=15.7167, longitude=120.9167),
+    MunicipalityOption(municipality="Cabanatuan City", province="Nueva Ecija",
+                        latitude=15.4869, longitude=120.9675),
     MunicipalityOption(municipality="Concepcion", province="Tarlac",
                         latitude=15.3167, longitude=120.6333),
     MunicipalityOption(municipality="San Miguel", province="Bulacan",
