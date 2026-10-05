@@ -6,6 +6,7 @@ import { pestTypeOptions, severityOptions, growthStageOptions } from '../data/mo
 import { submitReport } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { derivePestCode } from '../utils/pestMatching';
 import './ManualReport.css';
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -30,6 +31,17 @@ export default function ManualReport() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Matches server-python's derive_pest_code() so the unit shown here (hoppers/
+  // hill vs %) always agrees with how the backend interprets this same number.
+  const pestCode = derivePestCode(pestType);
+  const estimatedCountLabelKey =
+    pestCode === 'BPH'
+      ? 'reportFieldEstimatedCountBph'
+      : pestCode === 'RSB'
+        ? 'reportFieldEstimatedCountRsb'
+        : 'reportFieldEstimatedCount';
+  const estimatedUnit = pestCode === 'BPH' ? t('reportEstimatedUnitBph') : pestCode === 'RSB' ? t('reportEstimatedUnitRsb') : null;
 
   const handlePickPhoto = () => fileInputRef.current?.click();
 
@@ -178,18 +190,21 @@ export default function ManualReport() {
         </label>
 
         <label className="report-field">
-          <span>{t('reportFieldEstimatedCount')}</span>
-          <div className="report-static-field">
+          <span>{t(estimatedCountLabelKey)}</span>
+          <div className={`report-static-field${pestCode ? '' : ' report-static-field-disabled'}`}>
             <input
               type="number"
               min="0"
+              max={pestCode === 'RSB' ? 100 : undefined}
               step="0.1"
               inputMode="decimal"
-              placeholder={t('reportEstimatedPlaceholder')}
+              disabled={!pestCode}
+              placeholder={pestCode ? t('reportEstimatedPlaceholder') : t('reportEstimatedChoosePestFirst')}
               value={estimatedValue}
               onChange={(e) => setEstimatedValue(e.target.value)}
               className="report-date-input"
             />
+            {estimatedUnit && <span className="report-field-unit">{estimatedUnit}</span>}
           </div>
         </label>
 
