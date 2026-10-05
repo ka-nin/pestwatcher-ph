@@ -90,14 +90,16 @@ function ProvinceMap({ latitude, longitude, label, reports = [] }: ProvinceMapPr
       map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 })
     }
 
-    // Farmer-reported sightings with a known location — colored by severity,
-    // clicking one flies the map in to that exact spot.
+    // Farmer-reported sightings with a known location — colored by the
+    // farmer's reported risk level (report.severity), shown to the user as
+    // "risk" for vocabulary consistency with the rest of the dashboard.
+    // Clicking a pin flies the map in to that exact spot.
     pinnableReports.forEach((report) => {
         const color = SEVERITY_COLOR[report.severity] ?? '#999'
         const pos: [number, number] = [report.latitude as number, report.longitude as number]
 
         // Verified = solid pin (the same set the mobile app counts as active
-        // threat zones); pending = faint pin with a dashed severity-colored
+        // threat zones); pending = faint pin with a dashed risk-colored
         // ring, so unreviewed reports are visibly distinct.
         const isVerified = report.status === 'verified'
 

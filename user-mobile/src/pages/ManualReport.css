@@ -171,6 +171,27 @@
   font-family: inherit;
 }
 
+.report-field-unit {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.report-static-field-disabled {
+  background: var(--color-border);
+  opacity: 0.7;
+}
+
+.report-static-field-disabled .report-date-input {
+  cursor: not-allowed;
+}
+
+.report-static-field-disabled .report-date-input::placeholder {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
 .report-field textarea {
   width: 100%;
   padding: 12px 14px;
