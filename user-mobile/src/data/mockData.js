@@ -469,3 +469,43 @@ export const growthStageOptions = [
   'Flowering',
   'Ripening',
 ];
+
+// Display names only — the English keys above are what's stored and sent to
+// the backend, so they must not be translated.
+export const growthStageLabels = {
+  Seedling: { fil: 'Punla', en: 'Seedling' },
+  Tillering: { fil: 'Pagsusuhi', en: 'Tillering' },
+  Elongation: { fil: 'Paghahaba ng Puno', en: 'Elongation' },
+  Panicle: { fil: 'Pagbubuo ng Uhay', en: 'Panicle' },
+  Flowering: { fil: 'Pamumulaklak', en: 'Flowering' },
+  Ripening: { fil: 'Paghihinog', en: 'Ripening' },
+};
+
+// One-line explanation shown under the growth-stage dropdown so a farmer
+// who is unsure can tell the stages apart.
+export const growthStageDescriptions = {
+  Seedling: {
+    fil: 'Mga murang punla, mula pagsibol hanggang bago ilipat-tanim (humigit-kumulang unang 3 linggo).',
+    en: 'Young plants, from germination until transplanting (about the first 3 weeks).',
+  },
+  Tillering: {
+    fil: 'Sumusulpot ang mga bagong suhi sa puno ng palay pagkatapos ilipat-tanim.',
+    en: 'New shoots (tillers) grow from the base of the plant after transplanting.',
+  },
+  Elongation: {
+    fil: 'Humahaba ang puno at tumataas ang palay bago mabuo ang uhay.',
+    en: 'The stem lengthens and the plant grows tall before the panicle forms.',
+  },
+  Panicle: {
+    fil: 'Nabubuo ang uhay sa loob ng puno at nagsisimulang lumabas.',
+    en: 'The panicle (grain head) forms inside the stem and begins to emerge.',
+  },
+  Flowering: {
+    fil: 'Namumulaklak ang uhay at nagaganap ang polinasyon.',
+    en: 'Flowers open on the panicle and pollination takes place.',
+  },
+  Ripening: {
+    fil: 'Nagkakalaman at tumitigas ang mga butil, at nagiging ginintuan hanggang anihan.',
+    en: 'Grains fill and harden and turn golden until harvest.',
+  },
+};

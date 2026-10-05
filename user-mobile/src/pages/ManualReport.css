@@ -101,17 +101,6 @@
   align-items: center;
 }
 
-.report-select select {
-  width: 100%;
-  appearance: none;
-  padding: 13px 36px 13px 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  font-size: var(--text-base);
-  color: var(--color-text);
-}
-
 .report-select svg {
   position: absolute;
   right: 12px;
@@ -149,18 +138,6 @@
   border-radius: 50%;
 }
 
-.report-static-field {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 13px 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  font-size: var(--text-base);
-  color: var(--color-text);
-}
-
 .report-date-input {
   border: none;
   outline: none;
@@ -176,32 +153,6 @@
   font-size: 12.5px;
   color: var(--color-text-muted);
   white-space: nowrap;
-}
-
-.report-static-field-disabled {
-  background: var(--color-border);
-  opacity: 0.7;
-}
-
-.report-static-field-disabled .report-date-input {
-  cursor: not-allowed;
-}
-
-.report-static-field-disabled .report-date-input::placeholder {
-  color: var(--color-text-muted);
-  font-style: italic;
-}
-
-.report-field textarea {
-  width: 100%;
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  font-size: var(--text-sm);
-  font-family: inherit;
-  color: var(--color-text);
-  resize: vertical;
 }
 
 .report-submit {
@@ -352,4 +303,97 @@
   color: var(--color-text);
   font-weight: 700;
   font-size: var(--text-base);
+}
+
+.report-threshold-hint {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  color: var(--color-text-muted);
+}
+
+.report-threshold-hint strong {
+  color: var(--color-text);
+}
+
+/* One shared control style so every text field, dropdown and the notes box
+   have the same height, border, radius, font and focus ring. */
+.report-select select,
+.report-static-field,
+.report-field textarea {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: var(--text-base);
+  color: var(--color-text);
+}
+
+.report-select select,
+.report-static-field {
+  min-height: 48px;
+}
+
+.report-select select {
+  appearance: none;
+  padding: 0 36px 0 14px;
+}
+
+.report-static-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+}
+
+.report-field textarea {
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.report-select select:focus,
+.report-static-field:focus-within,
+.report-field textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(63, 125, 58, 0.15);
+}
+
+.report-date-input::placeholder,
+.report-field textarea::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+/* Read-only / unavailable fields: flat grey, muted text, no focus ring. */
+.report-static-field-readonly,
+.report-static-field-disabled {
+  background: #e9e6dc;
+  border-color: #dcd8cb;
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.report-static-field-readonly:focus-within,
+.report-static-field-disabled:focus-within {
+  border-color: #dcd8cb;
+  box-shadow: none;
+}
+
+.report-static-field-disabled .report-date-input {
+  cursor: not-allowed;
+}
+
+.report-static-field-disabled .report-date-input::placeholder {
+  font-style: italic;
+  opacity: 1;
+}
+
+.report-stage-description {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  color: var(--color-text-muted);
 }
