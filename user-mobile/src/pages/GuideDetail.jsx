@@ -3,6 +3,7 @@ import { X, ShieldAlert } from 'lucide-react';
 import { pestGuide } from '../data/mockData';
 import { PestHeroMedia } from '../data/pestIcons';
 import { useLanguage } from '../context/LanguageContext';
+import { pestNames } from '../utils/pestNames';
 import './GuideDetail.css';
 
 // Whether this entry is one of the two pests this app's forecaster
@@ -20,7 +21,8 @@ export default function GuideDetail() {
   const trackedStyle = entry.isTracked ? TRACKED_STYLE : REFERENCE_STYLE;
   const isEn = language === 'en';
 
-  const displayName = isEn ? entry.nameEn || entry.name : entry.name;
+  const names = pestNames(entry, language);
+  const displayName = names.primary;
   const description = isEn ? entry.descriptionEn || entry.description : entry.description;
   const signs = isEn ? entry.signsEn || entry.signs : entry.signs;
   const prevention = isEn ? entry.preventionEn || entry.prevention : entry.prevention;
@@ -47,11 +49,7 @@ export default function GuideDetail() {
         </div>
         <h1>{displayName}</h1>
         <p className="guide-detail-fil">
-          {isEn ? entry.scientificName && <em>{entry.scientificName}</em> : (
-            <>
-              {entry.nameFil} {entry.scientificName && <em>({entry.scientificName})</em>}
-            </>
-          )}
+          {names.secondary} {entry.scientificName && <em>({entry.scientificName})</em>}
         </p>
 
         <section>

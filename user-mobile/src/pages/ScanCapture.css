@@ -67,7 +67,7 @@
 }
 
 .scan-frame-status {
-  font-size: 12.5px;
+  font-size: var(--text-sm);
   color: rgba(255, 255, 255, 0.8);
   line-height: 1.5;
   max-width: 220px;
@@ -93,7 +93,7 @@
 .scan-choice-title {
   margin: 0 0 6px;
   text-align: center;
-  font-size: 14px;
+  font-size: var(--text-base);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.9);
 }
@@ -112,13 +112,13 @@
 
 .scan-choice-btn strong {
   display: block;
-  font-size: 13.5px;
+  font-size: var(--text-base);
   color: var(--color-text);
 }
 
 .scan-choice-btn small {
   display: block;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
   margin-top: 2px;
 }
@@ -139,7 +139,7 @@
   border: none;
   background: none;
   color: var(--color-primary-dark);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 700;
   text-decoration: underline;
   margin: -8px 0 16px;
@@ -162,13 +162,13 @@
 
 .scan-body h2 {
   text-align: center;
-  font-size: 15px;
+  font-size: var(--text-base);
   margin: 0 0 6px;
 }
 
 .scan-instructions {
   text-align: center;
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
   line-height: 1.5;
   margin: 0 0 14px;
@@ -181,7 +181,7 @@
   margin: 0 0 22px;
   display: flex;
   gap: 16px;
-  font-size: 11.5px;
+  font-size: var(--text-xs);
   color: var(--color-primary-dark);
   font-weight: 600;
 }
@@ -250,13 +250,13 @@
 
 .scan-analyzing-text {
   color: #fff;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 700;
 }
 
 .scan-error {
   text-align: center;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: #b23a2f;
   background: rgba(214, 69, 69, 0.12);

@@ -64,14 +64,14 @@
 }
 
 .guide-detail-category {
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.5px;
   color: var(--color-text-muted);
 }
 
 .guide-detail-danger {
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   padding: 3px 10px;
   border-radius: 999px;
@@ -79,12 +79,12 @@
 
 .guide-detail-sheet h1 {
   margin: 0 0 2px;
-  font-size: 20px;
+  font-size: var(--text-lg);
 }
 
 .guide-detail-fil {
   margin: 0 0 16px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--color-primary-dark);
 }
 
@@ -94,7 +94,7 @@
 
 .guide-detail-sheet h2 {
   margin: 0 0 6px;
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.5px;
   color: var(--color-primary-dark);
@@ -102,7 +102,7 @@
 
 .guide-detail-sheet p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.55;
   color: var(--color-text);
 }
@@ -110,7 +110,7 @@
 .guide-detail-sheet ul {
   margin: 0;
   padding-left: 18px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.7;
   color: var(--color-text);
 }
@@ -133,6 +133,6 @@
   border: none;
   padding: 14px;
   border-radius: 999px;
-  font-size: 14px;
+  font-size: var(--text-base);
   font-weight: 700;
 }

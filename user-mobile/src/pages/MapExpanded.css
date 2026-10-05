@@ -17,13 +17,13 @@
 
 .map-expanded-header h1 {
   margin: 0;
-  font-size: 17px;
+  font-size: var(--text-md);
   font-weight: 800;
 }
 
 .map-expanded-header p {
   margin: 2px 0 0;
-  font-size: 12px;
+  font-size: var(--text-sm);
   opacity: 0.85;
 }
 

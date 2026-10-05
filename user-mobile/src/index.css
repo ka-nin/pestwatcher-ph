@@ -36,7 +36,7 @@
 
   /* -apple-system first so iOS/macOS get SF Pro (this app is tested in
      mobile Safari/Chrome), then Segoe on Windows, Roboto on Android. */
-  --font-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, sans-serif;
+  --font-base: 'Inter Variable', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, sans-serif;
 
   /* Type scale — paired size/line-height so vertical rhythm stays even.
      Replaces the ad-hoc 9.5/10/10.5/11/12.5/13/13.5/14/17/22/26px values

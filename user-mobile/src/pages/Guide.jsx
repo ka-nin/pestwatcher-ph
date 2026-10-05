@@ -4,6 +4,7 @@ import { Search, ChevronRight } from 'lucide-react';
 import { pestGuide } from '../data/mockData';
 import { PestIcon, getPestIcon } from '../data/pestIcons';
 import { useLanguage } from '../context/LanguageContext';
+import { pestNames } from '../utils/pestNames';
 import './Guide.css';
 
 const FILTERS = [
@@ -78,6 +79,7 @@ export default function Guide() {
         <div className="guide-list">
           {results.map((entry) => {
             const trackedStyle = entry.isTracked ? TRACKED_STYLE : REFERENCE_STYLE;
+            const names = pestNames(entry, language);
             return (
               <button
                 key={entry.id}
@@ -102,10 +104,8 @@ export default function Guide() {
                       {t(entry.isTracked ? 'guideTrackedBadge' : 'guideReferenceBadge')}
                     </span>
                   </div>
-                  <h3>{language === 'en' ? entry.nameEn || entry.name : entry.name}</h3>
-                  <p className="guide-card-fil">
-                    {language === 'en' ? entry.scientificName || '' : entry.nameFil}
-                  </p>
+                  <h3>{names.primary}</h3>
+                  {names.secondary && <p className="guide-card-fil">{names.secondary}</p>}
                   <p className="guide-card-summary">
                     {language === 'en' ? entry.summaryEn || entry.summary : entry.summary}
                   </p>

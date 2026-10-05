@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import {
-  CheckCircle2,
+  Check,
   AlertTriangle,
-  XCircle,
+  X,
   Lightbulb,
   Thermometer,
   CloudRain,
@@ -36,9 +36,9 @@ const LEVEL_COLOR = {
 };
 
 const RISK_META = {
-  low: { icon: CheckCircle2, accent: '#3f7d3a', accentSoft: 'rgba(63, 125, 58, 0.12)' },
+  low: { icon: Check, accent: '#3f7d3a', accentSoft: 'rgba(63, 125, 58, 0.12)' },
   medium: { icon: AlertTriangle, accent: '#b8791f', accentSoft: 'rgba(184, 121, 31, 0.14)' },
-  high: { icon: XCircle, accent: '#b23a2f', accentSoft: 'rgba(178, 58, 47, 0.14)' },
+  high: { icon: X, accent: '#b23a2f', accentSoft: 'rgba(178, 58, 47, 0.14)' },
 };
 
 const RISK_RANK = { Low: 0, Medium: 1, High: 2 };
@@ -70,11 +70,11 @@ function TrendTick({ x, y, payload, data }) {
   const item = data[payload.index];
   return (
     <g transform={`translate(${x},${y})`}>
-      <text dy={12} textAnchor="middle" fontSize={10} fill="var(--color-text-muted)">
+      <text dy={12} textAnchor="middle" style={{ fontSize: "var(--text-2xs)" }} fill="var(--color-text-muted)">
         {item?.dow ?? item?.day}
       </text>
       {item?.dom != null && (
-        <text dy={24} textAnchor="middle" fontSize={9} fill="var(--color-text-muted)" opacity={0.7}>
+        <text dy={24} textAnchor="middle" style={{ fontSize: "var(--text-2xs)" }} fill="var(--color-text-muted)" opacity={0.7}>
           {item.dom}
         </text>
       )}
@@ -268,7 +268,7 @@ export default function Home() {
           <div className="hero-risk-content" key={activePest}>
             <div className="hero-risk-top">
               <div className="hero-risk-icon" style={{ borderColor: risk.accent, color: risk.accent }}>
-                <RiskIcon size={22} strokeWidth={2} />
+                <RiskIcon size={22} strokeWidth={2.5} />
               </div>
               <span className="hero-risk-chip" style={{ background: risk.accentSoft, color: risk.accent }}>
                 {loading ? t('homeCalculating') : t(`riskLabel${riskLevel[0].toUpperCase()}${riskLevel.slice(1)}`)}
@@ -323,8 +323,15 @@ export default function Home() {
 
         <section className="weather-tiles-block">
           <div className="weather-tiles-live">
-            <span className="weather-tiles-live-dot" />
-            {t('homeWeatherLive')} {weatherUpdatedAt ? `· ${t('homeWeatherUpdated')} ${formatClockTime(weatherUpdatedAt)}` : ''}
+            <span className="weather-tiles-live-pill">
+              <span className="weather-tiles-live-dot" />
+              {t('homeWeatherLive')}
+            </span>
+            {weatherUpdatedAt && (
+              <span className="weather-tiles-live-time">
+                {t('homeWeatherUpdated')} {formatClockTime(weatherUpdatedAt)}
+              </span>
+            )}
           </div>
           <div className="weather-tiles">
             <div className="weather-tile">

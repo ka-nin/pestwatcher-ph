@@ -1,4 +1,4 @@
-import { MapPin, SlidersHorizontal } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import RiskBadge from '../components/RiskBadge';
 import WeatherMap from '../components/WeatherMap';
@@ -34,9 +34,6 @@ export default function Alerts() {
             {currentLocation.province} {t('alertsSubtitle')}
           </p>
         </div>
-        <button className="alerts-header-filter" aria-label={t('alertsFilterLabel')}>
-          <SlidersHorizontal size={16} />
-        </button>
       </div>
 
       <div className="alerts-body">
@@ -46,7 +43,7 @@ export default function Alerts() {
             <span>
               {loading
                 ? t('alertsMapLoading')
-                : `${reports.length} ${t('alertsMapShowing')}${reports.length === 1 ? '' : 's'}`}
+                : `${reports.length} ${t(reports.length === 1 ? 'alertsMapShowing' : 'alertsMapShowingMany')}`}
             </span>
             <button onClick={() => navigate('/alerts/map')}>{t('alertsExpandMap')}</button>
           </div>
@@ -122,7 +119,11 @@ export default function Alerts() {
               </div>
 
               <h3>{alert.pestName}</h3>
-              <p className="alert-scientific">{alert.scientificName}</p>
+              <p className="alert-scientific">
+                {alert.pestNameAlt}
+                {alert.pestNameAlt && alert.scientificName !== '—' && ' · '}
+                {alert.scientificName !== '—' && <em>{alert.scientificName}</em>}
+              </p>
 
               <p className="alert-location">
                 <MapPin size={13} />
