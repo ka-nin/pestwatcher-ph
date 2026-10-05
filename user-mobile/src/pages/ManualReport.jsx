@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Edit3, MapPin, Calendar, ChevronDown, Check, X, AlertTriangle } from 'lucide-react';
+import { Camera, Edit3, MapPin, Calendar, ChevronDown, Lock, X, AlertTriangle } from 'lucide-react';
 import ScreenHeader from '../components/ScreenHeader';
-import { pestTypeOptions, severityOptions, growthStageOptions } from '../data/mockData';
+import { pestTypeOptions, severityOptions, growthStageOptions, growthStageLabels, growthStageDescriptions, etlThresholds } from '../data/mockData';
 import { submitReport } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -11,20 +11,58 @@ import './ManualReport.css';
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-// Sanity bounds (hectares) for how much affected area a severity level
-// plausibly describes. A "High" report covering a sliver of a field, or a
-// "Low" one covering several hectares, is probably a mis-tap — the farmer is
-// warned, not blocked, since a small but intense infestation can be real.
-const HIGH_MIN_AREA_HA = 0.5;
-const LOW_MAX_AREA_HA = 2;
+// Same Vegetative/Reproductive split as GROWTH_STAGE_BUCKETS in
+// server-python/ml/config.py.
+const GROWTH_BUCKET = {
+  Seedling: 'Vegetative',
+  Tillering: 'Vegetative',
+  Elongation: 'Vegetative',
+  Panicle: 'Reproductive',
+  Flowering: 'Reproductive',
+  Ripening: 'Reproductive',
+};
+const GUIDE_ID_BY_PEST = { BPH: 'bph', RSB: 'stem-borer' };
 
-function severityMismatch(severity, areaValue) {
-  const area = parseFloat(areaValue);
-  if (Number.isNaN(area)) return null;
-  if (severity === 'high' && area < HIGH_MIN_AREA_HA) return 'highSmall';
-  if (severity === 'low' && area >= LOW_MAX_AREA_HA) return 'lowLarge';
-  return null;
+// ETL band (etlThresholds in mockData.js — the thesis ETL table) for this
+// pest at this growth stage, plus the unit the number is measured in.
+function etlBandFor(pestCode, growthStage) {
+  const pest = etlThresholds[GUIDE_ID_BY_PEST[pestCode]];
+  const band = pest?.[GROWTH_BUCKET[growthStage] || 'Vegetative'];
+  if (!band) return null;
+  return { low: band.low, medium: band.medium, unit: band.unit ?? pest.unit };
 }
+
+// Table boundaries: below `low` is Low, `low` to `medium` is Medium, above
+// `medium` is High.
+function riskForValue(value, band) {
+  if (value < band.low) return 'low';
+  if (value > band.medium) return 'high';
+  return 'medium';
+}
+
+// "<10", "10–20", ">20" — the range each risk level covers.
+function rangeFor(level, band) {
+  if (level === 'low') return `<${band.low}`;
+  if (level === 'medium') return `${band.low}–${band.medium}`;
+  return `>${band.medium}`;
+}
+
+// Risk level the affected area (hectares) points to:
+//   Low < 0.5 · Medium 0.5 to 1 · High > 1
+const AREA_MEDIUM_MIN_HA = 0.5;
+const AREA_HIGH_ABOVE_HA = 1;
+
+function riskForArea(area) {
+  if (area < AREA_MEDIUM_MIN_HA) return 'low';
+  if (area > AREA_HIGH_ABOVE_HA) return 'high';
+  return 'medium';
+}
+
+const AREA_RANGE = {
+  low: `<${AREA_MEDIUM_MIN_HA}`,
+  medium: `${AREA_MEDIUM_MIN_HA}–${AREA_HIGH_ABOVE_HA}`,
+  high: `>${AREA_HIGH_ABOVE_HA}`,
+};
 
 export default function ManualReport() {
   const navigate = useNavigate();
@@ -50,8 +88,6 @@ export default function ManualReport() {
 
   const pestLabel = pestTypeOptions.find((o) => o.value === pestType)?.[language];
   const severityOpt = severityOptions.find((o) => o.id === severity);
-  const mismatch = severityMismatch(severity, areaAffected);
-
   // Matches server-python's derive_pest_code() so the unit shown below
   // (hoppers/hill vs %) always agrees with how the backend interprets this
   // same number.
@@ -64,6 +100,11 @@ export default function ManualReport() {
         : 'reportFieldEstimatedCount';
   const estimatedUnit =
     pestCode === 'BPH' ? t('reportEstimatedUnitBph') : pestCode === 'RSB' ? t('reportEstimatedUnitRsb') : null;
+  const etlBand = pestCode ? etlBandFor(pestCode, cropGrowthStage) : null;
+  const estimated = parseFloat(estimatedValue);
+  const impliedRisk = etlBand && !Number.isNaN(estimated) ? riskForValue(estimated, etlBand) : null;
+  const mismatch = impliedRisk && impliedRisk !== severity ? impliedRisk : null;
+  const impliedOpt = severityOptions.find((o) => o.id === mismatch);
   const dateLabel = dateSpotted
     ? new Date(`${dateSpotted}T00:00:00`).toLocaleDateString(language === 'en' ? 'en-US' : 'fil-PH', {
         month: 'long',
@@ -71,26 +112,47 @@ export default function ManualReport() {
         year: 'numeric',
       })
     : '—';
-  const warningEl = mismatch && (
+  const area = parseFloat(areaAffected);
+  const impliedAreaRisk = Number.isNaN(area) ? null : riskForArea(area);
+  const areaMismatch = impliedAreaRisk && impliedAreaRisk !== severity ? impliedAreaRisk : null;
+  const impliedAreaOpt = severityOptions.find((o) => o.id === areaMismatch);
+
+  const warningBox = (text) => (
     <div className="report-warning" role="alert">
       <AlertTriangle size={18} />
       <div>
         <strong>{t('reportWarnTitle')}</strong>
-        <p>
-          {t(mismatch === 'highSmall' ? 'reportWarnHighSmall' : 'reportWarnLowLarge').replace(
-            '{area}',
-            areaAffected
-          )}
-        </p>
+        <p>{text}</p>
       </div>
     </div>
   );
+  const areaWarningEl =
+    areaMismatch &&
+    warningBox(
+      t('reportWarnAreaMismatch')
+        .replace('{area}', areaAffected)
+        .replace('{implied}', impliedAreaOpt?.[language] ?? '')
+        .replace('{range}', `${AREA_RANGE[areaMismatch]} ${t('reportSummaryHectares')}`)
+        .replace('{selected}', severityOpt?.[language] ?? '')
+    );
+  const warningEl =
+    mismatch &&
+    warningBox(
+      t('reportWarnMismatch')
+        .replace('{pest}', pestCode)
+        .replace('{stage}', growthStageLabels[cropGrowthStage]?.[language] ?? cropGrowthStage)
+        .replace('{value}', estimatedValue)
+        .replace('{unit}', etlBand.unit)
+        .replace('{implied}', impliedOpt?.[language] ?? '')
+        .replace('{range}', `${rangeFor(mismatch, etlBand)} ${etlBand.unit}`)
+        .replace('{selected}', severityOpt?.[language] ?? '')
+    );
   const summaryRows = [
     [t('reportFieldPestType'), pestLabel || '—'],
     [t('reportFieldSeverity'), severityOpt?.[language], severityOpt?.color],
-    [t('reportSummaryGrowthStage'), cropGrowthStage],
+    [t('reportSummaryGrowthStage'), growthStageLabels[cropGrowthStage]?.[language] ?? cropGrowthStage],
     [t('reportSummaryArea'), areaAffected !== '' ? `${areaAffected} ${t('reportSummaryHectares')}` : '—'],
-    [t('reportSummaryCount'), estimatedValue !== '' ? estimatedValue : '—'],
+    [t('reportSummaryCount'), estimatedValue !== '' ? `${estimatedValue}${estimatedUnit ? ` ${estimatedUnit}` : ''}` : '—'],
     [t('reportSummaryLocation'), user ? `${user.municipality}, ${user.province}` : t('reportNoLocation')],
     [t('reportFieldDateSpotted'), dateLabel],
     [t('reportSummaryPhoto'), photoFile ? t('reportSummaryPhotoYes') : t('reportSummaryPhotoNo')],
@@ -218,6 +280,17 @@ export default function ManualReport() {
               </button>
             ))}
           </div>
+          {etlBand && (
+            <p className="report-threshold-hint">
+              {severityOptions.map((opt, i) => (
+                <span key={opt.id}>
+                  {i > 0 && ' · '}
+                  <strong>{opt[language]}</strong> {rangeFor(opt.id, etlBand)}
+                </span>
+              ))}{' '}
+              {etlBand.unit}
+            </p>
+          )}
         </div>
 
         <label className="report-field">
@@ -226,15 +299,16 @@ export default function ManualReport() {
             <select value={cropGrowthStage} onChange={(e) => setCropGrowthStage(e.target.value)} required>
               {growthStageOptions.map((stage) => (
                 <option key={stage} value={stage}>
-                  {stage}
+                  {growthStageLabels[stage]?.[language] ?? stage}
                 </option>
               ))}
             </select>
             <ChevronDown size={16} />
           </div>
+          <p className="report-stage-description">{growthStageDescriptions[cropGrowthStage]?.[language]}</p>
         </label>
 
-        {warningEl}
+        {areaWarningEl}
 
         <label className="report-field">
           <span>{t('reportFieldAreaAffected')}</span>
@@ -250,7 +324,18 @@ export default function ManualReport() {
               className="report-date-input"
             />
           </div>
+          <p className="report-threshold-hint">
+            {severityOptions.map((opt, i) => (
+              <span key={opt.id}>
+                {i > 0 && ' · '}
+                <strong>{opt[language]}</strong> {AREA_RANGE[opt.id]}
+              </span>
+            ))}{' '}
+            {t('reportSummaryHectares')}
+          </p>
         </label>
+
+        {warningEl}
 
         <label className="report-field">
           <span>{t(estimatedCountLabelKey)}</span>
@@ -273,10 +358,10 @@ export default function ManualReport() {
 
         <label className="report-field">
           <span>{t('reportFieldLocation')}</span>
-          <div className="report-static-field">
-            <MapPin size={15} color="var(--color-primary)" />
+          <div className="report-static-field report-static-field-readonly" aria-readonly="true">
+            <MapPin size={15} />
             {user ? `${user.municipality}, ${user.province}` : t('reportNoLocation')}
-            <Check size={15} color="var(--color-primary)" style={{ marginLeft: 'auto' }} />
+            <Lock size={14} style={{ marginLeft: 'auto' }} />
           </div>
         </label>
 
@@ -323,6 +408,7 @@ export default function ManualReport() {
             <h2>{t('reportSummaryTitle')}</h2>
             <p className="report-modal-hint">{t('reportConfirmHint')}</p>
 
+            {areaWarningEl}
             {warningEl}
 
             <dl>
