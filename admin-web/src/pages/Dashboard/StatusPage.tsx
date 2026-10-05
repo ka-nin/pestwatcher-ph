@@ -387,7 +387,7 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
           <div className="panel-head">
             <div>
               <div className="panel-title">{user.province} Province Map</div>
-              <div className="panel-subtitle">Farmer-reported sightings across the province, pinned by severity — click a pin to zoom in</div>
+              <div className="panel-subtitle">Farmer-reported sightings across the province, pinned by risk — click a pin to zoom in</div>
             </div>
             <span className="badge badge-green">LIVE</span>
           </div>
@@ -401,13 +401,13 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
 
           <div className="map-legend">
             <span className="legend-item">
-              <span className="legend-dot legend-dot-low" /> Low severity
+              <span className="legend-dot legend-dot-low" /> Low risk
             </span>
             <span className="legend-item">
-              <span className="legend-dot legend-dot-mid" /> Medium severity
+              <span className="legend-dot legend-dot-mid" /> Medium risk
             </span>
             <span className="legend-item">
-              <span className="legend-dot legend-dot-high" /> High severity
+              <span className="legend-dot legend-dot-high" /> High risk
             </span>
             <span className="legend-item">
               <span className="legend-dot legend-dot-verified" /> Verified

@@ -51,6 +51,19 @@ export default function ManualReport() {
   const pestLabel = pestTypeOptions.find((o) => o.value === pestType)?.[language];
   const severityOpt = severityOptions.find((o) => o.id === severity);
   const mismatch = severityMismatch(severity, areaAffected);
+
+  // Matches server-python's derive_pest_code() so the unit shown below
+  // (hoppers/hill vs %) always agrees with how the backend interprets this
+  // same number.
+  const pestCode = derivePestCode(pestType);
+  const estimatedCountLabelKey =
+    pestCode === 'BPH'
+      ? 'reportFieldEstimatedCountBph'
+      : pestCode === 'RSB'
+        ? 'reportFieldEstimatedCountRsb'
+        : 'reportFieldEstimatedCount';
+  const estimatedUnit =
+    pestCode === 'BPH' ? t('reportEstimatedUnitBph') : pestCode === 'RSB' ? t('reportEstimatedUnitRsb') : null;
   const dateLabel = dateSpotted
     ? new Date(`${dateSpotted}T00:00:00`).toLocaleDateString(language === 'en' ? 'en-US' : 'fil-PH', {
         month: 'long',
