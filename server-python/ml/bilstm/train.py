@@ -143,8 +143,10 @@ def predict(model: keras.Model, X_seq, X_static_scaled, log_target: bool = False
     return np.maximum(y_pred, 0.0)
 
 
-def band_sample_weights(pest: str, y: np.ndarray, is_reproductive: np.ndarray) -> np.ndarray:
-    """Inverse-frequency weight per ETL band.
+def band_sample_weights(
+    pest: str, y: np.ndarray, is_reproductive: np.ndarray, power: float = 1.0
+) -> np.ndarray:
+    """Inverse-frequency weight per ETL band, raised to `power`.
 
     Plain MSE on a right-skewed target pulls every prediction toward the mean,
     which on this data sits inside the Low band — so the model never crosses a
@@ -152,12 +154,23 @@ def band_sample_weights(pest: str, y: np.ndarray, is_reproductive: np.ndarray) -
     by the inverse frequency of its own band tells the optimizer that the rare
     High windows cost as much to miss as the common Low ones, which is also the
     agronomic reality: a missed outbreak costs more than a false alarm.
+
+    `power` controls how hard that correction is applied:
+      1.0 — full inverse frequency. Strongest pull toward the rare bands, but
+            when a band has only a handful of samples (RSB's High band has 4 in
+            the test split) it hands those few enormous weight and destabilizes
+            the fit — measured: RSB R2 fell 0.206 -> 0.035.
+      0.5 — square root of the inverse frequency. The usual middle ground:
+            still corrects the imbalance, without letting a 4-sample band
+            dominate the gradient.
+      0.0 — no weighting, identical to leaving the flag off.
     """
     levels = np.array(to_risk_levels(pest, y, is_reproductive))
     weights = np.ones(len(levels), dtype=np.float32)
+    n_levels = len(np.unique(levels))
     for level in np.unique(levels):
         mask = levels == level
-        weights[mask] = len(levels) / (len(np.unique(levels)) * mask.sum())
+        weights[mask] = (len(levels) / (n_levels * mask.sum())) ** power
     return weights
 
 
@@ -217,6 +230,13 @@ def main() -> None:
         "High-risk windows carry as much loss as common Low ones.",
     )
     parser.add_argument(
+        "--band-weight-power",
+        type=float,
+        default=1.0,
+        help="How hard --balance-bands corrects the imbalance: 1.0 = full inverse frequency, "
+        "0.5 = square root (gentler, safer when a band has very few samples).",
+    )
+    parser.add_argument(
         "--tag",
         default="",
         help="Extra suffix for the saved weights/scalers/metrics, for running an experiment "
@@ -247,7 +267,9 @@ def main() -> None:
     # Band weights are computed from the UNTRANSFORMED target, so the band a
     # sample belongs to is the same one the ETL check will score it against.
     sample_weight = (
-        band_sample_weights(pest, y_train, is_reproductive[train_idx]) if args.balance_bands else None
+        band_sample_weights(pest, y_train, is_reproductive[train_idx], args.band_weight_power)
+        if args.balance_bands
+        else None
     )
 
     # The transform is applied after the weights and after the split, and is
@@ -282,6 +304,8 @@ def main() -> None:
     test_metrics["feature_set"] = args.features
     test_metrics["log_target"] = args.log_target
     test_metrics["balance_bands"] = args.balance_bands
+    if args.balance_bands:
+        test_metrics["band_weight_power"] = args.band_weight_power
     print(f"{pest} test metrics (regression + ETL agreement):", json.dumps(test_metrics, indent=2))
 
     suffix = FEATURE_SET_SUFFIX[args.features] + (f"_{args.tag}" if args.tag else "")
