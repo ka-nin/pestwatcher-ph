@@ -25,7 +25,7 @@
 }
 
 .scan-result-confidence span {
-  font-size: 11.5px;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
   font-weight: 600;
 }
@@ -45,7 +45,7 @@
 
 .scan-result-signal-label {
   display: block;
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 800;
   letter-spacing: 0.4px;
   text-transform: uppercase;
@@ -55,7 +55,7 @@
 
 .scan-result-photo-chip {
   display: inline-block;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 700;
   padding: 4px 11px;
   border-radius: 999px;
@@ -99,7 +99,7 @@
   gap: 5px;
   background: rgba(255, 255, 255, 0.7);
   color: var(--color-primary-dark);
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 999px;
@@ -107,7 +107,7 @@
 
 .scan-result-summary {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.55;
   color: var(--color-text);
 }
@@ -126,21 +126,21 @@
 }
 
 .scan-result-etl-value {
-  font-size: 30px;
+  font-size: var(--text-2xl);
   font-weight: 800;
   color: var(--color-text);
   line-height: 1;
 }
 
 .scan-result-etl-value small {
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--color-text-muted);
   margin-left: 4px;
 }
 
 .scan-result-etl-metric-label {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
   font-weight: 600;
 }
@@ -181,7 +181,7 @@
   display: flex;
   justify-content: space-between;
   margin-top: 8px;
-  font-size: 9.5px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   color: var(--color-text-muted);
   gap: 4px;
@@ -189,7 +189,7 @@
 
 .etl-scale-note {
   margin: 10px 0 0;
-  font-size: 11px;
+  font-size: var(--text-xs);
   line-height: 1.5;
   color: var(--color-text-muted);
 }
@@ -214,14 +214,14 @@
 }
 
 .forecast-day-name {
-  font-size: 9px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
 
 .forecast-day-date {
-  font-size: 14px;
+  font-size: var(--text-base);
   font-weight: 800;
   color: var(--color-text);
 }
@@ -257,7 +257,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
   color: var(--color-text-muted);
   font-weight: 600;
 }
@@ -315,13 +315,13 @@
 
 .scan-result-unavailable-body h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--text-lg);
   color: var(--color-text);
 }
 
 .scan-result-unavailable-body p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.6;
   color: var(--color-text-muted);
 }
@@ -334,5 +334,5 @@
   background: var(--color-primary);
   color: #fff;
   font-weight: 700;
-  font-size: 14px;
+  font-size: var(--text-base);
 }
