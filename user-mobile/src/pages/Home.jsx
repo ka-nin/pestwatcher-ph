@@ -21,7 +21,12 @@ import { fetchWeatherForecast, fetchPestForecast, fetchPestForecastTrajectory } 
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import LanguageToggle from '../components/LanguageToggle';
-import logoImg from '../assets/logo-shield.png';
+// Tightly-cropped variant of logo-shield.png. The original canvas is 200x215
+// with the shield occupying only 92x104 of it, so 54% of the asset is
+// transparent margin — in a 24px header box that left an 11.6px shield plus
+// ~6.5px of phantom padding on each side. Welcome.jsx still uses the padded
+// original, where the margin is harmless at 120px.
+import logoImg from '../assets/logo-shield-mark.png';
 import './Home.css';
 
 const LEVEL_COLOR = {
@@ -39,6 +44,17 @@ const RISK_META = {
 const RISK_RANK = { Low: 0, Medium: 1, High: 2 };
 const LEVEL_KEY = ['low', 'medium', 'high'];
 const capitalize = (word) => word[0].toUpperCase() + word.slice(1);
+
+// Chrome's ICU puts a NARROW NO-BREAK SPACE (U+202F) before AM/PM, which most
+// UI fonts don't contain — the browser silently falls back to another font for
+// that character and the "AM" after it, so the time renders in a visibly
+// different face from the label beside it. Node and older Chrome emit a plain
+// space, which is why this only shows up in the browser. Normalizing to a
+// regular space keeps the whole line in one font.
+const formatClockTime = (date) =>
+  date
+    .toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+    .replace(/[  ]/g, ' ');
 const WEATHER_REFRESH_MS = 2 * 60 * 1000;
 const PEST_META = {
   BPH: { labelKey: 'pestLabelBph', trendTitleKey: 'homeTrendTitleBph' },
@@ -209,17 +225,18 @@ export default function Home() {
   const RiskIcon = risk.icon;
   const trendData = trends[activePest] || dashboardSummary.trend;
   const now = new Date();
-  const dateTimeLabel = `${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${now.toLocaleTimeString(
-    'en-US',
-    { hour: '2-digit', minute: '2-digit', hour12: true }
-  )}`;
+  const dateTimeLabel = `${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${formatClockTime(now)}`;
 
   return (
     <div className="home-screen">
       <div className="home-hero hero-surface">
         <div className="home-topbar">
           <span className="home-brand">
-            <img src={logoImg} alt="" className="home-brand-logo" /> PESTWATCHER<sup>PH</sup>
+            {/* No literal space before the wordmark — .home-brand is a flex
+                row, so the gap is set once in CSS rather than being part
+                whitespace and part `gap`. */}
+            <img src={logoImg} alt="" className="home-brand-logo" />
+            <span>PESTWATCHER<sup>PH</sup></span>
           </span>
           <span className="home-topbar-right">
             <LanguageToggle />
@@ -301,7 +318,7 @@ export default function Home() {
         <section className="weather-tiles-block">
           <div className="weather-tiles-live">
             <span className="weather-tiles-live-dot" />
-            {t('homeWeatherLive')} {weatherUpdatedAt ? `· ${t('homeWeatherUpdated')} ${weatherUpdatedAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` : ''}
+            {t('homeWeatherLive')} {weatherUpdatedAt ? `· ${t('homeWeatherUpdated')} ${formatClockTime(weatherUpdatedAt)}` : ''}
           </div>
           <div className="weather-tiles">
             <div className="weather-tile">

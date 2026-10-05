@@ -27,9 +27,19 @@
 }
 
 .home-brand-logo {
-  width: 16px;
-  height: 16px;
+  /* Renders at its true size now that the asset is cropped to the mark —
+     the old padded PNG only drew ~48% of whatever box it was given. */
+  width: 24px;
+  height: 24px;
   object-fit: contain;
+  /* The asset is a solid #4C8939 shield whose leaf and outline are transparent
+     cut-outs, and the hero gradient starts at #4a8a45 — near-identical, so the
+     mark was invisible against it. Lightening the green to roughly #A7F58E
+     lifts it to a 3.2:1 contrast ratio (clears the 3:1 WCAG minimum for
+     non-text graphics) while the cut-outs keep showing the darker hero green,
+     which is what keeps the leaf readable. No recoloured asset needed, and it
+     stays correct if the brand green is ever retuned. */
+  filter: brightness(1.9) saturate(0.7);
 }
 
 .home-topbar-right {
@@ -292,11 +302,16 @@
   display: flex;
   align-items: center;
   gap: 5px;
+  font-family: var(--font-base);
   font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--color-text-muted);
   letter-spacing: var(--tracking-wide);
   padding-left: 2px;
+  /* Even-width digits, so the label doesn't reflow or look like it changed
+     face each time the clock ticks over (see formatClockTime in Home.jsx for
+     the matching fix to the AM/PM separator). */
+  font-variant-numeric: tabular-nums;
 }
 
 .weather-tiles-live-dot {
