@@ -409,6 +409,12 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
             <span className="legend-item">
               <span className="legend-dot legend-dot-high" /> High severity
             </span>
+            <span className="legend-item">
+              <span className="legend-dot legend-dot-verified" /> Verified
+            </span>
+            <span className="legend-item">
+              <span className="legend-dot legend-dot-pending" /> Pending review
+            </span>
           </div>
         </div>
       </section>

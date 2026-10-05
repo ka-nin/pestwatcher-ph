@@ -143,12 +143,12 @@ All commands run from the repository root.
 |---|---|---|
 | API server | `npm run dev --workspace=server-python` | http://localhost:8000 |
 | Admin dashboard | `npm run dev --workspace=admin-web` | http://localhost:5173 (plain HTTP) |
-| Mobile app | `npm run dev --workspace=user-mobile` | https://localhost:5173 (self-signed HTTPS, needed for camera access) |
+| Mobile app | `npm run dev --workspace=user-mobile` | https://localhost:5174 (self-signed HTTPS, needed for camera access) |
 
-Both `admin-web` and `user-mobile` default to Vite's port 5173 — if you run
-them at the same time, Vite auto-bumps the second one to 5174/5175, which
-the backend's default `CORS_ORIGINS` already covers (see
-`server-python/.env.example`).
+The ports are pinned in each app's Vite config (`admin-web` 5173, `user-mobile`
+5174), so both can run at once. The backend's default `CORS_ORIGINS` covers them
+(see `server-python/.env.example`). `npm run dev:preview --workspace=user-mobile`
+serves the mobile app over plain HTTP at http://localhost:5174 (no camera).
 
 Uvicorn auto-reloads on save (`--reload` in the `dev` script). Vite hot-reloads
 both frontends.

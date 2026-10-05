@@ -100,9 +100,9 @@ cd server-python
 .venv\Scripts\activate
 uvicorn app.main:app --reload --port 8000
 
---- Windows shortcut (from repo root or server-python, no activate) ---
-cd server-python
-npm run dev
+--- Windows shortcut (no activate needed; uses .venv\Scripts\uvicorn) ---
+npm run dev --workspace=server-python        (from repo root)
+   or:  cd server-python && npm run dev
 
 Check it: http://localhost:8000/api/health
 API docs: http://localhost:8000/docs
@@ -147,7 +147,46 @@ Revert step 2 when you're back to desktop-only testing.
 
 
 --------------------------------------------------------------------
-7. LOGIN CREDENTIALS (seeded automatically into the database)
+7. [OPTIONAL] DEMO DATA, TESTS, BUILDS, RETRAINING
+--------------------------------------------------------------------
+Python commands run from server-python/ with the venv active (on
+Windows without activating, use .venv\Scripts\python.exe in place of
+"python"). Postgres must be up where noted.
+
+--- Seed mock farmer reports (Nueva Ecija demo data) ---
+python -m scripts.seed_mock_reports            # insert (idempotent)
+python -m scripts.seed_mock_reports --remove   # delete all mock rows
+(needs Postgres; dates are relative to today so they stay "recent")
+
+--- Backend tests ---
+python -m pytest tests/ -v
+(test_inference.py hits the real dev database and runs a live
+forecast, so start Postgres first: docker compose up -d)
+
+--- Lint / production builds (from repo root) ---
+npm run lint  --workspace=admin-web
+npm run lint  --workspace=user-mobile
+npm run build --workspace=admin-web
+npm run build --workspace=user-mobile
+
+--- Retrain the BiLSTM forecast model (details: server-python/README.md) ---
+python -m ml.datasets.cleaning.clean_timeseries
+python -m ml.bilstm.ingest_reports     # optional; folds verified reports
+                                       # into training data (needs DB)
+python -m ml.bilstm.build_sequences
+python -m ml.bilstm.train --pest BPH
+python -m ml.bilstm.train --pest RSB
+python -m ml.validity_test             # pass/fail check on both pests
+Extras: python -m ml.bilstm.export_insights --pest BPH   (or RSB)
+        python -m ml.explainability.shap_report --pest BPH   (or RSB)
+
+--- Retrain the ResNet image model (needs the image dataset) ---
+python -m ml.resnet.prepare_dataset --pest BPH   (or RSB)
+python -m ml.resnet.train --pest BPH             (or RSB)
+
+
+--------------------------------------------------------------------
+8. LOGIN CREDENTIALS (seeded automatically into the database)
 --------------------------------------------------------------------
 SuperAdmin : sysadmin         / PestWatch!FhkKbrMn6Y
 LGU_Tech   : munoz_tech_01    / PestWatch!Mu2026        (Sci. City of Munoz, Nueva Ecija)
@@ -158,7 +197,7 @@ Farmer     : farmer_demo      / RicePest!Demo2026       (Sci. City of Munoz, Nue
 
 
 --------------------------------------------------------------------
-8. STOPPING EVERYTHING
+9. STOPPING EVERYTHING
 --------------------------------------------------------------------
 
 --- macOS / Linux: stop the dev servers + backend ---
@@ -181,7 +220,7 @@ permanently delete the database contents.)
 
 
 --------------------------------------------------------------------
-9. TROUBLESHOOTING
+10. TROUBLESHOOTING
 --------------------------------------------------------------------
 - "Failed to fetch" in user-mobile / admin-web
     -> Is the backend running on port 8000? Check
@@ -217,6 +256,9 @@ permanently delete the database contents.)
 
 - Frontend fails with missing-package errors after pulling
     -> Rerun "npm install" from the repo ROOT.
+
+- Dashboards show no farmer reports
+    -> Seed demo data: python -m scripts.seed_mock_reports (section 7).
 
 - Need to wipe and re-seed the database from scratch
     -> docker compose down -v && docker compose up -d

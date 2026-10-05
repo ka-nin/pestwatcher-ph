@@ -567,6 +567,18 @@
   background: #d3564f;
 }
 
+/* Report status (solid vs. faint dashed pin), shown in neutral grey so it
+   doesn't read as a severity color. */
+.legend-dot-verified {
+  background: #777;
+}
+
+.legend-dot-pending {
+  background: rgba(119, 119, 119, 0.25);
+  border: 1.5px dashed #777;
+  box-sizing: border-box;
+}
+
 /* Heatmap */
 .heatmap-block + .heatmap-block {
   margin-top: 18px;

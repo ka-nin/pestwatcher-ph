@@ -53,7 +53,9 @@ function ProvinceMap({ latitude, longitude, label, reports = [] }: ProvinceMapPr
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const pinnableReports = useMemo(
-    () => reports.filter((r) => r.latitude != null && r.longitude != null),
+    // Rejected reports are hidden — they were reviewed and ruled out, so
+    // they aren't a sighting anyone needs to see on the map.
+    () => reports.filter((r) => r.latitude != null && r.longitude != null && r.status !== 'rejected'),
     [reports],
   )
 
@@ -94,12 +96,18 @@ function ProvinceMap({ latitude, longitude, label, reports = [] }: ProvinceMapPr
         const color = SEVERITY_COLOR[report.severity] ?? '#999'
         const pos: [number, number] = [report.latitude as number, report.longitude as number]
 
+        // Verified = solid pin (the same set the mobile app counts as active
+        // threat zones); pending = faint pin with a dashed severity-colored
+        // ring, so unreviewed reports are visibly distinct.
+        const isVerified = report.status === 'verified'
+
         const marker = L.circleMarker(pos, {
           radius: 7,
-          color: '#fff',
+          color: isVerified ? '#fff' : color,
           weight: 2,
+          dashArray: isVerified ? undefined : '3 3',
           fillColor: color,
-          fillOpacity: 0.9,
+          fillOpacity: isVerified ? 0.9 : 0.25,
         })
           .addTo(map)
           .bindPopup(
