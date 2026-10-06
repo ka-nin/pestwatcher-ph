@@ -31,9 +31,27 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  padding: 108px 28px 40px;
+  padding: 24px 28px 72px;
   z-index: 1;
+}
+
+.welcome-screen-cta::before {
+  background: linear-gradient(
+    to bottom,
+    rgba(8, 18, 6, 0.55) 0%,
+    rgba(8, 18, 6, 0.4) 35%,
+    rgba(6, 14, 5, 0.55) 65%,
+    rgba(4, 10, 3, 0.75) 100%
+  );
+}
+
+.welcome-center {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .welcome-langrow {
@@ -57,24 +75,25 @@
 }
 
 .welcome-logo-img {
-  width: 120px;
-  height: 120px;
+  width: 110px;
+  height: 110px;
   object-fit: contain;
-  margin-bottom: 18px;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.1));
+  margin-bottom: 8px;
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.35));
 }
 
 .welcome-brand-block h1 {
   margin: 0 0 10px;
-  font-size: var(--text-2xl);
+  font-size: var(--text-3xl);
   font-weight: 800;
-  color: var(--color-primary);
+  color: #fff;
   letter-spacing: 0.3px;
   line-height: 1;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .welcome-brand-block h1 sup {
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   color: var(--color-accent-orange);
 }
 
@@ -82,8 +101,8 @@
   margin: 0;
   font-size: var(--text-sm);
   line-height: 1.45;
-  max-width: 260px;
-  color: var(--color-text);
+  color: rgba(255, 255, 255, 0.82);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
 }
 
 .welcome-cta {
@@ -109,6 +128,20 @@
   opacity: 0.7;
 }
 
+.welcome-cta-hero {
+  width: 260px;
+  padding: 13px 0;
+  border: none;
+  background: #fff;
+  color: var(--color-primary-dark);
+  text-shadow: none;
+  box-shadow: none;
+}
+
+.welcome-cta-hero:active {
+  background: rgba(255, 255, 255, 0.85);
+}
+
 .welcome-login-error {
   margin: 0 0 12px;
   padding: 8px 14px;
@@ -126,61 +159,142 @@
   cursor: pointer;
 }
 
+.welcome-screen-intro::before {
+  /* Darker than the shared .welcome-screen::before scrim: this stage puts
+     bold white headline text over the photo, not dark text on a near-white
+     wash, so it needs a dark gradient to stay legible instead. */
+  background: linear-gradient(
+    to bottom,
+    rgba(8, 18, 6, 0.65) 0%,
+    rgba(8, 18, 6, 0.42) 32%,
+    rgba(6, 14, 5, 0.58) 62%,
+    rgba(4, 10, 3, 0.8) 100%
+  );
+}
+
 .welcome-intro-content {
   position: relative;
   z-index: 1;
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 28px 28px 0;
+  justify-content: center;
+  padding: 28px;
 }
 
-.welcome-intro-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--text-sm);
-  font-weight: 800;
-  color: var(--color-primary);
-  letter-spacing: 0.3px;
+.welcome-intro-bottom {
+  margin-top: 8%;
 }
 
-.welcome-intro-brand sup {
-  font-size: var(--text-2xs);
-  color: var(--color-primary-dark);
-}
-
-.welcome-intro-logo {
-  width: 22px;
-  height: 22px;
-  object-fit: contain;
-  border-radius: 50%;
-}
-
-.welcome-intro-headline {
-  margin: 48px 0 0;
+.welcome-intro-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 28px;
   display: flex;
   flex-direction: column;
-  font-size: var(--text-2xl);
-  font-weight: 800;
-  line-height: 1.25;
+  align-items: center;
+  gap: 2px;
+  color: rgba(255, 255, 255, 0.72);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+}
+
+.welcome-intro-hint span {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
 }
 
-.welcome-intro-headline-accent {
+.welcome-intro-hint svg {
+  animation: welcome-intro-hint-bounce 1.6s ease-in-out infinite;
+}
+
+@keyframes welcome-intro-hint-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(4px);
+    opacity: 1;
+  }
+}
+
+.welcome-intro-badge {
+  position: absolute;
+  top: 28px;
+  left: 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 7px 14px 7px 8px;
+  border-radius: 999px;
+  background: rgba(8, 16, 6, 0.4);
+  backdrop-filter: blur(6px);
+  font-size: var(--text-sm);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.3px;
+}
+
+.welcome-intro-badge sup {
+  font-size: var(--text-2xs);
   color: var(--color-accent-orange);
 }
 
+.welcome-intro-logo {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.welcome-intro-headline {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  /* vw-based so it scales with the viewport instead of a fixed px that
+     either overflows narrow phones or looks small on wider ones — the
+     clamp bounds keep it readable at both ends. */
+  font-size: clamp(30px, 9.4vw, 44px);
+  font-weight: 800;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  text-transform: uppercase;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.3);
+}
+
+.welcome-intro-headline span {
+  /* Locks the format to exactly two lines — one phrase per line, never
+     wrapping mid-phrase — regardless of device width. The clamp() above
+     already keeps the font small enough that this shouldn't force any
+     visible overflow, just guarantees it. */
+  white-space: nowrap;
+}
+
 .welcome-intro-headline-primary {
-  color: var(--color-primary);
+  /* Optical alignment: both spans sit at the same box edge, but the round
+     "O" this line starts with naturally overshoots left of a flat letter
+     like the accent line's "T" at this weight/size — nudge it back in. */
+  margin-left: 2px;
+  font-size: 1.05em;
+  color: #fff;
+}
+
+.welcome-intro-headline-accent {
+  font-size: 0.86em;
+  letter-spacing: -0.4px;
+  color: var(--color-accent-orange);
 }
 
 .welcome-intro-tagline {
-  margin: 14px 0 0;
-  max-width: 260px;
+  margin: 14px 0 0 2px;
   font-size: var(--text-sm);
   line-height: 1.5;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.82);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
 }
 
 /* --- Setup screen (pick municipality, no account/login) --- */
@@ -205,7 +319,7 @@
   color: var(--color-text);
 }
 
-.welcome-setup-content > p {
+.welcome-setup-subtitle {
   margin: 0 0 20px;
   font-size: var(--text-sm);
   line-height: 1.5;
@@ -233,7 +347,9 @@
 }
 
 .welcome-setup-override {
-  margin: 10px 0 0;
+  width: 100%;
+  margin: 28px 0 16px;
+  padding: 0 12px;
   font-size: var(--text-xs);
   color: var(--color-text-muted);
   text-align: center;
@@ -305,6 +421,8 @@
 }
 
 .welcome-cta-dark {
+  width: 260px;
+  align-self: center;
   margin-top: 24px;
   border: none;
   background: var(--color-primary);
