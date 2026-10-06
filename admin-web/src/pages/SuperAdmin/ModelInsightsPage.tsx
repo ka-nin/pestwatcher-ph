@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { fetchModelInsights, type ModelInsightsResponse, type PredictionPointDto } from '../../lib/api'
+import {
+  fetchModelInsights,
+  type FeatureComparisonResponse,
+  type ModelInsightsResponse,
+  type PredictionPointDto,
+} from '../../lib/api'
 import { PHOTO_FLOW, WEATHER_FLOW, type FlowStep, type PestCode } from './modelInsightsData'
 import './ModelInsightsPage.css'
 
@@ -731,6 +736,97 @@ function SeriesPlot({ series, unit }: { series: { date: string; actual: number; 
   )
 }
 
+const COMPARISON_METRIC_LABELS: Record<string, { label: string; lowerIsBetter: boolean; pct?: boolean }> = {
+  rmse: { label: 'RMSE', lowerIsBetter: true },
+  mae: { label: 'MAE', lowerIsBetter: true },
+  r2: { label: 'R²', lowerIsBetter: false },
+  accuracy: { label: 'Accuracy', lowerIsBetter: false, pct: true },
+  precision_macro: { label: 'Precision (macro)', lowerIsBetter: false, pct: true },
+  recall_macro: { label: 'Recall (macro)', lowerIsBetter: false, pct: true },
+  f1_macro: { label: 'F1 (macro)', lowerIsBetter: false, pct: true },
+}
+const COMPARISON_METRIC_ORDER = Object.keys(COMPARISON_METRIC_LABELS)
+
+function formatMetricValue(value: number, pct?: boolean): string {
+  return pct ? `${(value * 100).toFixed(1)}%` : value.toFixed(3)
+}
+
+function FeatureComparisonSection({ data, unit }: { data: FeatureComparisonResponse | null; unit: string }) {
+  if (!data) {
+    return (
+      <section className="panel mi-panel">
+        <div className="panel-head">
+          <div>
+            <div className="panel-title">Baseline: engineered vs. raw climate features</div>
+            <div className="panel-subtitle">The thesis's RQ2 / RQ3 comparison</div>
+          </div>
+        </div>
+        <p className="mi-note">
+          Comparison results have not been generated yet. Run{' '}
+          <code>python -m ml.bilstm.compare_features --pest {unit === 'hoppers/hill' ? 'BPH' : 'RSB'}</code>{' '}
+          from server-python.
+        </p>
+      </section>
+    )
+  }
+
+  return (
+    <section className="panel mi-panel">
+      <div className="panel-head">
+        <div>
+          <div className="panel-title">Baseline: engineered vs. raw climate features</div>
+          <div className="panel-subtitle">
+            Same BiLSTM architecture, same {data.n_folds}-fold expanding-window CV splits · engineered =
+            GDD/CRF/HP/VPD/WSI/trends · raw = Tmax/Tmin/RH/rainfall only
+          </div>
+        </div>
+      </div>
+
+      <div className="mi-table-wrap">
+        <table className="mi-table">
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Engineered</th>
+              <th>Raw (baseline)</th>
+              <th>Winner</th>
+              <th>Test</th>
+              <th>p-value</th>
+              <th>Significant (α={data.alpha})</th>
+            </tr>
+          </thead>
+          <tbody>
+            {COMPARISON_METRIC_ORDER.filter((metric) => metric in data.significance).map((metric) => {
+              const meta = COMPARISON_METRIC_LABELS[metric]
+              const result = data.significance[metric]
+              return (
+                <tr key={metric}>
+                  <td>{meta.label}</td>
+                  <td>{formatMetricValue(result.mean_engineered, meta.pct)}</td>
+                  <td>{formatMetricValue(result.mean_raw, meta.pct)}</td>
+                  <td>
+                    <span className={`badge ${result.better_configuration === 'engineered' ? 'badge-green' : 'badge-yellow'}`}>
+                      {result.better_configuration}
+                    </span>
+                  </td>
+                  <td>{result.test}</td>
+                  <td>{result.p_value.toFixed(4)}</td>
+                  <td className={result.significant ? 'bad' : undefined}>{result.significant ? 'Yes' : 'No'}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="mi-note">
+        Engineered and raw configurations were trained and evaluated on the exact same {data.n_folds} chronological
+        test folds, so each metric's 5 paired differences were checked for normality (Shapiro-Wilk) before choosing a
+        paired t-test or a Wilcoxon signed-rank test — matching the thesis's stated statistical treatment for RQ2/RQ3.
+      </p>
+    </section>
+  )
+}
+
 function BilstmTab({ data }: { data: ModelInsightsResponse }) {
   const [pest, setPest] = useState<PestCode>('BPH')
   const info = data.bilstm[pest]
@@ -808,6 +904,8 @@ function BilstmTab({ data }: { data: ModelInsightsResponse }) {
           </p>
         )}
       </section>
+
+      <FeatureComparisonSection data={info.featureComparison} unit={u.unit} />
 
       <section className="panel mi-panel">
         <div className="panel-head">

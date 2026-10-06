@@ -12,7 +12,7 @@ from app.data.municipalities import seed_if_empty as seed_municipalities
 from app.data.reports_store import backfill_pest_codes, migrate_from_json_if_empty
 from app.data.superadmins import seed_if_empty as seed_superadmins
 from app.db import init_db
-from app.models.bilstm_model import bilstm_forecaster
+from app.models.bilstm_model import bilstm_forecaster, raw_baseline_forecaster
 from app.models.resnet_model import resnet_classifier
 from app.routers import admin, auth, inference, locations, reports, weather
 from ml.config import PEST_PARAMS
@@ -55,6 +55,10 @@ def load_ml_models() -> None:
             resnet_classifier.load(pest)
         except (FileNotFoundError, OSError, ValueError):
             print(f"[startup] ResNet-50 weights for {pest} not found — /api/inference/image will skip {pest} detection")
+        try:
+            raw_baseline_forecaster.load(pest)
+        except (FileNotFoundError, OSError, ValueError):
+            print(f"[startup] Raw-baseline BiLSTM weights for {pest} not found — the Simulation page's baseline column will report model_not_loaded for {pest}")
 
 app.add_middleware(
     CORSMiddleware,
