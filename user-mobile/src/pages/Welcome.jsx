@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Check, LocateFixed } from 'lucide-react';
+import { MapPin, Check, LocateFixed, ChevronDown } from 'lucide-react';
 import riceFieldImg from '../assets/rice-field.png';
-import logoImg from '../assets/logo-shield.png';
+// Tightly-cropped variant — see Home.jsx's note on logo-shield-mark.png. The
+// padded original (logo-shield.png) leaves too much transparent margin once
+// a box is sized/spaced tightly around it, as both logo spots in this file
+// now are.
+import logoMarkImg from '../assets/logo-shield-mark.png';
 import { fetchMunicipalities } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -82,18 +86,25 @@ export default function Welcome() {
         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setStage('cta')}
       >
         <div className="welcome-intro-content">
-          <div className="welcome-intro-brand">
-            <img src={logoImg} alt="" className="welcome-intro-logo" />
+          <div className="welcome-intro-badge">
+            <img src={logoMarkImg} alt="" className="welcome-intro-logo" />
             <span>
               PESTWATCHER<sup>PH</sup>
             </span>
           </div>
 
-          <h1 className="welcome-intro-headline">
-            <span className="welcome-intro-headline-accent">{t('welcomeHeadlineAccent')}</span>
-            <span className="welcome-intro-headline-primary">{t('welcomeHeadlinePrimary')}</span>
-          </h1>
-          <p className="welcome-intro-tagline">{t('welcomeTagline')}</p>
+          <div className="welcome-intro-bottom">
+            <h1 className="welcome-intro-headline">
+              <span className="welcome-intro-headline-accent">{t('welcomeHeadlineAccent')}</span>
+              <span className="welcome-intro-headline-primary">{t('welcomeHeadlinePrimary')}</span>
+            </h1>
+            <p className="welcome-intro-tagline">{t('welcomeTagline')}</p>
+          </div>
+
+          <div className="welcome-intro-hint">
+            <span>{t('welcomeTapHint')}</span>
+            <ChevronDown size={16} />
+          </div>
         </div>
       </div>
     );
@@ -107,7 +118,7 @@ export default function Welcome() {
             <LanguageToggle variant="light" />
           </div>
           <h1>{t('welcomeSetupTitle')}</h1>
-          <p>{t('welcomeSetupSubtitle')}</p>
+          <p className="welcome-setup-subtitle">{t('welcomeSetupSubtitle')}</p>
 
           {error && <p className="welcome-login-error">{error}</p>}
 
@@ -146,7 +157,7 @@ export default function Welcome() {
             <span>{t('welcomeSetupNameLabel')}</span>
             <input
               type="text"
-              placeholder="Juan Dela Cruz"
+              placeholder={t('welcomeSetupNamePlaceholder')}
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
             />
@@ -161,20 +172,22 @@ export default function Welcome() {
   }
 
   return (
-    <div className="welcome-screen" style={{ backgroundImage: `url(${riceFieldImg})` }}>
+    <div className="welcome-screen welcome-screen-cta" style={{ backgroundImage: `url(${riceFieldImg})` }}>
       <div className="welcome-content">
         <div className="welcome-langrow">
-          <LanguageToggle variant="light" />
+          <LanguageToggle variant="dark" />
         </div>
-        <div className="welcome-brand-block">
-          <img src={logoImg} alt="PestWatcher PH" className="welcome-logo-img" />
-          <h1>
-            PESTWATCHER<sup>PH</sup>
-          </h1>
-          <p>{t('welcomeTagline')}</p>
+        <div className="welcome-center">
+          <div className="welcome-brand-block">
+            <img src={logoMarkImg} alt="PestWatcher PH" className="welcome-logo-img" />
+            <h1>
+              PESTWATCHER<sup>PH</sup>
+            </h1>
+            <p>{t('welcomeTagline')}</p>
+          </div>
         </div>
 
-        <button className="welcome-cta" onClick={() => setStage('setup')}>
+        <button className="welcome-cta welcome-cta-hero" onClick={() => setStage('setup')}>
           {t('welcomeCtaStart')}
         </button>
       </div>

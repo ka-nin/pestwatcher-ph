@@ -12,6 +12,7 @@ export const translations = {
     langEn: 'English',
 
     // Home
+    homeGreetingPrefix: 'Kumusta',
     homeLocationSubtitle: 'Pagtataya ng panganib para sa munisipyong ito',
     homeCalculating: 'Kinakalkula...',
     homeTrendUnavailable: 'Hindi available ang forecast trend ngayon.',
@@ -208,6 +209,7 @@ export const translations = {
     welcomeHeadlineAccent: 'Ang Bagong Yugto',
     welcomeHeadlinePrimary: 'ng Agrikultura',
     welcomeTagline: 'Pangmatagalang solusyon sa pagsasaka para sa mas magandang bukas',
+    welcomeTapHint: 'Pindutin kahit saan',
     welcomeCtaStart: 'Simulan',
     welcomeSetupTitle: 'Kumpirmahin ang iyong lokasyon',
     welcomeSetupSubtitle:
@@ -217,6 +219,7 @@ export const translations = {
     welcomeSetupDetectedAway: 'ang layo',
     welcomeSetupOverride: 'Hindi tama? Pumili ng ibang munisipyo sa itaas.',
     welcomeSetupNameLabel: 'Pangalan (opsyonal)',
+    welcomeSetupNamePlaceholder: 'Ilagay ang iyong pangalan',
     welcomeContinueBtn: 'Magpatuloy',
     welcomeConnectError: 'Hindi ma-connect sa server. Subukan ulit.',
   },
@@ -226,6 +229,7 @@ export const translations = {
     langEn: 'English',
 
     // Home
+    homeGreetingPrefix: 'Hello',
     homeLocationSubtitle: 'Risk forecast for this municipality',
     homeCalculating: 'Calculating...',
     homeTrendUnavailable: 'Forecast trend unavailable right now.',
@@ -422,6 +426,7 @@ export const translations = {
     welcomeHeadlineAccent: 'The New Era',
     welcomeHeadlinePrimary: 'of Agriculture',
     welcomeTagline: 'A lasting solution for farming, for a better tomorrow',
+    welcomeTapHint: 'Tap anywhere to continue',
     welcomeCtaStart: 'Get Started',
     welcomeSetupTitle: 'Confirm your location',
     welcomeSetupSubtitle:
@@ -431,6 +436,7 @@ export const translations = {
     welcomeSetupDetectedAway: 'away',
     welcomeSetupOverride: 'Not right? Choose a different municipality above.',
     welcomeSetupNameLabel: 'Name (optional)',
+    welcomeSetupNamePlaceholder: 'Enter your name',
     welcomeContinueBtn: 'Continue',
     welcomeConnectError: 'Unable to connect to the server. Please try again.',
   },

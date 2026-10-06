@@ -254,6 +254,11 @@ export default function Home() {
         </div>
 
         <div className="home-location">
+          {user?.fullName && (
+            <p className="home-greeting">
+              {t('homeGreetingPrefix')}, {user.fullName}!
+            </p>
+          )}
           <h1>{user?.municipality || currentLocation.region}</h1>
           <p>
             {user?.province || currentLocation.province} &middot; {t('homeLocationSubtitle')}
