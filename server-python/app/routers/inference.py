@@ -20,7 +20,12 @@ from app.schemas.inference import (
 )
 from app.models.bilstm_model import DailyObservation, bilstm_forecaster
 from ml.config import FORECAST_HORIZON_DAYS, GROWTH_STAGE_BUCKETS, PEST_PARAMS
-from ml.explainability.shap_report import compute_top_attributions
+
+# Imported lazily inside the /forecast/explain handler below, not here at
+# module scope — shap pulls in sklearn.linear_model, whose compiled
+# _cd_fast.pyd can be blocked by a locked-down machine's Application
+# Control policy. Keeping it out of the startup import chain means that
+# only the explain endpoint fails on such a machine, not the whole app.
 
 router = APIRouter(prefix="/api/inference", tags=["inference"])
 
@@ -380,6 +385,8 @@ def infer_forecast_explain(
         )
         for day in daily_weather
     ]
+
+    from ml.explainability.shap_report import compute_top_attributions
 
     X_sequence_scaled, X_static_scaled = bilstm_forecaster.build_model_inputs(pest, window)
     attributions = compute_top_attributions(pest, X_sequence_scaled, X_static_scaled, top_n=top_n)
