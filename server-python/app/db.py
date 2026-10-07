@@ -50,3 +50,4 @@ def init_db() -> None:
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE reports ADD COLUMN IF NOT EXISTS deleted_at VARCHAR"))
         conn.execute(text("ALTER TABLE reports ADD COLUMN IF NOT EXISTS deleted_by VARCHAR"))
+        conn.execute(text("ALTER TABLE farmer_users ADD COLUMN IF NOT EXISTS phone VARCHAR"))

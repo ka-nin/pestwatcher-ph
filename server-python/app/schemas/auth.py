@@ -22,6 +22,9 @@ class FarmerUser(BaseModel):
     municipality: str
     latitude: float
     longitude: float
+    # E.164 mobile number for SMS advisories; None when the farmer has not
+    # given one, in which case they aren't offered as an SMS recipient.
+    phone: str | None = None
 
 
 class SuperAdminUser(BaseModel):

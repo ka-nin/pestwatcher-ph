@@ -6,6 +6,7 @@ import PestForecastPage from './PestForecastPage'
 import IpmPage from './IpmPage'
 import ClimateDriversPage from './ClimateDriversPage'
 import ReportsPage from './ReportsPage'
+import SmsPage from './SmsPage'
 import { GDD_BASE_TEMP_C, HUMIDITY_PERSISTENCE_THRESHOLD, OUTLOOK_DAYS } from '../../lib/climate'
 import './Dashboard.css'
 
@@ -42,7 +43,7 @@ function deriveClimateMetrics(weather: WeatherForecast) {
   }
 }
 
-type PageKey = 'status' | 'forecast' | 'ipm' | 'climate' | 'reports'
+type PageKey = 'status' | 'forecast' | 'ipm' | 'climate' | 'reports' | 'sms'
 
 const navItems: { key: PageKey; label: string }[] = [
   { key: 'status', label: 'Status' },
@@ -50,6 +51,7 @@ const navItems: { key: PageKey; label: string }[] = [
   { key: 'ipm', label: 'IPM Recommendation' },
   { key: 'climate', label: 'Climate Drivers' },
   { key: 'reports', label: 'Farmer Reports' },
+  { key: 'sms', label: 'SMS Advisory' },
 ]
 
 const navIcons: Record<PageKey, React.ReactNode> = {
@@ -72,6 +74,13 @@ const navIcons: Record<PageKey, React.ReactNode> = {
   reports: (
     <path
       d="M9 12h6M9 16h6M9 8h1M4 6a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Z"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
+  sms: (
+    <path
+      d="M21 11.5a8.4 8.4 0 0 1-9 8.3L3 21l1.3-3.6A8.4 8.4 0 1 1 21 11.5Z"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
@@ -195,6 +204,7 @@ function Dashboard({ user, accessToken, onLogout }: DashboardProps) {
           {activePage === 'forecast' && <PestForecastPage user={user} />}
 
           {activePage === 'reports' && <ReportsPage user={user} accessToken={accessToken} />}
+          {activePage === 'sms' && <SmsPage user={user} accessToken={accessToken} />}
         </main>
       </div>
     </div>
