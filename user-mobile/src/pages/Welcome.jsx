@@ -6,7 +6,7 @@ import riceFieldImg from '../assets/rice-field.png';
 // padded original (logo-shield.png) leaves too much transparent margin once
 // a box is sized/spaced tightly around it, as both logo spots in this file
 // now are.
-import logoMarkImg from '../assets/logo-shield-mark.png';
+import logoMarkImg from '../assets/logo-shield-mark.svg';
 import { fetchMunicipalities } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';

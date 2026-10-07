@@ -87,6 +87,16 @@ function buildWindyUrl(lat: number, lon: number, zoom: number) {
   return `https://embed.windy.com/embed2.html?${params.toString()}`
 }
 
+// Matches the farmer app's map: a sighting older than this is treated as
+// resolved and no longer pinned.
+const MAX_REPORT_AGE_MS = 14 * 24 * 60 * 60 * 1000
+
+function isRecent(dateSpotted: string): boolean {
+  const t = new Date(dateSpotted).getTime()
+  // An unparseable date is kept rather than silently dropped.
+  return Number.isNaN(t) || Date.now() - t <= MAX_REPORT_AGE_MS
+}
+
 function ProvinceMap({ latitude, longitude, label, reports = [] }: ProvinceMapProps) {
   const [mode, setMode] = useState<MapMode>('satellite')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -94,7 +104,7 @@ function ProvinceMap({ latitude, longitude, label, reports = [] }: ProvinceMapPr
   const pinnableReports = useMemo(() => {
     // Rejected reports are hidden — they were reviewed and ruled out, so
     // they aren't a sighting anyone needs to see on the map.
-    const withCoords = reports.filter((r) => r.latitude != null && r.longitude != null && r.status !== 'rejected')
+    const withCoords = reports.filter((r) => r.latitude != null && r.longitude != null && r.status !== 'rejected' && isRecent(r.date_spotted))
     return spreadOverlappingReports(withCoords)
   }, [reports])
 
