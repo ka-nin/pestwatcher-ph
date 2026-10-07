@@ -7,21 +7,33 @@ the rest of the API (inference/reports/weather) still trusts the caller,
 same as before this router was added.
 """
 
+import uuid
+from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
+from app.config import get_settings
 from app.data.lgu_users import add_lgu_user, delete_lgu_user, find_lgu_user
 from app.data.lgu_users import list_lgu_users as fetch_lgu_users
 from app.data.lgu_users import update_lgu_user as persist_lgu_user_update
-from app.data.model_insights import build_model_insights
+from app.data.model_insights import _read_json, build_model_insights
 from app.data.municipalities import upsert_municipality
-from app.decision.etl_thresholds import PEST_THRESHOLDS
+from app.decision.etl_thresholds import PEST_THRESHOLDS, derive_risk_level
 from app.dependencies import require_superadmin
-from app.routers.inference import _live_forecast
+from app.models.bilstm_model import DailyObservation, bilstm_forecaster, raw_baseline_forecaster
+from app.models.resnet_model import resnet_classifier
+from app.routers.inference import ALLOWED_CONTENT_TYPES, _live_forecast
 from app.schemas.admin import EtlThresholdsResponse, MunicipalityOverview, OverviewResponse
 from app.schemas.auth import CreateLguUserRequest, LguAccountAdminResponse, LguUser, UpdateLguUserRequest
+from app.schemas.simulation import (
+    SimulationForecastRequest,
+    SimulationForecastResponse,
+    SimulationImageResult,
+    SimulationModelResult,
+)
 from app.security import hash_password
+from ml.config import GROWTH_STAGE_BUCKETS, PEST_PARAMS
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_superadmin)])
 
@@ -143,3 +155,111 @@ def get_model_insights() -> dict[str, Any]:
     next to the weights (see app/data/model_insights.py) — nothing is
     recomputed per request."""
     return build_model_insights()
+
+
+# ---- Simulation page: manual weather window (+ optional photo) run through
+# the deployed engineered model AND the raw-feature baseline side by side.
+
+
+def _simulation_result(forecaster, pest: str, window: list[DailyObservation]) -> SimulationModelResult:
+    if not forecaster.is_loaded(pest):
+        return SimulationModelResult(status="model_not_loaded")
+
+    result = forecaster.predict(pest, window)
+    growth_stage_bucket = GROWTH_STAGE_BUCKETS[window[-1].growth_stage]
+    risk_level = derive_risk_level(pest, growth_stage_bucket, result.predicted_value)
+    return SimulationModelResult(
+        status="ok",
+        predicted_value=result.predicted_value,
+        unit=result.unit,
+        risk_level=risk_level,
+    )
+
+
+@router.post("/simulation/forecast", response_model=SimulationForecastResponse)
+def run_simulation_forecast(payload: SimulationForecastRequest) -> SimulationForecastResponse:
+    """Runs one manually-entered 14-day weather window through the deployed
+    engineered-feature BiLSTM and the raw-feature baseline (ml/bilstm/train.py
+    --features raw), so a panelist/technician can see both models' live
+    prediction and risk level for the exact same hypothetical window.
+
+    `heldOutMetrics` is the already-computed engineered-vs-raw comparison
+    from ml/bilstm/compare_features.py (5-fold expanding-window CV, paired
+    significance tests) — historical evidence shown alongside this one-off
+    run, not recomputed per request.
+    """
+    expected_days = PEST_PARAMS[payload.pest].crf_window_days
+    if len(payload.daily_observations) != expected_days:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"{payload.pest} requires exactly {expected_days} consecutive daily "
+                f"observations, got {len(payload.daily_observations)}."
+            ),
+        )
+
+    window = [
+        DailyObservation(
+            tmax=obs.tmax,
+            tmin=obs.tmin,
+            relative_humidity=obs.relative_humidity,
+            rainfall=obs.rainfall,
+            growth_stage=obs.growth_stage,
+        )
+        for obs in payload.daily_observations
+    ]
+
+    folder = PEST_PARAMS[payload.pest].bilstm_weights_path.parent
+    held_out = _read_json(folder / f"bilstm_{payload.pest.lower()}_feature_comparison.json")
+
+    return SimulationForecastResponse(
+        pest=payload.pest,
+        engineered=_simulation_result(bilstm_forecaster, payload.pest, window),
+        raw=_simulation_result(raw_baseline_forecaster, payload.pest, window),
+        heldOutMetrics=held_out,
+    )
+
+
+@router.post("/simulation/image", response_model=SimulationImageResult)
+async def run_simulation_image(file: UploadFile = File(...)) -> SimulationImageResult:
+    """Runs a manually-uploaded photo through the real ResNet-50 classifiers
+    (same app/models/resnet_model.py used by the farmer app's live pest
+    scan — see POST /api/inference/image) and attaches each detected pest's
+    held-out test metrics (accuracy/precision/recall/F1, confusion matrix)
+    from Model Insights as context."""
+    if file.content_type not in ALLOWED_CONTENT_TYPES:
+        raise HTTPException(status_code=415, detail=f"Unsupported content type: {file.content_type}")
+
+    settings = get_settings()
+    upload_dir = Path(settings.upload_dir)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    extension = Path(file.filename or "").suffix or ".jpg"
+    destination = upload_dir / f"sim-{uuid.uuid4().hex}{extension}"
+    destination.write_bytes(await file.read())
+
+    result = resnet_classifier.predict(destination)
+
+    if result is None:
+        return SimulationImageResult(status="model_not_loaded")
+
+    def metrics_for(pest: str) -> dict | None:
+        return _read_json(PEST_PARAMS[pest].bilstm_weights_path.parent / f"resnet50_{pest.lower()}_test_metrics.json")
+
+    held_out = {pest: metrics_for(pest) for pest in result.pest_scores} if result.pest_scores else None
+
+    if result.label is None:
+        return SimulationImageResult(
+            status="no_pest_detected",
+            pest_scores=result.pest_scores,
+            heldOutMetrics=held_out,
+        )
+
+    return SimulationImageResult(
+        status="ok",
+        pest_detected=result.label,
+        confidence=result.confidence,
+        pests_detected=result.pests_detected,
+        pest_scores=result.pest_scores,
+        heldOutMetrics=held_out,
+    )

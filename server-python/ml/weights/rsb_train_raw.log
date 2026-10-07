@@ -1,0 +1,131 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1791313186.062384   44416 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1791313187.322453   44416 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1791313187.570370   44416 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: SSE3 SSE4.1 SSE4.2 AVX AVX2 AVX_VNNI AVX_VNNI_INT8 AVX_NE_CONVERT FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+WARNING:tensorflow:TensorFlow GPU support is not available on native Windows for TensorFlow >= 2.11. Even if CUDA/cuDNN are installed, GPU will not be used. Please use WSL2 or the TensorFlow-DirectML plugin.
+RSB (raw): train=7549 val=1567 test=1597
+Model: "functional"
++--------------------------------------------------------------------------+
+| Layer (type)                    | Output Shape           |       Param # |
+|---------------------------------+------------------------+---------------|
+| sequence_input (InputLayer)     | (None, 14, 4)          |             0 |
+|---------------------------------+------------------------+---------------|
+| bidirectional (Bidirectional)   | (None, 32)             |         2,688 |
+|---------------------------------+------------------------+---------------|
+| dropout (Dropout)               | (None, 32)             |             0 |
+|---------------------------------+------------------------+---------------|
+| dense (Dense)                   | (None, 16)             |           528 |
+|---------------------------------+------------------------+---------------|
+| dropout_1 (Dropout)             | (None, 16)             |             0 |
+|---------------------------------+------------------------+---------------|
+| prediction (Dense)              | (None, 1)              |            17 |
++--------------------------------------------------------------------------+
+ Total params: 3,233 (12.63 KB)
+ Trainable params: 3,233 (12.63 KB)
+ Non-trainable params: 0 (0.00 B)
+Epoch 1/100
+236/236 - 5s - 19ms/step - loss: 2.3391 - mae: 0.9230 - val_loss: 1.6955 - val_mae: 0.8393
+Epoch 2/100
+236/236 - 2s - 7ms/step - loss: 2.1064 - mae: 0.9393 - val_loss: 1.6689 - val_mae: 0.8666
+Epoch 3/100
+236/236 - 2s - 7ms/step - loss: 2.0880 - mae: 0.9550 - val_loss: 1.6690 - val_mae: 0.8766
+Epoch 4/100
+236/236 - 2s - 7ms/step - loss: 2.0607 - mae: 0.9470 - val_loss: 1.6655 - val_mae: 0.8729
+Epoch 5/100
+236/236 - 2s - 7ms/step - loss: 2.0436 - mae: 0.9520 - val_loss: 1.6558 - val_mae: 0.8862
+Epoch 6/100
+236/236 - 2s - 8ms/step - loss: 2.0239 - mae: 0.9492 - val_loss: 1.6529 - val_mae: 0.8746
+Epoch 7/100
+236/236 - 2s - 7ms/step - loss: 1.9893 - mae: 0.9439 - val_loss: 1.6499 - val_mae: 0.8773
+Epoch 8/100
+236/236 - 2s - 7ms/step - loss: 2.0022 - mae: 0.9493 - val_loss: 1.6509 - val_mae: 0.8846
+Epoch 9/100
+236/236 - 1s - 6ms/step - loss: 1.9978 - mae: 0.9481 - val_loss: 1.6507 - val_mae: 0.8863
+Epoch 10/100
+236/236 - 1s - 5ms/step - loss: 1.9848 - mae: 0.9409 - val_loss: 1.6386 - val_mae: 0.8951
+Epoch 11/100
+236/236 - 1s - 5ms/step - loss: 1.9763 - mae: 0.9489 - val_loss: 1.6391 - val_mae: 0.8928
+Epoch 12/100
+236/236 - 1s - 5ms/step - loss: 1.9491 - mae: 0.9470 - val_loss: 1.6495 - val_mae: 0.8790
+Epoch 13/100
+236/236 - 2s - 7ms/step - loss: 1.9572 - mae: 0.9436 - val_loss: 1.6439 - val_mae: 0.8737
+Epoch 14/100
+236/236 - 2s - 6ms/step - loss: 1.9151 - mae: 0.9380 - val_loss: 1.6647 - val_mae: 0.9092
+Epoch 15/100
+236/236 - 1s - 6ms/step - loss: 1.9113 - mae: 0.9386 - val_loss: 1.6383 - val_mae: 0.8807
+Epoch 16/100
+236/236 - 2s - 7ms/step - loss: 1.9229 - mae: 0.9423 - val_loss: 1.6416 - val_mae: 0.8749
+Epoch 17/100
+236/236 - 1s - 6ms/step - loss: 1.8945 - mae: 0.9351 - val_loss: 1.7036 - val_mae: 0.9166
+Epoch 18/100
+236/236 - 2s - 7ms/step - loss: 1.9101 - mae: 0.9435 - val_loss: 1.6558 - val_mae: 0.8895
+Epoch 19/100
+236/236 - 2s - 7ms/step - loss: 1.8553 - mae: 0.9336 - val_loss: 1.6637 - val_mae: 0.8865
+Epoch 20/100
+236/236 - 2s - 7ms/step - loss: 1.8670 - mae: 0.9326 - val_loss: 1.7036 - val_mae: 0.8916
+Epoch 21/100
+236/236 - 3s - 11ms/step - loss: 1.8599 - mae: 0.9300 - val_loss: 1.6888 - val_mae: 0.8740
+Epoch 22/100
+236/236 - 2s - 7ms/step - loss: 1.8413 - mae: 0.9271 - val_loss: 1.7180 - val_mae: 0.8874
+Epoch 23/100
+236/236 - 1s - 5ms/step - loss: 1.8219 - mae: 0.9250 - val_loss: 1.7665 - val_mae: 0.9298
+Epoch 24/100
+236/236 - 1s - 5ms/step - loss: 1.8222 - mae: 0.9269 - val_loss: 1.7168 - val_mae: 0.8862
+Epoch 25/100
+236/236 - 1s - 5ms/step - loss: 1.8001 - mae: 0.9238 - val_loss: 1.7668 - val_mae: 0.9128
+Epoch 26/100
+236/236 - 1s - 5ms/step - loss: 1.8001 - mae: 0.9228 - val_loss: 1.7426 - val_mae: 0.8944
+Epoch 27/100
+236/236 - 1s - 5ms/step - loss: 1.7756 - mae: 0.9148 - val_loss: 1.7620 - val_mae: 0.9226
+Epoch 28/100
+236/236 - 1s - 5ms/step - loss: 1.7565 - mae: 0.9171 - val_loss: 1.7614 - val_mae: 0.8961
+Epoch 29/100
+236/236 - 1s - 5ms/step - loss: 1.7625 - mae: 0.9153 - val_loss: 1.7725 - val_mae: 0.9126
+Epoch 30/100
+236/236 - 1s - 5ms/step - loss: 1.7835 - mae: 0.9193 - val_loss: 1.7914 - val_mae: 0.9239
+RSB test metrics (regression + ETL agreement): {
+  "rmse": 1.5381630530023336,
+  "mae": 1.0213890075683594,
+  "r2": 0.006889283657073975,
+  "etl_classification": {
+    "accuracy": 0.9004383218534753,
+    "precision_macro": 0.30014610728449176,
+    "recall_macro": 0.3333333333333333,
+    "f1_macro": 0.3158704008786381,
+    "confusion_matrix": [
+      [
+        1438,
+        0,
+        0
+      ],
+      [
+        155,
+        0,
+        0
+      ],
+      [
+        4,
+        0,
+        0
+      ]
+    ],
+    "confusion_matrix_labels": [
+      "Low",
+      "Medium",
+      "High"
+    ],
+    "support_per_level": {
+      "Low": 1438,
+      "Medium": 155,
+      "High": 4
+    }
+  },
+  "feature_set": "raw",
+  "log_target": false,
+  "balance_bands": false
+}
+Saved model to C:\Users\Christian Roi Detera\Desktop\ricepest\pestwatcher-ph\server-python\ml\weights\rsb\bilstm_rsb_raw.keras
+Saved scalers to C:\Users\Christian Roi Detera\Desktop\ricepest\pestwatcher-ph\server-python\ml\weights\rsb\bilstm_rsb_raw_scalers.joblib (required at inference time — app/models/bilstm_model.py must load these before calling predict())
+Saved test metrics to C:\Users\Christian Roi Detera\Desktop\ricepest\pestwatcher-ph\server-python\ml\weights\rsb\bilstm_rsb_raw_test_metrics.json

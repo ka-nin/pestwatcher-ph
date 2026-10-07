@@ -1,0 +1,41 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1791330004.487300   17892 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1791330005.908183   17892 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+Found 6814 files belonging to 2 classes.
+I0000 00:00:1791330007.171722   17892 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: SSE3 SSE4.1 SSE4.2 AVX AVX2 AVX_VNNI AVX_VNNI_INT8 AVX_NE_CONVERT FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+Found 1477 files belonging to 2 classes.
+Found 1381 files belonging to 2 classes.
+WARNING:tensorflow:TensorFlow GPU support is not available on native Windows for TensorFlow >= 2.11. Even if CUDA/cuDNN are installed, GPU will not be used. Please use WSL2 or the TensorFlow-DirectML plugin.
+BPH: class weights = {0: 0.6352787618870035, 1: 2.3480358373535495}
+Model: "functional_1"
++--------------------------------------------------------------------------+
+| Layer (type)                    | Output Shape           |       Param # |
+|---------------------------------+------------------------+---------------|
+| input_layer_2 (InputLayer)      | (None, 224, 224, 3)    |             0 |
+|---------------------------------+------------------------+---------------|
+| resnet50 (Functional)           | (None, 2048)           |    23,587,712 |
+|---------------------------------+------------------------+---------------|
+| dropout (Dropout)               | (None, 2048)           |             0 |
+|---------------------------------+------------------------+---------------|
+| dense (Dense)                   | (None, 64)             |       131,136 |
+|---------------------------------+------------------------+---------------|
+| dropout_1 (Dropout)             | (None, 64)             |             0 |
+|---------------------------------+------------------------+---------------|
+| prediction (Dense)              | (None, 1)              |            65 |
++--------------------------------------------------------------------------+
+ Total params: 23,718,913 (90.48 MB)
+ Trainable params: 131,201 (512.50 KB)
+ Non-trainable params: 23,587,712 (89.98 MB)
+C:\Users\Christian Roi Detera\Desktop\ricepest\pestwatcher-ph\server-python\.venv\Lib\site-packages\keras\src\trainers\epoch_iterator.py:74: UserWarning: `shuffle=True` was passed, but will be ignored since the data `x` was provided as a tf.data.Dataset. The Dataset is expected to already be shuffled (via `.shuffle(buffer_size)`).
+  self.data_adapter = data_adapters.get_data_adapter(
+
+--- Phase 1: training head only (15 epochs max) ---
+Epoch 1/15
+213/213 - 165s - 773ms/step - accuracy: 0.8337 - loss: 0.3777 - precision: 0.5739 - recall: 0.8511 - val_accuracy: 0.9072 - val_loss: 0.2375 - val_precision: 0.7268 - val_recall: 0.9119
+Epoch 2/15
+213/213 - 165s - 774ms/step - accuracy: 0.8990 - loss: 0.2527 - precision: 0.7020 - recall: 0.9139 - val_accuracy: 0.9404 - val_loss: 0.1686 - val_precision: 0.8267 - val_recall: 0.9151
+Epoch 3/15
+213/213 - 160s - 752ms/step - accuracy: 0.9150 - loss: 0.2168 - precision: 0.7401 - recall: 0.9263 - val_accuracy: 0.9492 - val_loss: 0.1535 - val_precision: 0.8649 - val_recall: 0.9057
+Epoch 4/15

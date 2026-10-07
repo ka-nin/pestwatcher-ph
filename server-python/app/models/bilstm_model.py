@@ -169,3 +169,66 @@ class BiLstmOutbreakForecaster:
 
 
 bilstm_forecaster = BiLstmOutbreakForecaster()
+
+
+class RawBaselineForecaster:
+    """The thesis's RQ2 control, served live: same BiLSTM recurrent core as
+    `bilstm_forecaster`, but trained on only Tmax/Tmin/RH/Rainfall per day —
+    no VPD, no diurnal range, no growth-stage one-hot, no static vector at
+    all (see ml/bilstm/build_sequences.py's `raw` feature set and
+    ml/bilstm/train.py --features raw).
+
+    Loads ml/weights/{pest}/bilstm_{pest}_raw.keras — a standalone model
+    trained on the full chronological split, NOT one of the five per-fold
+    models compare_features.py trains and discards. Those only exist to
+    produce ml/weights/{pest}/bilstm_{pest}_feature_comparison.json (the
+    historical CV metrics); this class is for a live second opinion on a
+    single manually-entered window, e.g. the SuperAdmin Simulation page.
+    """
+
+    def __init__(self) -> None:
+        self._models: dict[str, keras.Model] = {}
+        self._scalers: dict[str, dict] = {}
+
+    def load(self, pest: str) -> None:
+        params = PEST_PARAMS[pest]
+        weights_path = params.bilstm_weights_path.with_name(
+            f"{params.bilstm_weights_path.stem}_raw{params.bilstm_weights_path.suffix}"
+        )
+        self._models[pest] = keras.models.load_model(weights_path)
+        scalers_path = weights_path.parent / f"bilstm_{pest.lower()}_raw_scalers.joblib"
+        self._scalers[pest] = joblib.load(scalers_path)
+
+    def is_loaded(self, pest: str) -> bool:
+        return pest in self._models
+
+    def predict(self, pest: str, window: list[DailyObservation]) -> Optional[BiLstmPrediction]:
+        if not self.is_loaded(pest):
+            return None
+
+        params = PEST_PARAMS[pest]
+        if len(window) != params.crf_window_days:
+            raise ValueError(
+                f"{pest} expects exactly {params.crf_window_days} consecutive daily "
+                f"observations (most recent day last), got {len(window)}."
+            )
+
+        sequence_rows = [[day.tmax, day.tmin, day.relative_humidity, day.rainfall] for day in window]
+
+        scalers = self._scalers[pest]
+        X_sequence = np.array([sequence_rows], dtype=np.float32)
+        n, w, f = X_sequence.shape
+        X_sequence_scaled = scalers["sequence_scaler"].transform(X_sequence.reshape(-1, f)).reshape(n, w, f)
+
+        prediction = self._models[pest].predict({"sequence_input": X_sequence_scaled}, verbose=0)
+        predicted_value = float(prediction.flatten()[0])
+
+        if self._scalers[pest].get("log_target"):
+            predicted_value = float(np.expm1(predicted_value))
+        predicted_value = max(predicted_value, 0.0)
+
+        unit = "hoppers_per_hill" if pest == "BPH" else "pct_damage"
+        return BiLstmPrediction(predicted_value=predicted_value, unit=unit)
+
+
+raw_baseline_forecaster = RawBaselineForecaster()

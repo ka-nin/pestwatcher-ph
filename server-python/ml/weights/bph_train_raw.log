@@ -1,0 +1,179 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1791313084.161484   15664 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1791313085.423861   15664 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+I0000 00:00:1791313085.662614   15664 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: SSE3 SSE4.1 SSE4.2 AVX AVX2 AVX_VNNI AVX_VNNI_INT8 AVX_NE_CONVERT FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+WARNING:tensorflow:TensorFlow GPU support is not available on native Windows for TensorFlow >= 2.11. Even if CUDA/cuDNN are installed, GPU will not be used. Please use WSL2 or the TensorFlow-DirectML plugin.
+BPH (raw): train=7549 val=1567 test=1597
+Model: "functional"
++--------------------------------------------------------------------------+
+| Layer (type)                    | Output Shape           |       Param # |
+|---------------------------------+------------------------+---------------|
+| sequence_input (InputLayer)     | (None, 14, 4)          |             0 |
+|---------------------------------+------------------------+---------------|
+| bidirectional (Bidirectional)   | (None, 32)             |         2,688 |
+|---------------------------------+------------------------+---------------|
+| dropout (Dropout)               | (None, 32)             |             0 |
+|---------------------------------+------------------------+---------------|
+| dense (Dense)                   | (None, 16)             |           528 |
+|---------------------------------+------------------------+---------------|
+| dropout_1 (Dropout)             | (None, 16)             |             0 |
+|---------------------------------+------------------------+---------------|
+| prediction (Dense)              | (None, 1)              |            17 |
++--------------------------------------------------------------------------+
+ Total params: 3,233 (12.63 KB)
+ Trainable params: 3,233 (12.63 KB)
+ Non-trainable params: 0 (0.00 B)
+Epoch 1/100
+236/236 - 4s - 15ms/step - loss: 65.6637 - mae: 3.9560 - val_loss: 81.1994 - val_mae: 4.8909
+Epoch 2/100
+236/236 - 1s - 5ms/step - loss: 55.8961 - mae: 4.4340 - val_loss: 76.7848 - val_mae: 5.0690
+Epoch 3/100
+236/236 - 1s - 5ms/step - loss: 54.4221 - mae: 4.4033 - val_loss: 75.1540 - val_mae: 5.1470
+Epoch 4/100
+236/236 - 1s - 6ms/step - loss: 52.4797 - mae: 4.3199 - val_loss: 73.9927 - val_mae: 5.0834
+Epoch 5/100
+236/236 - 1s - 6ms/step - loss: 51.8944 - mae: 4.2819 - val_loss: 73.9012 - val_mae: 5.1278
+Epoch 6/100
+236/236 - 2s - 7ms/step - loss: 51.8054 - mae: 4.2834 - val_loss: 74.0747 - val_mae: 5.0143
+Epoch 7/100
+236/236 - 2s - 7ms/step - loss: 50.5980 - mae: 4.2380 - val_loss: 73.5512 - val_mae: 5.1075
+Epoch 8/100
+236/236 - 2s - 7ms/step - loss: 50.1228 - mae: 4.2201 - val_loss: 72.9831 - val_mae: 5.0442
+Epoch 9/100
+236/236 - 2s - 7ms/step - loss: 49.5864 - mae: 4.2011 - val_loss: 72.9084 - val_mae: 5.0751
+Epoch 10/100
+236/236 - 2s - 7ms/step - loss: 49.3361 - mae: 4.1866 - val_loss: 73.2424 - val_mae: 5.1664
+Epoch 11/100
+236/236 - 2s - 7ms/step - loss: 49.1534 - mae: 4.1812 - val_loss: 72.7809 - val_mae: 4.9900
+Epoch 12/100
+236/236 - 2s - 7ms/step - loss: 48.4129 - mae: 4.1240 - val_loss: 72.8344 - val_mae: 5.1014
+Epoch 13/100
+236/236 - 2s - 7ms/step - loss: 48.6676 - mae: 4.0792 - val_loss: 72.6726 - val_mae: 5.2017
+Epoch 14/100
+236/236 - 2s - 7ms/step - loss: 47.4331 - mae: 4.1023 - val_loss: 72.7381 - val_mae: 5.2349
+Epoch 15/100
+236/236 - 2s - 7ms/step - loss: 48.2051 - mae: 4.1093 - val_loss: 73.5036 - val_mae: 5.1378
+Epoch 16/100
+236/236 - 2s - 7ms/step - loss: 46.6203 - mae: 4.0340 - val_loss: 73.1675 - val_mae: 5.1936
+Epoch 17/100
+236/236 - 2s - 7ms/step - loss: 47.0974 - mae: 4.0750 - val_loss: 73.0188 - val_mae: 5.1533
+Epoch 18/100
+236/236 - 2s - 7ms/step - loss: 45.9190 - mae: 4.0537 - val_loss: 73.8633 - val_mae: 5.3356
+Epoch 19/100
+236/236 - 2s - 7ms/step - loss: 46.0227 - mae: 4.0500 - val_loss: 72.9003 - val_mae: 5.0648
+Epoch 20/100
+236/236 - 2s - 8ms/step - loss: 44.6106 - mae: 3.9856 - val_loss: 72.6607 - val_mae: 5.1602
+Epoch 21/100
+236/236 - 2s - 7ms/step - loss: 45.3120 - mae: 3.9888 - val_loss: 72.5519 - val_mae: 5.1016
+Epoch 22/100
+236/236 - 2s - 7ms/step - loss: 45.5543 - mae: 3.9578 - val_loss: 72.7984 - val_mae: 5.1711
+Epoch 23/100
+236/236 - 2s - 7ms/step - loss: 43.7269 - mae: 3.9498 - val_loss: 73.6208 - val_mae: 5.2171
+Epoch 24/100
+236/236 - 2s - 7ms/step - loss: 45.2016 - mae: 3.9469 - val_loss: 73.0836 - val_mae: 5.1509
+Epoch 25/100
+236/236 - 2s - 7ms/step - loss: 44.4305 - mae: 3.9326 - val_loss: 73.9085 - val_mae: 5.2796
+Epoch 26/100
+236/236 - 2s - 6ms/step - loss: 44.2202 - mae: 3.9153 - val_loss: 72.7725 - val_mae: 5.2123
+Epoch 27/100
+236/236 - 2s - 7ms/step - loss: 43.4187 - mae: 3.8859 - val_loss: 72.7495 - val_mae: 5.2169
+Epoch 28/100
+236/236 - 1s - 6ms/step - loss: 42.4454 - mae: 3.8841 - val_loss: 72.2399 - val_mae: 5.0762
+Epoch 29/100
+236/236 - 2s - 6ms/step - loss: 41.6783 - mae: 3.8294 - val_loss: 72.4589 - val_mae: 5.0904
+Epoch 30/100
+236/236 - 2s - 6ms/step - loss: 41.8098 - mae: 3.8536 - val_loss: 73.1340 - val_mae: 5.1512
+Epoch 31/100
+236/236 - 2s - 7ms/step - loss: 42.3092 - mae: 3.8062 - val_loss: 72.2786 - val_mae: 5.1153
+Epoch 32/100
+236/236 - 2s - 7ms/step - loss: 41.2392 - mae: 3.8119 - val_loss: 72.4050 - val_mae: 5.1256
+Epoch 33/100
+236/236 - 2s - 7ms/step - loss: 41.5689 - mae: 3.8213 - val_loss: 72.0384 - val_mae: 5.0974
+Epoch 34/100
+236/236 - 2s - 7ms/step - loss: 40.8981 - mae: 3.8010 - val_loss: 72.2237 - val_mae: 5.1779
+Epoch 35/100
+236/236 - 2s - 7ms/step - loss: 40.2518 - mae: 3.7829 - val_loss: 72.3649 - val_mae: 5.0039
+Epoch 36/100
+236/236 - 2s - 6ms/step - loss: 40.3178 - mae: 3.7564 - val_loss: 71.8287 - val_mae: 5.1873
+Epoch 37/100
+236/236 - 2s - 7ms/step - loss: 40.5215 - mae: 3.7764 - val_loss: 71.9932 - val_mae: 5.1306
+Epoch 38/100
+236/236 - 2s - 7ms/step - loss: 39.0897 - mae: 3.7355 - val_loss: 72.3818 - val_mae: 5.0784
+Epoch 39/100
+236/236 - 2s - 7ms/step - loss: 39.8023 - mae: 3.7420 - val_loss: 71.3022 - val_mae: 5.1480
+Epoch 40/100
+236/236 - 2s - 6ms/step - loss: 38.7609 - mae: 3.7255 - val_loss: 72.8064 - val_mae: 5.2856
+Epoch 41/100
+236/236 - 2s - 7ms/step - loss: 38.8187 - mae: 3.7038 - val_loss: 73.2587 - val_mae: 5.2944
+Epoch 42/100
+236/236 - 2s - 6ms/step - loss: 37.9872 - mae: 3.6983 - val_loss: 73.8690 - val_mae: 5.1706
+Epoch 43/100
+236/236 - 2s - 7ms/step - loss: 37.9591 - mae: 3.6933 - val_loss: 72.4301 - val_mae: 5.1536
+Epoch 44/100
+236/236 - 1s - 6ms/step - loss: 37.9542 - mae: 3.7088 - val_loss: 72.9741 - val_mae: 5.1373
+Epoch 45/100
+236/236 - 2s - 7ms/step - loss: 37.6012 - mae: 3.6653 - val_loss: 73.0760 - val_mae: 5.2215
+Epoch 46/100
+236/236 - 2s - 7ms/step - loss: 37.8617 - mae: 3.6963 - val_loss: 73.6471 - val_mae: 5.2112
+Epoch 47/100
+236/236 - 2s - 7ms/step - loss: 36.6320 - mae: 3.6502 - val_loss: 76.5646 - val_mae: 5.3186
+Epoch 48/100
+236/236 - 2s - 7ms/step - loss: 37.6835 - mae: 3.6576 - val_loss: 74.9601 - val_mae: 5.2364
+Epoch 49/100
+236/236 - 2s - 7ms/step - loss: 37.7237 - mae: 3.6852 - val_loss: 73.3989 - val_mae: 5.1999
+Epoch 50/100
+236/236 - 2s - 7ms/step - loss: 37.2690 - mae: 3.6760 - val_loss: 74.2660 - val_mae: 5.1097
+Epoch 51/100
+236/236 - 2s - 7ms/step - loss: 37.0013 - mae: 3.6622 - val_loss: 74.4934 - val_mae: 5.3163
+Epoch 52/100
+236/236 - 2s - 7ms/step - loss: 36.6841 - mae: 3.6389 - val_loss: 75.7219 - val_mae: 5.3872
+Epoch 53/100
+236/236 - 2s - 7ms/step - loss: 34.9598 - mae: 3.5901 - val_loss: 76.2099 - val_mae: 5.3430
+Epoch 54/100
+236/236 - 2s - 7ms/step - loss: 35.4796 - mae: 3.6356 - val_loss: 76.4270 - val_mae: 5.2276
+BPH test metrics (regression + ETL agreement): {
+  "rmse": 7.85399866978474,
+  "mae": 4.546069145202637,
+  "r2": 0.11037576198577881,
+  "etl_classification": {
+    "accuracy": 0.7463994990607389,
+    "precision_macro": 0.35351129028974,
+    "recall_macro": 0.3656330749354005,
+    "f1_macro": 0.35884180456873577,
+    "confusion_matrix": [
+      [
+        1157,
+        98,
+        35
+      ],
+      [
+        122,
+        35,
+        18
+      ],
+      [
+        112,
+        20,
+        0
+      ]
+    ],
+    "confusion_matrix_labels": [
+      "Low",
+      "Medium",
+      "High"
+    ],
+    "support_per_level": {
+      "Low": 1290,
+      "Medium": 175,
+      "High": 132
+    }
+  },
+  "feature_set": "raw",
+  "log_target": false,
+  "balance_bands": false
+}
+Saved model to C:\Users\Christian Roi Detera\Desktop\ricepest\pestwatcher-ph\server-python\ml\weights\bph\bilstm_bph_raw.keras
+Saved scalers to C:\Users\Christian Roi Detera\Desktop\ricepest\pestwatcher-ph\server-python\ml\weights\bph\bilstm_bph_raw_scalers.joblib (required at inference time — app/models/bilstm_model.py must load these before calling predict())
+Saved test metrics to C:\Users\Christian Roi Detera\Desktop\ricepest\pestwatcher-ph\server-python\ml\weights\bph\bilstm_bph_raw_test_metrics.json
