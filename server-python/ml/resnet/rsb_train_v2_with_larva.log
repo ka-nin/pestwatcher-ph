@@ -1,0 +1,125 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1791314837.567673   43268 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1791314838.729317   43268 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+Found 6528 files belonging to 2 classes.
+I0000 00:00:1791314839.845765   43268 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: SSE3 SSE4.1 SSE4.2 AVX AVX2 AVX_VNNI AVX_VNNI_INT8 AVX_NE_CONVERT FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+Found 1546 files belonging to 2 classes.
+Found 1279 files belonging to 2 classes.
+WARNING:tensorflow:TensorFlow GPU support is not available on native Windows for TensorFlow >= 2.11. Even if CUDA/cuDNN are installed, GPU will not be used. Please use WSL2 or the TensorFlow-DirectML plugin.
+RSB: class weights = {0: 0.566175195143105, 1: 4.277850589777195}
+Model: "functional_1"
++--------------------------------------------------------------------------+
+| Layer (type)                    | Output Shape           |       Param # |
+|---------------------------------+------------------------+---------------|
+| input_layer_2 (InputLayer)      | (None, 224, 224, 3)    |             0 |
+|---------------------------------+------------------------+---------------|
+| resnet50 (Functional)           | (None, 2048)           |    23,587,712 |
+|---------------------------------+------------------------+---------------|
+| dropout (Dropout)               | (None, 2048)           |             0 |
+|---------------------------------+------------------------+---------------|
+| dense (Dense)                   | (None, 64)             |       131,136 |
+|---------------------------------+------------------------+---------------|
+| dropout_1 (Dropout)             | (None, 64)             |             0 |
+|---------------------------------+------------------------+---------------|
+| prediction (Dense)              | (None, 1)              |            65 |
++--------------------------------------------------------------------------+
+ Total params: 23,718,913 (90.48 MB)
+ Trainable params: 131,201 (512.50 KB)
+ Non-trainable params: 23,587,712 (89.98 MB)
+C:\Users\Christian Roi Detera\Desktop\ricepest\pestwatcher-ph\server-python\.venv\Lib\site-packages\keras\src\trainers\epoch_iterator.py:74: UserWarning: `shuffle=True` was passed, but will be ignored since the data `x` was provided as a tf.data.Dataset. The Dataset is expected to already be shuffled (via `.shuffle(buffer_size)`).
+  self.data_adapter = data_adapters.get_data_adapter(
+
+--- Phase 1: training head only (15 epochs max) ---
+Epoch 1/15
+204/204 - 149s - 732ms/step - accuracy: 0.9280 - loss: 0.2169 - precision: 0.6335 - recall: 0.9109 - val_accuracy: 0.9709 - val_loss: 0.0834 - val_precision: 0.8083 - val_recall: 0.9512
+Epoch 2/15
+204/204 - 200s - 981ms/step - accuracy: 0.9642 - loss: 0.1049 - precision: 0.7841 - recall: 0.9567 - val_accuracy: 0.9838 - val_loss: 0.0605 - val_precision: 0.9162 - val_recall: 0.9329
+Epoch 3/15
+204/204 - 209s - 1s/step - accuracy: 0.9686 - loss: 0.0992 - precision: 0.8066 - recall: 0.9620 - val_accuracy: 0.9832 - val_loss: 0.0680 - val_precision: 0.8920 - val_recall: 0.9573
+Epoch 4/15
+204/204 - 164s - 802ms/step - accuracy: 0.9733 - loss: 0.0801 - precision: 0.8276 - recall: 0.9751 - val_accuracy: 0.9871 - val_loss: 0.0618 - val_precision: 0.9286 - val_recall: 0.9512
+Epoch 5/15
+204/204 - 167s - 818ms/step - accuracy: 0.9779 - loss: 0.0773 - precision: 0.8562 - recall: 0.9751 - val_accuracy: 0.9845 - val_loss: 0.0618 - val_precision: 0.8933 - val_recall: 0.9695
+Epoch 6/15
+204/204 - 149s - 731ms/step - accuracy: 0.9801 - loss: 0.0720 - precision: 0.8685 - recall: 0.9777 - val_accuracy: 0.9877 - val_loss: 0.0631 - val_precision: 0.9191 - val_recall: 0.9695
+Epoch 7/15
+204/204 - 146s - 716ms/step - accuracy: 0.9848 - loss: 0.0600 - precision: 0.8924 - recall: 0.9895 - val_accuracy: 0.9903 - val_loss: 0.0521 - val_precision: 0.9627 - val_recall: 0.9451
+Epoch 8/15
+204/204 - 146s - 714ms/step - accuracy: 0.9844 - loss: 0.0627 - precision: 0.8930 - recall: 0.9843 - val_accuracy: 0.9897 - val_loss: 0.0501 - val_precision: 0.9458 - val_recall: 0.9573
+Epoch 9/15
+204/204 - 203s - 994ms/step - accuracy: 0.9848 - loss: 0.0566 - precision: 0.8943 - recall: 0.9869 - val_accuracy: 0.9909 - val_loss: 0.0516 - val_precision: 0.9464 - val_recall: 0.9695
+Epoch 10/15
+204/204 - 146s - 718ms/step - accuracy: 0.9873 - loss: 0.0514 - precision: 0.9106 - recall: 0.9882 - val_accuracy: 0.9890 - val_loss: 0.0531 - val_precision: 0.9349 - val_recall: 0.9634
+Epoch 11/15
+204/204 - 147s - 722ms/step - accuracy: 0.9828 - loss: 0.0658 - precision: 0.8843 - recall: 0.9817 - val_accuracy: 0.9909 - val_loss: 0.0590 - val_precision: 0.9630 - val_recall: 0.9512
+Epoch 12/15
+204/204 - 147s - 722ms/step - accuracy: 0.9881 - loss: 0.0528 - precision: 0.9152 - recall: 0.9895 - val_accuracy: 0.9884 - val_loss: 0.0637 - val_precision: 0.9294 - val_recall: 0.9634
+Epoch 13/15
+204/204 - 147s - 719ms/step - accuracy: 0.9839 - loss: 0.0620 - precision: 0.8945 - recall: 0.9777 - val_accuracy: 0.9916 - val_loss: 0.0500 - val_precision: 0.9576 - val_recall: 0.9634
+Epoch 14/15
+204/204 - 146s - 717ms/step - accuracy: 0.9873 - loss: 0.0520 - precision: 0.9087 - recall: 0.9908 - val_accuracy: 0.9897 - val_loss: 0.0655 - val_precision: 0.9512 - val_recall: 0.9512
+Epoch 15/15
+204/204 - 202s - 988ms/step - accuracy: 0.9913 - loss: 0.0477 - precision: 0.9391 - recall: 0.9895 - val_accuracy: 0.9871 - val_loss: 0.0622 - val_precision: 0.9091 - val_recall: 0.9756
+
+--- Phase 2: fine-tuning from layer 143 (20 epochs max) ---
+Epoch 1/20
+204/204 - 191s - 936ms/step - accuracy: 0.9747 - loss: 0.0867 - precision: 0.8345 - recall: 0.9777 - val_accuracy: 0.9897 - val_loss: 0.0605 - val_precision: 0.9625 - val_recall: 0.9390
+Epoch 2/20
+204/204 - 201s - 986ms/step - accuracy: 0.9847 - loss: 0.0593 - precision: 0.8923 - recall: 0.9882 - val_accuracy: 0.9909 - val_loss: 0.0576 - val_precision: 0.9688 - val_recall: 0.9451
+Epoch 3/20
+204/204 - 184s - 904ms/step - accuracy: 0.9896 - loss: 0.0514 - precision: 0.9264 - recall: 0.9895 - val_accuracy: 0.9916 - val_loss: 0.0516 - val_precision: 0.9632 - val_recall: 0.9573
+Epoch 4/20
+204/204 - 203s - 994ms/step - accuracy: 0.9914 - loss: 0.0448 - precision: 0.9370 - recall: 0.9934 - val_accuracy: 0.9929 - val_loss: 0.0478 - val_precision: 0.9752 - val_recall: 0.9573
+Epoch 5/20
+204/204 - 203s - 995ms/step - accuracy: 0.9920 - loss: 0.0477 - precision: 0.9438 - recall: 0.9908 - val_accuracy: 0.9903 - val_loss: 0.0486 - val_precision: 0.9461 - val_recall: 0.9634
+Epoch 6/20
+204/204 - 201s - 987ms/step - accuracy: 0.9933 - loss: 0.0415 - precision: 0.9522 - recall: 0.9921 - val_accuracy: 0.9922 - val_loss: 0.0487 - val_precision: 0.9691 - val_recall: 0.9573
+Epoch 7/20
+204/204 - 185s - 909ms/step - accuracy: 0.9953 - loss: 0.0338 - precision: 0.9656 - recall: 0.9948 - val_accuracy: 0.9929 - val_loss: 0.0450 - val_precision: 0.9693 - val_recall: 0.9634
+Epoch 8/20
+204/204 - 203s - 993ms/step - accuracy: 0.9960 - loss: 0.0317 - precision: 0.9682 - recall: 0.9987 - val_accuracy: 0.9948 - val_loss: 0.0437 - val_precision: 0.9875 - val_recall: 0.9634
+Epoch 9/20
+204/204 - 185s - 909ms/step - accuracy: 0.9977 - loss: 0.0273 - precision: 0.9807 - recall: 1.0000 - val_accuracy: 0.9955 - val_loss: 0.0429 - val_precision: 0.9937 - val_recall: 0.9634
+Epoch 10/20
+204/204 - 186s - 911ms/step - accuracy: 0.9971 - loss: 0.0326 - precision: 0.9794 - recall: 0.9961 - val_accuracy: 0.9961 - val_loss: 0.0349 - val_precision: 0.9937 - val_recall: 0.9695
+Epoch 11/20
+204/204 - 202s - 988ms/step - accuracy: 0.9969 - loss: 0.0296 - precision: 0.9781 - recall: 0.9961 - val_accuracy: 0.9948 - val_loss: 0.0380 - val_precision: 0.9937 - val_recall: 0.9573
+Epoch 12/20
+204/204 - 185s - 909ms/step - accuracy: 0.9968 - loss: 0.0290 - precision: 0.9769 - recall: 0.9961 - val_accuracy: 0.9955 - val_loss: 0.0403 - val_precision: 0.9937 - val_recall: 0.9634
+Epoch 13/20
+204/204 - 185s - 907ms/step - accuracy: 0.9985 - loss: 0.0272 - precision: 0.9883 - recall: 0.9987 - val_accuracy: 0.9955 - val_loss: 0.0342 - val_precision: 0.9876 - val_recall: 0.9695
+Epoch 14/20
+204/204 - 185s - 908ms/step - accuracy: 0.9982 - loss: 0.0244 - precision: 0.9845 - recall: 1.0000 - val_accuracy: 0.9961 - val_loss: 0.0377 - val_precision: 0.9937 - val_recall: 0.9695
+Epoch 15/20
+204/204 - 186s - 909ms/step - accuracy: 0.9983 - loss: 0.0275 - precision: 0.9883 - recall: 0.9974 - val_accuracy: 0.9955 - val_loss: 0.0363 - val_precision: 0.9876 - val_recall: 0.9695
+Epoch 16/20
+204/204 - 201s - 985ms/step - accuracy: 0.9985 - loss: 0.0267 - precision: 0.9909 - recall: 0.9961 - val_accuracy: 0.9968 - val_loss: 0.0390 - val_precision: 0.9938 - val_recall: 0.9756
+Epoch 17/20
+204/204 - 185s - 905ms/step - accuracy: 0.9986 - loss: 0.0235 - precision: 0.9896 - recall: 0.9987 - val_accuracy: 0.9961 - val_loss: 0.0405 - val_precision: 0.9937 - val_recall: 0.9695
+Epoch 18/20
+204/204 - 202s - 991ms/step - accuracy: 0.9989 - loss: 0.0232 - precision: 0.9922 - recall: 0.9987 - val_accuracy: 0.9955 - val_loss: 0.0356 - val_precision: 0.9876 - val_recall: 0.9695
+
+RSB test metrics: {
+  "accuracy": 0.9953088350273651,
+  "positive_precision": 0.9810126582278481,
+  "positive_recall": 0.9810126582278481,
+  "positive_f1": 0.9810126582278481,
+  "confusion_matrix": [
+    [
+      1118,
+      3
+    ],
+    [
+      3,
+      155
+    ]
+  ],
+  "confusion_matrix_labels": [
+    "negative",
+    "positive"
+  ]
+}
+Saved model to C:\Users\Christian Roi Detera\Desktop\ricepest\pestwatcher-ph\server-python\ml\weights\rsb\resnet50_rsb.keras
+Saved test metrics to C:\Users\Christian Roi Detera\Desktop\ricepest\pestwatcher-ph\server-python\ml\weights\rsb\resnet50_rsb_test_metrics.json

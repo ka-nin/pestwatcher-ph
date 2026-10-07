@@ -12,11 +12,49 @@ const PROVINCE_LON = currentLocation.longitude;
 const PROVINCE_ZOOM = 9;
 const REPORT_ZOOM = 14;
 
+// Mirrors --color-accent-red/-orange/-primary in index.css — kept as literal
+// hex here (not var()) since these values are injected into Leaflet divIcon/
+// popup HTML strings, which render outside this component's own stylesheet
+// cascade.
 const RISK_COLOR = {
   high: '#d64545',
   medium: '#d97b29',
   low: '#3f7d3a',
 };
+
+// How far apart (in degrees) to nudge pins that would otherwise sit on
+// exactly the same spot — several reports from the same municipality often
+// carry that municipality's fixed coordinates rather than a real per-sighting
+// GPS pin, so without this every later pin silently hides behind the first
+// one drawn. Mirrors admin-web's ProvinceMap.tsx fix for the same issue.
+const CLUSTER_SPREAD_DEG = 0.0009;
+
+function spreadOverlappingAlerts(alerts) {
+  const groups = new Map();
+  for (const a of alerts) {
+    const key = `${a.latitude.toFixed(4)},${a.longitude.toFixed(4)}`;
+    const group = groups.get(key);
+    if (group) group.push(a);
+    else groups.set(key, [a]);
+  }
+
+  const result = [];
+  for (const group of groups.values()) {
+    const [baseLat, baseLon] = [group[0].latitude, group[0].longitude];
+    if (group.length === 1) {
+      result.push({ ...group[0], _pos: [baseLat, baseLon] });
+      continue;
+    }
+    group.forEach((a, i) => {
+      const angle = (2 * Math.PI * i) / group.length;
+      result.push({
+        ...a,
+        _pos: [baseLat + CLUSTER_SPREAD_DEG * Math.sin(angle), baseLon + CLUSTER_SPREAD_DEG * Math.cos(angle)],
+      });
+    });
+  }
+  return result;
+}
 
 function pillIcon(alert) {
   const color = RISK_COLOR[alert.risk] || RISK_COLOR.low;
@@ -33,6 +71,18 @@ function pillIcon(alert) {
     iconSize: null,
     iconAnchor: [10, 10],
   });
+}
+
+function popupHtml(alert) {
+  const color = RISK_COLOR[alert.risk] || RISK_COLOR.low;
+  return `
+    <div class="map-report-popup">
+      <div class="map-report-popup-title">${alert.pestName}</div>
+      <div class="map-report-popup-risk" style="color:${color}">${alert.riskLabel}</div>
+      <div class="map-report-popup-meta">${alert.location} · ${alert.date}</div>
+      ${alert.description ? `<div class="map-report-popup-desc">${alert.description}</div>` : ''}
+    </div>
+  `;
 }
 
 function buildWindyUrl(lat, lon, zoom) {
@@ -64,10 +114,10 @@ export default function WeatherMap({ fill = false, showControls = fill, alerts =
   const containerRef = useRef(null);
   const mapRef = useRef(null);
 
-  const pinnableAlerts = useMemo(
-    () => alerts.filter((a) => a.latitude != null && a.longitude != null),
-    [alerts]
-  );
+  const pinnableAlerts = useMemo(() => {
+    const withCoords = alerts.filter((a) => a.latitude != null && a.longitude != null);
+    return spreadOverlappingAlerts(withCoords);
+  }, [alerts]);
 
   useEffect(() => {
     if (mode !== 'satellite' || !containerRef.current) return;
@@ -83,9 +133,19 @@ export default function WeatherMap({ fill = false, showControls = fill, alerts =
       { maxZoom: 18 }
     ).addTo(map);
 
+    // Frame every pin (plus the province center) instead of staying at the
+    // fixed province-wide zoom, matching admin-web's ProvinceMap behavior.
+    if (pinnableAlerts.length > 0) {
+      const bounds = L.latLngBounds([[PROVINCE_LAT, PROVINCE_LON]]);
+      pinnableAlerts.forEach((a) => bounds.extend(a._pos));
+      map.fitBounds(bounds, { padding: [24, 24], maxZoom: 12 });
+    }
+
     pinnableAlerts.forEach((alert) => {
-      const pos = [alert.latitude, alert.longitude];
-      const marker = L.marker(pos, { icon: pillIcon(alert) }).addTo(map);
+      const pos = alert._pos;
+      const marker = L.marker(pos, { icon: pillIcon(alert) })
+        .addTo(map)
+        .bindPopup(popupHtml(alert));
       marker.on('click', () => {
         map.flyTo(pos, REPORT_ZOOM, { duration: 0.8 });
       });

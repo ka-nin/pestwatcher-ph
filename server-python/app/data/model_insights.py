@@ -62,6 +62,7 @@ def build_model_insights() -> dict[str, Any]:
             "metrics": _read_json(folder / f"bilstm_{key}_test_metrics.json"),
             "predictions": _read_json(folder / f"bilstm_{key}_test_predictions.json"),
             "shap": _read_json(folder / f"bilstm_{key}_shap_summary.json"),
+            "featureComparison": _read_json(folder / f"bilstm_{key}_feature_comparison.json"),
         }
 
     bph_folder = PEST_PARAMS["BPH"].bilstm_weights_path.parent

@@ -519,10 +519,38 @@ export interface ShapFeatureDto {
   group: 'sequence' | 'static'
 }
 
+export interface FeatureComparisonMetricResult {
+  test: string
+  shapiro_p?: number
+  paired_differences_normal?: boolean
+  statistic?: number
+  p_value: number
+  significant: boolean
+  mean_engineered: number
+  mean_raw: number
+  mean_difference: number
+  better_configuration: 'engineered' | 'raw'
+  reason?: string
+}
+
+export interface FeatureComparisonResponse {
+  pest: PestKey
+  n_folds: number
+  alpha: number
+  cross_validation: string
+  epochs: number
+  mean_scores: {
+    engineered: Record<string, number>
+    raw: Record<string, number>
+  }
+  significance: Record<string, FeatureComparisonMetricResult>
+}
+
 export interface BilstmInsights {
   metrics: RegressionTestMetrics | null
   predictions: { n: number; points: PredictionPointDto[] } | null
   shap: { sample_size: number; features: ShapFeatureDto[] } | null
+  featureComparison: FeatureComparisonResponse | null
 }
 
 export interface GridEvalRowDto {
@@ -561,5 +589,67 @@ export async function fetchModelInsights(token: string): Promise<ModelInsightsRe
     throw new Error('Failed to load model insights')
   }
 
+  return res.json()
+}
+
+// ---- Simulation (SuperAdmin) — see server-python/app/schemas/simulation.py
+
+export interface SimulationModelResult {
+  status: 'ok' | 'model_not_loaded'
+  predicted_value: number | null
+  unit: 'hoppers_per_hill' | 'pct_damage' | null
+  risk_level: RiskLevel | null
+}
+
+export interface SimulationForecastResponse {
+  pest: PestKey
+  engineered: SimulationModelResult
+  raw: SimulationModelResult
+  heldOutMetrics: FeatureComparisonResponse | null
+}
+
+export interface SimulationDailyObservation {
+  date: string
+  tmax: number
+  tmin: number
+  relative_humidity: number
+  rainfall: number
+  growth_stage: GrowthStage
+}
+
+export async function runSimulationForecast(
+  token: string,
+  pest: PestKey,
+  dailyObservations: SimulationDailyObservation[],
+): Promise<SimulationForecastResponse> {
+  const res = await authFetch(token, '/api/admin/simulation/forecast', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pest, daily_observations: dailyObservations }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => null)
+    throw new Error(data?.detail?.[0]?.msg ?? data?.detail ?? 'Failed to run simulation forecast')
+  }
+  return res.json()
+}
+
+export interface SimulationImageResult {
+  status: 'ok' | 'model_not_loaded' | 'no_pest_detected'
+  pest_detected: PestKey | null
+  confidence: number | null
+  pests_detected: PestKey[]
+  pest_scores: Record<string, number>
+  heldOutMetrics: Record<string, ResnetTestMetrics | null> | null
+}
+
+export async function runSimulationImage(token: string, file: File): Promise<SimulationImageResult> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await authFetch(token, '/api/admin/simulation/image', { method: 'POST', body: formData })
+  if (!res.ok) {
+    const data = await res.json().catch(() => null)
+    throw new Error(data?.detail ?? 'Failed to run simulation image classification')
+  }
   return res.json()
 }

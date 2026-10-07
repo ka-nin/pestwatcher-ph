@@ -1,0 +1,41 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1791310050.742115   30000 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1791310052.132474   30000 port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING:tensorflow:From C:\Users\Christian Roi Detera\Desktop\ricepest\pestwatcher-ph\server-python\.venv\Lib\site-packages\keras\src\backend\common\global_state.py:82: The name tf.reset_default_graph is deprecated. Please use tf.compat.v1.reset_default_graph instead.
+
+I0000 00:00:1791310053.139283   30000 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: SSE3 SSE4.1 SSE4.2 AVX AVX2 AVX_VNNI AVX_VNNI_INT8 AVX_NE_CONVERT FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+WARNING:tensorflow:TensorFlow GPU support is not available on native Windows for TensorFlow >= 2.11. Even if CUDA/cuDNN are installed, GPU will not be used. Please use WSL2 or the TensorFlow-DirectML plugin.
+
+=== RSB fold 1/5: train=1776 test=1804
+  engineered: rmse=1.1767  mae=0.7196  r2=0.0837  accuracy=0.9152  precision_macro=0.3051  recall_macro=0.3333  f1_macro=0.3186
+  raw:        rmse=1.2559  mae=0.9003  r2=-0.0439  accuracy=0.9152  precision_macro=0.3051  recall_macro=0.3333  f1_macro=0.3186
+
+=== RSB fold 2/5: train=3580 test=1804
+  engineered: rmse=1.5856  mae=0.8426  r2=0.0291  accuracy=0.8919  precision_macro=0.2973  recall_macro=0.3333  f1_macro=0.3143
+  raw:        rmse=1.6820  mae=0.9618  r2=-0.0926  accuracy=0.8919  precision_macro=0.2973  recall_macro=0.3333  f1_macro=0.3143
+
+=== RSB fold 3/5: train=5384 test=1804
+  engineered: rmse=1.1996  mae=0.7525  r2=-0.0439  accuracy=0.8830  precision_macro=0.3864  recall_macro=0.3652  f1_macro=0.3701
+  raw:        rmse=1.1751  mae=0.8816  r2=-0.0017  accuracy=0.9052  precision_macro=0.3017  recall_macro=0.3333  f1_macro=0.3167
+
+=== RSB fold 4/5: train=7188 test=1804
+  engineered: rmse=1.1352  mae=0.7118  r2=0.2217  accuracy=0.8830  precision_macro=0.3614  recall_macro=0.3461  f1_macro=0.3432
+  raw:        rmse=1.2828  mae=0.8855  r2=0.0061  accuracy=0.8919  precision_macro=0.2985  recall_macro=0.3319  f1_macro=0.3143
+
+=== RSB fold 5/5: train=8992 test=1805
+  engineered: rmse=1.3270  mae=0.7970  r2=0.2090  accuracy=0.8864  precision_macro=0.4378  recall_macro=0.3910  f1_macro=0.4040
+  raw:        rmse=1.5001  mae=0.9895  r2=-0.0108  accuracy=0.8964  precision_macro=0.2988  recall_macro=0.3333  f1_macro=0.3151
+
+=== RSB: engineered vs raw, 5-fold expanding-window CV ===
+                 engineered       raw           test  p_value  significant
+rmse               1.284821  1.379187  paired t-test   0.0509        False
+mae                0.764711  0.923741  paired t-test   0.0004         True
+r2                 0.099905 -0.028568  paired t-test   0.0538        False
+accuracy           0.891919  0.900122  paired t-test   0.1149        False
+precision_macro    0.357595  0.300272  paired t-test   0.0964        False
+recall_macro       0.353800  0.333045  paired t-test   0.1305        False
+f1_macro           0.350044  0.315804  paired t-test   0.1131        False
+
+Saved to C:\Users\Christian Roi Detera\Desktop\ricepest\pestwatcher-ph\server-python\ml\weights\rsb\bilstm_rsb_feature_comparison.json

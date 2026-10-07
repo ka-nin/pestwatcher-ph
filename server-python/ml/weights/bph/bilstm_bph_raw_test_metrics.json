@@ -1,0 +1,41 @@
+{
+  "rmse": 7.85399866978474,
+  "mae": 4.546069145202637,
+  "r2": 0.11037576198577881,
+  "etl_classification": {
+    "accuracy": 0.7463994990607389,
+    "precision_macro": 0.35351129028974,
+    "recall_macro": 0.3656330749354005,
+    "f1_macro": 0.35884180456873577,
+    "confusion_matrix": [
+      [
+        1157,
+        98,
+        35
+      ],
+      [
+        122,
+        35,
+        18
+      ],
+      [
+        112,
+        20,
+        0
+      ]
+    ],
+    "confusion_matrix_labels": [
+      "Low",
+      "Medium",
+      "High"
+    ],
+    "support_per_level": {
+      "Low": 1290,
+      "Medium": 175,
+      "High": 132
+    }
+  },
+  "feature_set": "raw",
+  "log_target": false,
+  "balance_bands": false
+}

@@ -23,6 +23,45 @@ const SEVERITY_COLOR: Record<string, string> = {
 
 const REPORT_ZOOM = 16
 
+// How far apart (in degrees of lat/lon) to nudge pins that would otherwise
+// sit exactly on top of each other — e.g. several reports from the same
+// municipality, which all carry that municipality's fixed coordinates
+// rather than a real per-sighting GPS pin (see user-mobile's Welcome.jsx).
+// ~0.0009 deg is roughly 100m at this latitude, enough to visually separate
+// pins without drifting them into a neighboring municipality.
+const CLUSTER_SPREAD_DEG = 0.0009
+
+// Groups reports that share (near enough) the same coordinate and arranges
+// each group in a small circle around their shared point, so every report
+// gets its own clickable pin instead of only the last-drawn one being
+// visible. A lone report at a coordinate is left exactly where it is.
+function spreadOverlappingReports(reports: ReportRecord[]): (ReportRecord & { _pos: [number, number] })[] {
+  const groups = new Map<string, ReportRecord[]>()
+  for (const r of reports) {
+    const key = `${(r.latitude as number).toFixed(4)},${(r.longitude as number).toFixed(4)}`
+    const group = groups.get(key)
+    if (group) group.push(r)
+    else groups.set(key, [r])
+  }
+
+  const result: (ReportRecord & { _pos: [number, number] })[] = []
+  for (const group of groups.values()) {
+    const [baseLat, baseLon] = [group[0].latitude as number, group[0].longitude as number]
+    if (group.length === 1) {
+      result.push({ ...group[0], _pos: [baseLat, baseLon] })
+      continue
+    }
+    group.forEach((r, i) => {
+      const angle = (2 * Math.PI * i) / group.length
+      result.push({
+        ...r,
+        _pos: [baseLat + CLUSTER_SPREAD_DEG * Math.sin(angle), baseLon + CLUSTER_SPREAD_DEG * Math.cos(angle)],
+      })
+    })
+  }
+  return result
+}
+
 function buildWindyUrl(lat: number, lon: number, zoom: number) {
   const params = new URLSearchParams({
     lat: String(lat),
@@ -52,12 +91,12 @@ function ProvinceMap({ latitude, longitude, label, reports = [] }: ProvinceMapPr
   const [mode, setMode] = useState<MapMode>('satellite')
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
-  const pinnableReports = useMemo(
+  const pinnableReports = useMemo(() => {
     // Rejected reports are hidden — they were reviewed and ruled out, so
     // they aren't a sighting anyone needs to see on the map.
-    () => reports.filter((r) => r.latitude != null && r.longitude != null && r.status !== 'rejected'),
-    [reports],
-  )
+    const withCoords = reports.filter((r) => r.latitude != null && r.longitude != null && r.status !== 'rejected')
+    return spreadOverlappingReports(withCoords)
+  }, [reports])
 
   useEffect(() => {
     if (mode !== 'satellite' || !containerRef.current) return
@@ -86,7 +125,7 @@ function ProvinceMap({ latitude, longitude, label, reports = [] }: ProvinceMapPr
     // municipality center) instead of staying at the fixed zoom-11 view.
     if (pinnableReports.length > 0) {
       const bounds = L.latLngBounds([[latitude, longitude]])
-      pinnableReports.forEach((r) => bounds.extend([r.latitude as number, r.longitude as number]))
+      pinnableReports.forEach((r) => bounds.extend(r._pos))
       map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 })
     }
 
@@ -96,7 +135,7 @@ function ProvinceMap({ latitude, longitude, label, reports = [] }: ProvinceMapPr
     // Clicking a pin flies the map in to that exact spot.
     pinnableReports.forEach((report) => {
         const color = SEVERITY_COLOR[report.severity] ?? '#999'
-        const pos: [number, number] = [report.latitude as number, report.longitude as number]
+        const pos = report._pos
 
         // Verified = solid pin (the same set the mobile app counts as active
         // threat zones); pending = faint pin with a dashed risk-colored
