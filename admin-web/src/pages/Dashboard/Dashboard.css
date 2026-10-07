@@ -242,19 +242,19 @@
 }
 
 .panel-title {
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 700;
 }
 
 .panel-subtitle {
-  font-size: 12px;
-  color: #999;
-  margin-top: 2px;
+  font-size: 13px;
+  color: #111;
+  margin-top: 4px;
 }
 
 .panel-hint {
   font-size: 12px;
-  color: #999;
+  color: #111;
 }
 
 .coming-soon-panel {
@@ -278,7 +278,7 @@
 
 .weather-now-panel .panel-title {
   color: #fff;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .weather-now-panel .panel-subtitle {
@@ -612,7 +612,7 @@
 .heatmap-table th {
   font-size: 11px;
   font-weight: 600;
-  color: #999;
+  color: #111;
   padding-bottom: 4px;
 }
 

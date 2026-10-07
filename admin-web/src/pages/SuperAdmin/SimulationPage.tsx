@@ -180,7 +180,7 @@ function HeldOutMetricsTable({ heldOut }: { heldOut: SimulationForecastResponse[
     )
   }
   return (
-    <div className="mi-table-wrap">
+    <div className="mi-table-wrap sim-heldout-table">
       <table className="mi-table">
         <thead>
           <tr>
@@ -224,9 +224,12 @@ function SimulationPage({ accessToken, onSessionExpired }: SimulationPageProps) 
   const [running, setRunning] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<SimulationForecastResponse | null>(null)
+  const [showResult, setShowResult] = useState(false)
 
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [dragOver, setDragOver] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
   const [imageRunning, setImageRunning] = useState(false)
   const [imageError, setImageError] = useState('')
   const [imageResult, setImageResult] = useState<SimulationImageResult | null>(null)
@@ -249,11 +252,14 @@ function SimulationPage({ accessToken, onSessionExpired }: SimulationPageProps) 
   const runForecast = async () => {
     setRunning(true)
     setError('')
+    setResult(null)
+    setShowResult(true)
     try {
       const res = await runSimulationForecast(accessToken, pest, days)
       setResult(res)
     } catch (err) {
       const e = err as Error
+      setShowResult(false)
       if (e.message.startsWith('Session expired')) onSessionExpired()
       else setError(e.message)
     } finally {
@@ -267,6 +273,18 @@ function SimulationPage({ accessToken, onSessionExpired }: SimulationPageProps) 
     setImageError('')
     if (photoPreview) URL.revokeObjectURL(photoPreview)
     setPhotoPreview(file ? URL.createObjectURL(file) : null)
+  }
+
+  const clearPhoto = () => {
+    onPhotoSelected(null)
+    if (photoInputRef.current) photoInputRef.current.value = ''
+  }
+
+  const onPhotoDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file && /^image\/(jpeg|png|webp)$/.test(file.type)) onPhotoSelected(file)
   }
 
   const runImage = async () => {
@@ -284,6 +302,15 @@ function SimulationPage({ accessToken, onSessionExpired }: SimulationPageProps) 
       setImageRunning(false)
     }
   }
+
+  useEffect(() => {
+    if (!showResult) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowResult(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [showResult])
 
   const windowSummary = useMemo(() => {
     const avg = (field: keyof typeof DEFAULT_DAY) => days.reduce((sum, d) => sum + d[field], 0) / days.length
@@ -308,17 +335,24 @@ function SimulationPage({ accessToken, onSessionExpired }: SimulationPageProps) 
           </div>
         </div>
 
-        <div className="sim-controls-row">
-          <div className="mi-toggle" role="tablist">
-            {(['BPH', 'RSB'] as PestKey[]).map((p) => (
-              <button key={p} type="button" className={pest === p ? 'active' : ''} onClick={() => setPest(p)}>
-                {PEST_FULL_NAME[p]}
-              </button>
-            ))}
+        <div className="sim-setup">
+          <div className="sim-setup-card">
+            <span className="sim-step-label">
+              <b>1</b> Pest
+            </span>
+            <div className="mi-toggle" role="tablist">
+              {(['BPH', 'RSB'] as PestKey[]).map((p) => (
+                <button key={p} type="button" className={pest === p ? 'active' : ''} onClick={() => setPest(p)}>
+                  {PEST_FULL_NAME[p]}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="sim-field">
-            <span>Growth stage (applies to all 14 days)</span>
+          <div className="sim-setup-card">
+            <span className="sim-step-label">
+              <b>2</b> Growth stage <small>applies to all 14 days</small>
+            </span>
             <Dropdown
               value={growthStage}
               options={GROWTH_STAGES}
@@ -327,45 +361,66 @@ function SimulationPage({ accessToken, onSessionExpired }: SimulationPageProps) 
           </div>
         </div>
 
+        <div className="sim-section-title">
+          <b>3</b> Weather window
+        </div>
+
         <div className="sim-quickfill">
-          <span>Quick-fill all 14 days:</span>
-          <label>
-            Tmax
-            <input
-              type="number"
-              step="0.1"
-              defaultValue={DEFAULT_DAY.tmax}
-              onBlur={(e) => applyToAllDays('tmax', Number(e.target.value))}
-            />
-          </label>
-          <label>
-            Tmin
-            <input
-              type="number"
-              step="0.1"
-              defaultValue={DEFAULT_DAY.tmin}
-              onBlur={(e) => applyToAllDays('tmin', Number(e.target.value))}
-            />
-          </label>
-          <label>
-            RH %
-            <input
-              type="number"
-              step="0.1"
-              defaultValue={DEFAULT_DAY.relative_humidity}
-              onBlur={(e) => applyToAllDays('relative_humidity', Number(e.target.value))}
-            />
-          </label>
-          <label>
-            Rainfall mm
-            <input
-              type="number"
-              step="0.1"
-              defaultValue={DEFAULT_DAY.rainfall}
-              onBlur={(e) => applyToAllDays('rainfall', Number(e.target.value))}
-            />
-          </label>
-          <button type="button" className="mi-btn" onClick={resetWindow}>
+          <div className="sim-quickfill-head">
+            <strong>Quick-fill all 14 days</strong>
+            <span>Type a value and click away to apply it to every day.</span>
+          </div>
+          <div className="sim-quickfill-fields">
+            <label>
+              <span>Tmax</span>
+              <div className="sim-input-unit">
+                <input
+                  type="number"
+                  step="0.1"
+                  defaultValue={DEFAULT_DAY.tmax}
+                  onBlur={(e) => applyToAllDays('tmax', Number(e.target.value))}
+                />
+                <em>°C</em>
+              </div>
+            </label>
+            <label>
+              <span>Tmin</span>
+              <div className="sim-input-unit">
+                <input
+                  type="number"
+                  step="0.1"
+                  defaultValue={DEFAULT_DAY.tmin}
+                  onBlur={(e) => applyToAllDays('tmin', Number(e.target.value))}
+                />
+                <em>°C</em>
+              </div>
+            </label>
+            <label>
+              <span>Relative humidity</span>
+              <div className="sim-input-unit">
+                <input
+                  type="number"
+                  step="0.1"
+                  defaultValue={DEFAULT_DAY.relative_humidity}
+                  onBlur={(e) => applyToAllDays('relative_humidity', Number(e.target.value))}
+                />
+                <em>%</em>
+              </div>
+            </label>
+            <label>
+              <span>Rainfall</span>
+              <div className="sim-input-unit">
+                <input
+                  type="number"
+                  step="0.1"
+                  defaultValue={DEFAULT_DAY.rainfall}
+                  onBlur={(e) => applyToAllDays('rainfall', Number(e.target.value))}
+                />
+                <em>mm</em>
+              </div>
+            </label>
+          </div>
+          <button type="button" className="mi-btn sim-reset-btn" onClick={resetWindow}>
             ↺ Reset to defaults
           </button>
         </div>
@@ -385,7 +440,12 @@ function SimulationPage({ accessToken, onSessionExpired }: SimulationPageProps) 
             <tbody>
               {days.map((d, i) => (
                 <tr key={d.date} className={i === days.length - 1 ? 'current' : undefined}>
-                  <td>{i + 1 === days.length ? `${i + 1} (most recent)` : i + 1}</td>
+                  <td>
+                    <div className="sim-day-cell">
+                      <span className="sim-day-num">{i + 1}</span>
+                      {i + 1 === days.length && <span className="sim-recent-tag">Most recent</span>}
+                    </div>
+                  </td>
                   <td>{d.date}</td>
                   <td>
                     <input
@@ -424,46 +484,94 @@ function SimulationPage({ accessToken, onSessionExpired }: SimulationPageProps) 
             </tbody>
           </table>
         </div>
+
+        <div className="sim-summary">
+          <div className="sim-summary-tile">
+            <span>Mean Tmax</span>
+            <strong>{windowSummary.tmax}°C</strong>
+          </div>
+          <div className="sim-summary-tile">
+            <span>Mean Tmin</span>
+            <strong>{windowSummary.tmin}°C</strong>
+          </div>
+          <div className="sim-summary-tile">
+            <span>Mean RH</span>
+            <strong>{windowSummary.rh}%</strong>
+          </div>
+          <div className="sim-summary-tile">
+            <span>Total rainfall</span>
+            <strong>{windowSummary.rainfall} mm</strong>
+          </div>
+        </div>
         <p className="mi-note">
-          Window summary: mean Tmax {windowSummary.tmax}°C · mean Tmin {windowSummary.tmin}°C · mean RH{' '}
-          {windowSummary.rh}% · total rainfall {windowSummary.rainfall}mm over {WINDOW_DAYS} days. The forecast is
-          for 14 days after the most recent day above.
+          Summary over {WINDOW_DAYS} days. The forecast is for 14 days after the most recent day above.
         </p>
 
         <div className="sim-run-row">
-          <button type="button" className="mi-btn mi-btn-primary" onClick={runForecast} disabled={running}>
-            {running ? 'Running…' : '▶ Run forecast'}
+          <button type="button" className="sim-run-btn" onClick={runForecast} disabled={running}>
+            {running ? (
+              <>
+                <span className="sim-spinner" aria-hidden="true" />
+                Running…
+              </>
+            ) : (
+              '▶ Run forecast'
+            )}
           </button>
           {error && <p className="stat-card-error">{error}</p>}
         </div>
       </section>
 
-      {result && (
-        <section className="panel mi-panel">
-          <div className="panel-head">
-            <div>
-              <div className="panel-title">Live prediction: engineered vs. raw baseline</div>
-              <div className="panel-subtitle">Same manually-entered window, same BiLSTM architecture, two feature sets</div>
+      {showResult && (
+        <div className="sim-modal-backdrop" onClick={() => setShowResult(false)}>
+          <div
+            className="sim-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Live prediction"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sim-modal-head">
+              <div>
+                <div className="sim-modal-title">Live prediction: engineered vs. raw baseline</div>
+                <div className="sim-modal-subtitle">
+                  Same manually-entered window, same BiLSTM architecture, two feature sets
+                </div>
+              </div>
+              <button type="button" className="sim-modal-close" onClick={() => setShowResult(false)} aria-label="Close">
+                ×
+              </button>
             </div>
-          </div>
-          <div className="sim-results-row">
-            <ModelResultCard
-              title="Engineered (deployed)"
-              subtitle="GDD · CRF · HP · VPD · WSI · trends · growth-stage one-hot"
-              result={result.engineered}
-              tone="green"
-            />
-            <ModelResultCard
-              title="Raw (baseline)"
-              subtitle="Tmax / Tmin / RH / Rainfall only — the thesis's RQ2 control"
-              result={result.raw}
-              tone="yellow"
-            />
-          </div>
 
-          <h4 className="mi-h4">Held-out test performance (historical, both configurations)</h4>
-          <HeldOutMetricsTable heldOut={result.heldOutMetrics} />
-        </section>
+            {running || !result ? (
+              <div className="sim-loading" role="status" aria-live="polite">
+                <span className="sim-spinner" aria-hidden="true" />
+                <strong>Running forecast…</strong>
+                <span>Running the engineered and raw-baseline models on your 14-day window.</span>
+              </div>
+            ) : (
+              <>
+                <div className="sim-results-row">
+                  <ModelResultCard
+                    title="Engineered (deployed)"
+                    subtitle="GDD · CRF · HP · VPD · WSI · trends · growth-stage one-hot"
+                    result={result.engineered}
+                    tone="green"
+                  />
+                  <ModelResultCard
+                    title="Raw (baseline)"
+                    subtitle="Tmax / Tmin / RH / Rainfall only — the thesis's RQ2 control"
+                    result={result.raw}
+                    tone="yellow"
+                  />
+                </div>
+
+                <h4 className="mi-h4">Held-out test performance (historical, both configurations)</h4>
+                <HeldOutMetricsTable heldOut={result.heldOutMetrics} />
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       <section className="panel mi-panel">
@@ -477,12 +585,56 @@ function SimulationPage({ accessToken, onSessionExpired }: SimulationPageProps) 
         <div className="sim-photo-row">
           <div className="sim-photo-upload">
             <input
+              ref={photoInputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp"
+              hidden
               onChange={(e) => onPhotoSelected(e.target.files?.[0] ?? null)}
             />
-            {photoPreview && <img src={photoPreview} alt="Selected pest photo preview" className="sim-photo-preview" />}
-            <button type="button" className="mi-btn mi-btn-primary" onClick={runImage} disabled={!photo || imageRunning}>
+
+            {photo && photoPreview ? (
+              <div className="sim-dropzone sim-dropzone-filled">
+                <img src={photoPreview} alt="Selected pest photo preview" className="sim-photo-preview" />
+                <div className="sim-file-info">
+                  <div className="sim-file-meta">
+                    <span className="sim-file-name" title={photo.name}>
+                      {photo.name}
+                    </span>
+                    <span className="sim-file-size">{(photo.size / 1024).toFixed(0)} KB</span>
+                  </div>
+                  <div className="sim-file-actions">
+                    <button type="button" className="admin-link-btn" onClick={() => photoInputRef.current?.click()}>
+                      Change
+                    </button>
+                    <button type="button" className="admin-link-btn admin-link-btn-danger" onClick={clearPhoto}>
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className={`sim-dropzone sim-dropzone-empty${dragOver ? ' is-dragover' : ''}`}
+                onClick={() => photoInputRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setDragOver(true)
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={onPhotoDrop}
+              >
+                <svg className="sim-dropzone-icon" viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 16V4" />
+                  <path d="m7 9 5-5 5 5" />
+                  <path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
+                </svg>
+                <span className="sim-dropzone-title">Click to upload or drag a photo here</span>
+                <span className="sim-dropzone-hint">JPG, PNG or WebP</span>
+              </button>
+            )}
+
+            <button type="button" className="admin-btn admin-btn-primary sim-classify-btn" onClick={runImage} disabled={!photo || imageRunning}>
               {imageRunning ? 'Classifying…' : '▶ Classify photo'}
             </button>
             {imageError && <p className="stat-card-error">{imageError}</p>}
