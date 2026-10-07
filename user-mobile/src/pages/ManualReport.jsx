@@ -247,146 +247,158 @@ export default function ManualReport() {
       )}
 
       <form className="report-body" onSubmit={handleReview}>
-        <label className="report-field">
-          <span>{t('reportFieldPestType')}</span>
-          <div className="report-select">
-            <select ref={pestSelectRef} value={pestType} onChange={(e) => setPestType(e.target.value)} required>
-              <option value="" disabled>
-                {t('reportPestPlaceholder')}
-              </option>
-              {pestTypeOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt[language]}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={16} />
-          </div>
-        </label>
+        <section className="report-section">
+          <h2 className="report-section-title">{t('reportSectionPest')}</h2>
 
-        <div className="report-field">
-          <span>{t('reportFieldSeverity')}</span>
-          <div className="severity-options">
-            {severityOptions.map((opt) => (
-              <button
-                type="button"
-                key={opt.id}
-                className={`severity-pill${severity === opt.id ? ' active' : ''}`}
-                style={severity === opt.id ? { borderColor: opt.color, color: opt.color } : undefined}
-                onClick={() => setSeverity(opt.id)}
-              >
-                <span className="severity-dot" style={{ background: opt.color }} />
-                {opt[language]}
-              </button>
-            ))}
+          <label className="report-field">
+            <span>{t('reportFieldPestType')}</span>
+            <div className="report-select">
+              <select ref={pestSelectRef} value={pestType} onChange={(e) => setPestType(e.target.value)} required>
+                <option value="" disabled>
+                  {t('reportPestPlaceholder')}
+                </option>
+                {pestTypeOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt[language]}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={16} />
+            </div>
+          </label>
+
+          <div className="report-field">
+            <span>{t('reportFieldSeverity')}</span>
+            <div className="severity-options">
+              {severityOptions.map((opt) => (
+                <button
+                  type="button"
+                  key={opt.id}
+                  className={`severity-pill${severity === opt.id ? ' active' : ''}`}
+                  style={severity === opt.id ? { borderColor: opt.color, color: opt.color } : undefined}
+                  onClick={() => setSeverity(opt.id)}
+                >
+                  <span className="severity-dot" style={{ background: opt.color }} />
+                  {opt[language]}
+                </button>
+              ))}
+            </div>
+            {etlBand && (
+              <p className="report-threshold-hint">
+                {severityOptions.map((opt, i) => (
+                  <span key={opt.id}>
+                    {i > 0 && ' · '}
+                    <strong>{opt[language]}</strong> {rangeFor(opt.id, etlBand)}
+                  </span>
+                ))}{' '}
+                {etlBand.unit}
+              </p>
+            )}
           </div>
-          {etlBand && (
+        </section>
+
+        <section className="report-section">
+          <h2 className="report-section-title">{t('reportSectionField')}</h2>
+
+          <label className="report-field">
+            <span>{t('reportFieldGrowthStage')}</span>
+            <div className="report-select">
+              <select value={cropGrowthStage} onChange={(e) => setCropGrowthStage(e.target.value)} required>
+                {growthStageOptions.map((stage) => (
+                  <option key={stage} value={stage}>
+                    {growthStageLabels[stage]?.[language] ?? stage}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={16} />
+            </div>
+            <p className="report-stage-description">{growthStageDescriptions[cropGrowthStage]?.[language]}</p>
+          </label>
+
+          {areaWarningEl}
+
+          <label className="report-field">
+            <span>{t('reportFieldAreaAffected')}</span>
+            <div className="report-static-field">
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                inputMode="decimal"
+                placeholder={t('reportAreaPlaceholder')}
+                value={areaAffected}
+                onChange={(e) => setAreaAffected(e.target.value)}
+                className="report-date-input"
+              />
+            </div>
             <p className="report-threshold-hint">
               {severityOptions.map((opt, i) => (
                 <span key={opt.id}>
                   {i > 0 && ' · '}
-                  <strong>{opt[language]}</strong> {rangeFor(opt.id, etlBand)}
+                  <strong>{opt[language]}</strong> {AREA_RANGE[opt.id]}
                 </span>
               ))}{' '}
-              {etlBand.unit}
+              {t('reportSummaryHectares')}
             </p>
-          )}
-        </div>
+          </label>
 
-        <label className="report-field">
-          <span>{t('reportFieldGrowthStage')}</span>
-          <div className="report-select">
-            <select value={cropGrowthStage} onChange={(e) => setCropGrowthStage(e.target.value)} required>
-              {growthStageOptions.map((stage) => (
-                <option key={stage} value={stage}>
-                  {growthStageLabels[stage]?.[language] ?? stage}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={16} />
-          </div>
-          <p className="report-stage-description">{growthStageDescriptions[cropGrowthStage]?.[language]}</p>
-        </label>
+          {warningEl}
 
-        {areaWarningEl}
+          <label className="report-field">
+            <span>{t(estimatedCountLabelKey)}</span>
+            <div className={`report-static-field${pestCode ? '' : ' report-static-field-disabled'}`}>
+              <input
+                type="number"
+                min="0"
+                max={pestCode === 'RSB' ? 100 : undefined}
+                step="0.1"
+                inputMode="decimal"
+                disabled={!pestCode}
+                placeholder={pestCode ? t('reportEstimatedPlaceholder') : t('reportEstimatedChoosePestFirst')}
+                value={estimatedValue}
+                onChange={(e) => setEstimatedValue(e.target.value)}
+                className="report-date-input"
+              />
+              {estimatedUnit && <span className="report-field-unit">{estimatedUnit}</span>}
+            </div>
+          </label>
+        </section>
 
-        <label className="report-field">
-          <span>{t('reportFieldAreaAffected')}</span>
-          <div className="report-static-field">
-            <input
-              type="number"
-              min="0"
-              step="0.1"
-              inputMode="decimal"
-              placeholder={t('reportAreaPlaceholder')}
-              value={areaAffected}
-              onChange={(e) => setAreaAffected(e.target.value)}
-              className="report-date-input"
+        <section className="report-section">
+          <h2 className="report-section-title">{t('reportSectionDetails')}</h2>
+
+          <label className="report-field">
+            <span>{t('reportFieldLocation')}</span>
+            <div className="report-static-field report-static-field-readonly" aria-readonly="true">
+              <MapPin size={15} />
+              {user ? `${user.municipality}, ${user.province}` : t('reportNoLocation')}
+              <Lock size={14} style={{ marginLeft: 'auto' }} />
+            </div>
+          </label>
+
+          <label className="report-field">
+            <span>{t('reportFieldDateSpotted')}</span>
+            <div className="report-static-field">
+              <input
+                type="date"
+                value={dateSpotted}
+                onChange={(e) => setDateSpotted(e.target.value)}
+                className="report-date-input"
+              />
+              <Calendar size={15} color="var(--color-text-muted)" />
+            </div>
+          </label>
+
+          <label className="report-field">
+            <span>{t('reportFieldNotes')}</span>
+            <textarea
+              rows={4}
+              placeholder={t('reportNotesPlaceholder')}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
             />
-          </div>
-          <p className="report-threshold-hint">
-            {severityOptions.map((opt, i) => (
-              <span key={opt.id}>
-                {i > 0 && ' · '}
-                <strong>{opt[language]}</strong> {AREA_RANGE[opt.id]}
-              </span>
-            ))}{' '}
-            {t('reportSummaryHectares')}
-          </p>
-        </label>
-
-        {warningEl}
-
-        <label className="report-field">
-          <span>{t(estimatedCountLabelKey)}</span>
-          <div className={`report-static-field${pestCode ? '' : ' report-static-field-disabled'}`}>
-            <input
-              type="number"
-              min="0"
-              max={pestCode === 'RSB' ? 100 : undefined}
-              step="0.1"
-              inputMode="decimal"
-              disabled={!pestCode}
-              placeholder={pestCode ? t('reportEstimatedPlaceholder') : t('reportEstimatedChoosePestFirst')}
-              value={estimatedValue}
-              onChange={(e) => setEstimatedValue(e.target.value)}
-              className="report-date-input"
-            />
-            {estimatedUnit && <span className="report-field-unit">{estimatedUnit}</span>}
-          </div>
-        </label>
-
-        <label className="report-field">
-          <span>{t('reportFieldLocation')}</span>
-          <div className="report-static-field report-static-field-readonly" aria-readonly="true">
-            <MapPin size={15} />
-            {user ? `${user.municipality}, ${user.province}` : t('reportNoLocation')}
-            <Lock size={14} style={{ marginLeft: 'auto' }} />
-          </div>
-        </label>
-
-        <label className="report-field">
-          <span>{t('reportFieldDateSpotted')}</span>
-          <div className="report-static-field">
-            <input
-              type="date"
-              value={dateSpotted}
-              onChange={(e) => setDateSpotted(e.target.value)}
-              className="report-date-input"
-            />
-            <Calendar size={15} color="var(--color-text-muted)" />
-          </div>
-        </label>
-
-        <label className="report-field">
-          <span>{t('reportFieldNotes')}</span>
-          <textarea
-            rows={4}
-            placeholder={t('reportNotesPlaceholder')}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </label>
+          </label>
+        </section>
 
         <button className="report-submit" type="submit" disabled={submitted || submitting}>
           {submitted ? t('reportSubmitted') : t('reportReview')}
