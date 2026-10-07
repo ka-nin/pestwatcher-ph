@@ -80,7 +80,26 @@
   padding: 18px 20px 40px;
   display: flex;
   flex-direction: column;
+  gap: 20px;
+}
+
+.report-section {
+  display: flex;
+  flex-direction: column;
   gap: 16px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.report-section-title {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-primary-dark);
 }
 
 .report-field {

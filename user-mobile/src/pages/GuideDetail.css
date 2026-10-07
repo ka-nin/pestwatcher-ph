@@ -83,19 +83,32 @@
 }
 
 .guide-detail-fil {
-  margin: 0 0 16px;
+  margin: 0 0 20px;
   font-size: var(--text-sm);
   color: var(--color-primary-dark);
 }
 
+.guide-detail-sheet {
+  display: flex;
+  flex-direction: column;
+}
+
 .guide-detail-sheet section {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: #fff;
+  border: 1px solid var(--color-border);
+}
+
+.guide-detail-sheet section:last-of-type {
+  margin-bottom: 0;
 }
 
 .guide-detail-sheet h2 {
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.5px;
   color: var(--color-primary-dark);
 }
@@ -113,6 +126,10 @@
   font-size: var(--text-sm);
   line-height: 1.7;
   color: var(--color-text);
+}
+
+.guide-detail-sheet li + li {
+  margin-top: 2px;
 }
 
 .guide-detail-footer {
