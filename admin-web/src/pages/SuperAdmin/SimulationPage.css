@@ -1,22 +1,5 @@
 /* Simulation page — reuses .panel / .badge / .mi-* from Dashboard.css and ModelInsightsPage.css */
 
-.sim-controls-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 16px;
-  margin: 14px 0;
-}
-
-.sim-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
-  color: #555;
-  width: fit-content;
-}
-
 .sim-dropdown {
   position: relative;
   width: 220px;
@@ -99,46 +82,6 @@
   background: rgba(47, 107, 50, 0.1);
   color: #2f6b32;
   font-weight: 700;
-}
-
-.sim-quickfill {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  margin-bottom: 14px;
-  background: #faf8f1;
-  border: 1px solid #eee6d9;
-  border-radius: 10px;
-  font-size: 12px;
-  color: #555;
-}
-
-.sim-quickfill label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.sim-quickfill input {
-  width: 70px;
-  padding: 5px 7px;
-  border-radius: 6px;
-  border: 1px solid #ddd6c4;
-  font-size: 12.5px;
-}
-
-.sim-day-table input {
-  width: 68px;
-  padding: 4px 6px;
-  border-radius: 6px;
-  border: 1px solid #ddd6c4;
-  font-size: 12.5px;
-}
-
-.sim-day-table tr.current td {
-  background: rgba(47, 107, 50, 0.06);
 }
 
 .sim-run-row {
@@ -277,14 +220,6 @@
   gap: 10px;
 }
 
-.sim-photo-preview {
-  width: 100%;
-  max-height: 220px;
-  object-fit: cover;
-  border-radius: 10px;
-  border: 1px solid #eee6d9;
-}
-
 .sim-photo-result {
   padding: 14px 16px;
   border-radius: 12px;
@@ -300,4 +235,563 @@
   .sim-photo-row {
     grid-template-columns: 1fr;
   }
+}
+
+.sim-quickfill input:hover,
+.sim-day-table input:hover {
+  border-color: #bbb;
+}
+
+.sim-quickfill input:focus,
+.sim-day-table input:focus {
+  outline: none;
+  border-color: #4b7a3c;
+  box-shadow: 0 0 0 3px rgba(75, 122, 60, 0.15);
+}
+
+.sim-dropzone {
+  box-sizing: border-box;
+  width: 100%;
+  border-radius: 12px;
+  font-family: inherit;
+}
+
+.sim-dropzone-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 28px 16px;
+  border: 1.5px dashed #cfc8b4;
+  background: #faf8f1;
+  color: #4b7a3c;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.sim-dropzone-empty:hover,
+.sim-dropzone-empty.is-dragover {
+  border-color: #4b7a3c;
+  background: #f1f6ec;
+}
+
+.sim-dropzone-empty:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(75, 122, 60, 0.2);
+}
+
+.sim-dropzone-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #2a2a22;
+}
+
+.sim-dropzone-hint {
+  font-size: 11.5px;
+  color: #999;
+}
+
+.sim-dropzone-filled {
+  overflow: hidden;
+  border: 1px solid #eee6d9;
+  background: #fff;
+}
+
+.sim-photo-preview {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+}
+
+.sim-file-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.sim-file-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sim-file-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #2a2a22;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sim-file-size {
+  font-size: 11px;
+  color: #999;
+}
+
+.sim-file-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+.sim-classify-btn {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 13px;
+}
+
+.sim-classify-btn:disabled {
+  background: #cdd8c6;
+  border-color: #cdd8c6;
+  opacity: 1;
+}
+
+/* ---- Simulation input redesign ---- */
+.sim-setup {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin: 16px 0 22px;
+}
+
+.sim-setup-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid #e9e4d6;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(60, 50, 20, 0.05);
+}
+
+.sim-step-label,
+.sim-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2124;
+}
+
+.sim-step-label small {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #888;
+}
+
+.sim-step-label b,
+.sim-section-title b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #2f6b32;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.sim-section-title {
+  margin-bottom: 10px;
+  /* 1px card border + 16px card padding, so the badge lines up with the
+     step badges inside the setup cards above. */
+  padding-left: 17px;
+  font-size: 15px;
+}
+
+.sim-quickfill {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px 20px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: #f3f9ee;
+  border: 1px solid #dbe8d3;
+  border-radius: 14px;
+  font-size: 12px;
+  color: #444;
+}
+
+.sim-quickfill-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 100%;
+}
+
+.sim-quickfill-head strong {
+  font-size: 13.5px;
+  color: #1f2124;
+}
+
+.sim-quickfill-head span {
+  color: #666;
+}
+
+.sim-quickfill-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  flex: 1 1 420px;
+}
+
+.sim-quickfill label {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #444;
+}
+
+.sim-input-unit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid #ddd6c4;
+  background: #fff;
+}
+
+.sim-input-unit:focus-within {
+  border-color: #4b7a3c;
+  box-shadow: 0 0 0 3px rgba(75, 122, 60, 0.15);
+}
+
+.sim-quickfill .sim-input-unit input {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  padding: 8px 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  font-size: 14px;
+}
+
+.sim-quickfill .sim-input-unit input:focus {
+  box-shadow: none;
+}
+
+.sim-input-unit em {
+  font-style: normal;
+  font-size: 12px;
+  color: #888;
+}
+
+.sim-reset-btn {
+  flex-shrink: 0;
+}
+
+.sim-day-table {
+  max-height: 430px;
+  overflow: auto;
+  border: 1px solid #e9e4d6;
+  border-radius: 12px;
+}
+
+.sim-day-table .mi-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 11px 14px;
+  background: #f7f5ee;
+}
+
+.sim-day-table .mi-table td {
+  padding: 8px 14px;
+  color: #111;
+}
+
+.sim-day-table .mi-table tbody tr:hover td {
+  background: #faf8f1;
+}
+
+.sim-day-table input {
+  width: 92px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid #ddd6c4;
+  background: #fff;
+  color: #1f2124;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.sim-day-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #f0eee6;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sim-recent-tag {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #2f6b32;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.sim-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.sim-summary-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #faf8f1;
+  border: 1px solid #eee6d9;
+}
+
+.sim-summary-tile span {
+  font-size: 11.5px;
+  color: #666;
+}
+
+.sim-summary-tile strong {
+  font-size: 18px;
+  color: #1f2124;
+}
+
+.sim-run-btn {
+  padding: 12px 28px;
+  border: none;
+  border-radius: 999px;
+  background: #2f6b32;
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(47, 107, 50, 0.25);
+}
+
+.sim-run-btn:hover {
+  background: #265a29;
+}
+
+.sim-run-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Fixed layout: all six columns are the same width and centred under their
+   headers. */
+.sim-day-table {
+  color-scheme: light;
+}
+
+.sim-day-table .mi-table {
+  table-layout: fixed;
+  min-width: 640px;
+}
+
+.sim-day-table .mi-table th {
+  width: calc(100% / 6);
+}
+
+.sim-day-table .mi-table th,
+.sim-day-table .mi-table td {
+  text-align: center;
+}
+
+/* Day number centred, with the "Most recent" tag stacked beneath it so the
+   number itself stays on the column's centre line. */
+.sim-day-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.sim-day-cell .sim-recent-tag {
+  margin-left: 0;
+}
+
+/* ---- Live prediction pop-up ---- */
+/* Button on the right; the gap above it matches the panel's bottom padding
+   (18px), so it sits with equal space above and below. */
+.sim-run-row {
+  justify-content: flex-end;
+  margin-top: 18px;
+  margin-bottom: 0;
+}
+
+.sim-run-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sim-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 24, 18, 0.55);
+  backdrop-filter: blur(1px);
+}
+
+.sim-modal {
+  width: 100%;
+  max-width: 880px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 24px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  color-scheme: light;
+}
+
+.sim-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.sim-modal-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: #1f2124;
+}
+
+.sim-modal-subtitle {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #111;
+}
+
+.sim-modal-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #777;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sim-modal-close:hover {
+  background: #f3f1ea;
+}
+
+.sim-modal .sim-results-row {
+  margin-top: 0;
+}
+
+.sim-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 48px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: #555;
+}
+
+.sim-loading strong {
+  font-size: 16px;
+  color: #1f2124;
+}
+
+.sim-spinner {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 4px solid #dbe8d3;
+  border-top-color: #2f6b32;
+  animation: sim-spin 0.8s linear infinite;
+}
+
+.sim-run-btn .sim-spinner {
+  width: 16px;
+  height: 16px;
+  border-width: 2.5px;
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+}
+
+@keyframes sim-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sim-spinner {
+    animation-duration: 2s;
+  }
+}
+
+/* Held-out metrics table: equal columns, centred values (metric name stays
+   left-aligned). */
+.sim-heldout-table .mi-table {
+  table-layout: fixed;
+  min-width: 560px;
+}
+
+.sim-heldout-table .mi-table th,
+.sim-heldout-table .mi-table td {
+  padding: 11px 14px;
+  text-align: center;
+  color: #111;
+}
+
+.sim-heldout-table .mi-table th:first-child,
+.sim-heldout-table .mi-table td:first-child {
+  width: 22%;
+  text-align: left;
+}
+
+.sim-heldout-table .mi-table th:nth-child(n + 2) {
+  width: 15.6%;
+}
+
+.sim-heldout-table .mi-table tbody tr:hover td {
+  background: #faf8f1;
+}
+
+.sim-heldout-table .mi-table td.bad {
+  color: #c23b3b;
 }

@@ -21,6 +21,7 @@ const forecastMeta = [
     breakdownTitle: 'BPH Daily Breakdown',
     unitLabel: '/hill',
     format: (v: number) => Math.round(v).toString(),
+    valueText: (v: number) => `${Math.round(v)} hoppers/hill`,
   },
   {
     key: 'rsb' as const,
@@ -29,6 +30,7 @@ const forecastMeta = [
     breakdownTitle: 'RSB Daily Breakdown',
     unitLabel: '%',
     format: (v: number) => `${v.toFixed(1)}%`,
+    valueText: (v: number) => `${v.toFixed(1)}% dead hearts`,
   },
 ]
 
@@ -39,6 +41,11 @@ function formatDayLabel(iso: string) {
 function PestForecastPage({ user }: PestForecastPageProps) {
   const [trajectories, setTrajectories] = useState<Partial<Record<'bph' | 'rsb', TrajectoryPoint[]>>>({})
   const [forecastError, setForecastError] = useState('')
+  // Day being inspected, per pest: hovering the chart highlights the matching
+  // daily-breakdown row and the other way round.
+  const [hoverIndex, setHoverIndex] = useState<Record<'bph' | 'rsb', number | null>>({ bph: null, rsb: null })
+  const setHover = (key: 'bph' | 'rsb', index: number | null) =>
+    setHoverIndex((prev) => (prev[key] === index ? prev : { ...prev, [key]: index }))
 
   useEffect(() => {
     let cancelled = false
@@ -94,6 +101,9 @@ function PestForecastPage({ user }: PestForecastPageProps) {
                 lowMax={etlBandFor(meta.key, ACTIVE_GROWTH_STAGE).lowMax}
                 highMin={etlBandFor(meta.key, ACTIVE_GROWTH_STAGE).highMin}
                 unitLabel={meta.unitLabel}
+                valueText={meta.valueText}
+                hoverIndex={hoverIndex[meta.key]}
+                onHover={(index) => setHover(meta.key, index)}
               />
             </div>
           )
@@ -115,8 +125,16 @@ function PestForecastPage({ user }: PestForecastPageProps) {
               <div className="forecast-breakdown-title">{meta.breakdownTitle}</div>
               <div className="forecast-breakdown-list">
                 {points.length === 0 && <p className="stat-card-loading">Loading…</p>}
-                {points.map((p) => (
-                  <div className="forecast-breakdown-row" key={p.date}>
+                {points.map((p, i) => (
+                  <div
+                    className={`forecast-breakdown-row${hoverIndex[meta.key] === i ? ' is-active' : ''}`}
+                    key={p.date}
+                    tabIndex={0}
+                    onMouseEnter={() => setHover(meta.key, i)}
+                    onMouseLeave={() => setHover(meta.key, null)}
+                    onFocus={() => setHover(meta.key, i)}
+                    onBlur={() => setHover(meta.key, null)}
+                  >
                     <span className="forecast-breakdown-date">{formatDayLabel(p.date)}</span>
                     <div className="forecast-breakdown-track">
                       <div

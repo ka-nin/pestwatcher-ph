@@ -61,7 +61,7 @@ function SettingsPage({ accessToken, onSessionExpired }: SettingsPageProps) {
         <p className="stat-card-loading">Loading thresholds…</p>
       ) : (
         <div className="admin-table-wrap">
-          <table className="admin-table">
+          <table className="admin-table admin-table-etl">
             <thead>
               <tr>
                 <th>Pest</th>
