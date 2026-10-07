@@ -6,6 +6,17 @@ import { useLanguage } from '../context/LanguageContext';
 import { haversineKm } from '../utils/geo';
 import { pestNames } from '../utils/pestNames';
 
+// A sighting only signals an active threat for a couple of weeks — older
+// ones are treated as resolved so stale pins don't make an area look infested.
+const MAX_REPORT_AGE_DAYS = 14;
+const MAX_REPORT_AGE_MS = MAX_REPORT_AGE_DAYS * 24 * 60 * 60 * 1000;
+
+function isRecent(dateSpotted) {
+  const t = new Date(dateSpotted).getTime();
+  // An unparseable date is kept rather than silently dropped.
+  return Number.isNaN(t) || Date.now() - t <= MAX_REPORT_AGE_MS;
+}
+
 const SEVERITY_LABEL = {
   low: 'Low Risk',
   medium: 'Medium Risk',
@@ -50,7 +61,7 @@ export function useReports() {
           // shouldn't alarm nearby farmers (it also never nudges the
           // forecast; see server-python/app/decision/report_anchor.py,
           // which applies the same verified-only rule server-side).
-          .filter((r) => r.status === 'verified')
+          .filter((r) => r.status === 'verified' && isRecent(r.date_spotted))
           .map((r) => {
             const guide = matchPestGuide(r.pest_type);
             const hasCoords = user?.latitude != null && r.latitude != null && r.longitude != null;
