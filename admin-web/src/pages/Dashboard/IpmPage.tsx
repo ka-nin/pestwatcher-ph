@@ -194,9 +194,16 @@ function IpmPage({ user }: IpmPageProps) {
           return (
             <div className="panel ipm-card" key={meta.key}>
               <div className="panel-head">
-                <div>
-                  <div className="panel-title">{meta.title}</div>
-                  <div className="panel-subtitle">Current Stage: {meta.stage}</div>
+                <div className="ipm-card-headleft">
+                  <span className={`stat-icon stat-icon-${tone}`} aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                    </svg>
+                  </span>
+                  <div>
+                    <div className="panel-title">{meta.title}</div>
+                    <div className="panel-subtitle">Current Stage: {meta.stage}</div>
+                  </div>
                 </div>
                 <span className="badge badge-green">{meta.stage}</span>
               </div>

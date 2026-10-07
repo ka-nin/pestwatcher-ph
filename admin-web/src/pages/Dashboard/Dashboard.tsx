@@ -109,7 +109,6 @@ function Dashboard({ user, accessToken, onLogout }: DashboardProps) {
   }, [user.latitude, user.longitude])
 
   const climateMetrics = weather ? deriveClimateMetrics(weather) : null
-  const activeLabel = navItems.find((item) => item.key === activePage)?.label ?? 'Status'
 
   return (
     <div className="dashboard">
@@ -173,7 +172,6 @@ function Dashboard({ user, accessToken, onLogout }: DashboardProps) {
 
         <main className="dashboard-main">
           <header className="dashboard-header">
-            <h1>{activeLabel}</h1>
             <div className="dashboard-user">
               <span className="dashboard-user-label">{user.roleLevel}</span>
               <span className="dashboard-user-name">{user.username}</span>
