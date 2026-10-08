@@ -15,7 +15,7 @@ import {
   Camera,
   LogOut,
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { currentLocation, dashboardSummary } from '../data/mockData';
 import { fetchWeatherForecast, fetchPestForecast, fetchPestForecastTrajectory } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -79,6 +79,30 @@ function TrendTick({ x, y, payload, data }) {
         </text>
       )}
     </g>
+  );
+}
+
+const RISK_WORD_KEY = { 1: 'riskWordLow', 2: 'riskWordMedium', 3: 'riskWordHigh' };
+
+// Tap/hover a bar to see which day it is and its risk level — recharts
+// renders this in place of the default plain white tooltip box.
+function TrendTooltip({ active, payload, language, t }) {
+  if (!active || !payload?.length) return null;
+  const point = payload[0].payload;
+  const date = new Date(`${point.key}T00:00:00`);
+  const dateLabel = date.toLocaleDateString(language === 'en' ? 'en-US' : 'fil-PH', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+  return (
+    <div className="trend-tooltip">
+      <strong>{dateLabel}</strong>
+      <span>
+        <i style={{ background: LEVEL_COLOR[point.level] }} />
+        {t(RISK_WORD_KEY[point.level])}
+      </span>
+    </div>
   );
 }
 
@@ -396,7 +420,16 @@ export default function Home() {
                   tick={<TrendTick data={trendData} />}
                 />
                 <YAxis hide domain={[0, 3]} />
-                <Bar dataKey="level" radius={[5, 5, 2, 2]} minPointSize={6}>
+                <Tooltip
+                  content={<TrendTooltip language={language} t={t} />}
+                  cursor={{ fill: 'rgba(42, 42, 34, 0.06)', radius: 5 }}
+                />
+                <Bar
+                  dataKey="level"
+                  radius={[5, 5, 2, 2]}
+                  minPointSize={6}
+                  activeBar={{ stroke: 'var(--color-text)', strokeWidth: 2 }}
+                >
                   {trendData.map((entry, i) => (
                     <Cell key={i} fill={LEVEL_COLOR[entry.level]} />
                   ))}
