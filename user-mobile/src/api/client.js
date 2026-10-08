@@ -1,6 +1,6 @@
 // Talks to the FastAPI backend (server-python). Mirrors the pattern already
 // working in admin-web/src/lib/api.ts so both apps stay consistent.
-export const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+export const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8001';
 
 async function parseJsonOrThrow(res, fallbackMessage) {
   let data;
