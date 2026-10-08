@@ -4,3 +4,6 @@ node_modules/
 !.env.example
 dist/
 .expo/
+
+# macOS Finder metadata — never useful in the repo
+.DS_Store

@@ -136,7 +136,18 @@ function ReportsPage({ user, accessToken }: ReportsPageProps) {
 
   const visible =
     filter === 'deleted' ? deletedReports : filter === 'all' ? reports : reports.filter((r) => r.status === filter)
-  const pendingCount = reports.filter((r) => r.status === 'pending').length
+
+  // One pass for every tab's badge. Deleted reports come from a separate
+  // endpoint and are excluded from `reports`, so they are counted on their own
+  // rather than folded into the status tally.
+  const counts: Record<ReportFilter, number> = {
+    all: reports.length,
+    verified: reports.filter((r) => r.status === 'verified').length,
+    pending: reports.filter((r) => r.status === 'pending').length,
+    rejected: reports.filter((r) => r.status === 'rejected').length,
+    deleted: deletedReports.length,
+  }
+  const pendingCount = counts.pending
 
   return (
     <>
@@ -145,7 +156,10 @@ function ReportsPage({ user, accessToken }: ReportsPageProps) {
           <div>
             <div className="panel-title">Farmer-Submitted Sightings</div>
             <div className="panel-subtitle">
-              {user.municipality}, {user.province} · Verified reports feed into the live pest forecast
+              {user.municipality}, {user.province} ·{' '}
+              {loading
+                ? 'Verified reports feed into the live pest forecast'
+                : `${counts.all} ${counts.all === 1 ? 'report' : 'reports'} total · verified reports feed into the live pest forecast`}
             </div>
           </div>
           <span className="badge badge-yellow">{pendingCount} awaiting review</span>
@@ -160,6 +174,9 @@ function ReportsPage({ user, accessToken }: ReportsPageProps) {
               onClick={() => setFilter(f.key)}
             >
               {f.label}
+              {/* Suppressed while loading so the tabs don't flash a row of
+                  zeros before the fetch lands. */}
+              {!loading && <span className="reports-filter-count">{counts[f.key]}</span>}
             </button>
           ))}
         </div>
