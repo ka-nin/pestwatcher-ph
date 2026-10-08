@@ -163,7 +163,7 @@ function ProvinceMap({ latitude, longitude, label, reports = [] }: ProvinceMapPr
           .addTo(map)
           .bindPopup(
             `<strong>${report.pest_type}</strong><br/>` +
-              `${report.severity.charAt(0).toUpperCase()}${report.severity.slice(1)} severity · ${report.status}<br/>` +
+              `${report.severity.charAt(0).toUpperCase()}${report.severity.slice(1)} risk · ${report.status}<br/>` +
               `${report.date_spotted}`,
           )
 

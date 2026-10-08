@@ -53,16 +53,6 @@ const pestCardMeta = [
   },
 ]
 
-function buildAdvisoryMessage(user: LguUser) {
-  return `PESTWATCHER ALERT - ${user.province}
-Munisipyo: ${user.municipality}
-Petsa: May 17, 2026
-Kasalukuyang panganib: MABABA
-Brown Planthopper: mababa ang panganib. Ipagpatuloy ang regular na pagmamanman ng palayan.
-Yellow Stem Borer: mababa ang panganib. Mag-check pa rin ng sintomas tulad ng deadheart o whitehead.
-Payo: Mag-monitor ng palayan lingu-linggo. Hindi kailangan ang agarang pag-spray ng pestisidyo. Kumonsulta sa agricultural technician kung may nakitang pagdami ng peste.`
-}
-
 const TIMELINE_DAYS = 14
 
 const BPH_ACTION_BY_RISK: Record<RiskLevel, string> = {
@@ -93,16 +83,7 @@ function formatTimelineDate(iso: string) {
   return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
-type SendStatus = 'idle' | 'sending' | 'sent' | 'failed'
-
-const SMS_SEGMENT_LENGTH = 160
-
 function IpmPage({ user }: IpmPageProps) {
-  const [message, setMessage] = useState(() => buildAdvisoryMessage(user))
-  const [showPreview, setShowPreview] = useState(false)
-  const [sendStatus, setSendStatus] = useState<SendStatus>('idle')
-  const [sentAt, setSentAt] = useState<string | null>(null)
-
   const [forecasts, setForecasts] = useState<Partial<Record<'bph' | 'rsb', PestForecast>>>({})
   const [forecastError, setForecastError] = useState('')
 
@@ -154,26 +135,6 @@ function IpmPage({ user }: IpmPageProps) {
       cancelled = true
     }
   }, [user.municipality])
-
-  const segments = Math.max(1, Math.ceil(message.length / SMS_SEGMENT_LENGTH))
-
-  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setMessage(e.target.value)
-    // Editing after a send means the indicator no longer reflects what's on screen.
-    if (sendStatus !== 'sending') {
-      setSendStatus('idle')
-    }
-  }
-
-  const handleSend = () => {
-    if (!message.trim()) return
-    setSendStatus('sending')
-    // TODO: wire up to a real SMS gateway endpoint once one exists.
-    setTimeout(() => {
-      setSendStatus('sent')
-      setSentAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-    }, 900)
-  }
 
   return (
     <>
@@ -245,84 +206,6 @@ function IpmPage({ user }: IpmPageProps) {
             </div>
           )
         })}
-      </section>
-
-      <section className="row-2">
-        <div className="panel advisory-panel">
-          <div className="panel-head">
-            <div>
-              <div className="panel-title">Provincial Advisory</div>
-              <div className="panel-subtitle">SMS / public advisory message</div>
-            </div>
-            <svg className="advisory-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path
-                d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-
-          <textarea
-            className="advisory-message-input"
-            value={message}
-            onChange={handleMessageChange}
-            rows={7}
-            spellCheck={false}
-          />
-          <div className="advisory-meta">
-            {message.length} characters · {segments} SMS segment{segments === 1 ? '' : 's'}
-          </div>
-
-          {showPreview && (
-            <div className="advisory-preview">
-              <div className="advisory-preview-label">Preview</div>
-              <div className="advisory-preview-bubble">{message}</div>
-            </div>
-          )}
-
-          <div className="advisory-actions">
-            <div className="advisory-status" aria-live="polite">
-              {sendStatus === 'sending' && (
-                <span className="advisory-status-sending">
-                  <span className="advisory-spinner" /> Sending…
-                </span>
-              )}
-              {sendStatus === 'sent' && (
-                <span className="advisory-status-sent">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  Sent{sentAt ? ` at ${sentAt}` : ''}
-                </span>
-              )}
-              {sendStatus === 'failed' && (
-                <span className="advisory-status-failed">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  Failed to send
-                </span>
-              )}
-            </div>
-
-            <button
-              type="button"
-              className="btn-outline"
-              onClick={() => setShowPreview((v) => !v)}
-            >
-              {showPreview ? 'Hide Preview' : 'Preview SMS'}
-            </button>
-            <button
-              type="button"
-              className="btn-dark"
-              onClick={handleSend}
-              disabled={sendStatus === 'sending' || !message.trim()}
-            >
-              {sendStatus === 'sending' ? 'Sending…' : 'Send SMS'}
-            </button>
-          </div>
-        </div>
       </section>
 
       <section className="row-2">

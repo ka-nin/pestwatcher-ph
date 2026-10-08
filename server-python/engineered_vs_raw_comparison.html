@@ -1,0 +1,326 @@
+<title>Engineered vs Raw Climate Features</title>
+<style>
+  /* Layout: a stat header, then one results table per pest, stacked on narrow screens */
+  :root {
+    --bg: #faf8f3;
+    --surface: #ffffff;
+    --ink: #221f1a;
+    --ink-soft: #6b6457;
+    --line: #e7e1d4;
+    --accent: #3d6b4f;
+    --accent-soft: #e4ede6;
+    --warn: #a8742f;
+    --warn-soft: #f4ead5;
+    --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+    --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17160f;
+      --surface: #201e16;
+      --ink: #f1ede1;
+      --ink-soft: #a89f8c;
+      --line: #35321f;
+      --accent: #7fba95;
+      --accent-soft: #263228;
+      --warn: #d8ab6a;
+      --warn-soft: #332a17;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17160f;
+    --surface: #201e16;
+    --ink: #f1ede1;
+    --ink-soft: #a89f8c;
+    --line: #35321f;
+    --accent: #7fba95;
+    --accent-soft: #263228;
+    --warn: #d8ab6a;
+    --warn-soft: #332a17;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    margin: 0;
+    padding: 28px 16px 56px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+
+  header { margin-bottom: 28px; }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(26px, 4.2vw, 38px);
+    line-height: 1.12;
+    margin: 0 0 12px;
+    text-wrap: balance;
+  }
+  .subhead {
+    color: var(--ink-soft);
+    font-size: 14.5px;
+    line-height: 1.6;
+    max-width: 65ch;
+    margin: 0;
+  }
+
+  .methodline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .chip {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+  }
+
+  .pest-block {
+    margin-top: 34px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .pest-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .pest-name {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .pest-sub {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    font-family: var(--font-mono);
+  }
+
+  .table-scroll { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    min-width: 640px;
+  }
+  thead th {
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 600;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--line);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  .metric-name { font-weight: 600; color: var(--ink); }
+  .metric-sub { display: block; font-size: 10.5px; color: var(--ink-soft); font-weight: 400; margin-top: 1px; }
+
+  .val-eng, .val-raw { font-family: var(--font-mono); }
+  .winner-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+  .winner-eng { background: var(--accent-soft); color: var(--accent); }
+  .winner-raw { background: var(--warn-soft); color: var(--warn); }
+
+  .sig-badge {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    padding: 2px 7px;
+    border-radius: 5px;
+  }
+  .sig-yes { background: var(--accent); color: var(--surface); font-weight: 700; }
+  .sig-no { color: var(--ink-soft); }
+
+  .pval { color: var(--ink-soft); font-family: var(--font-mono); font-size: 12px; }
+
+  footer {
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-soft);
+    font-size: 12.5px;
+    line-height: 1.7;
+    max-width: 70ch;
+  }
+  footer strong { color: var(--ink); }
+
+  @media (max-width: 520px) {
+    body { padding: 20px 12px 44px; }
+    .pest-head { padding: 16px; }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">RQ2 &middot; RQ3 &mdash; Feature Engineering Ablation</p>
+    <h1>Engineered climate features vs. raw inputs</h1>
+    <p class="subhead">
+      Same BiLSTM architecture, same five chronological test folds, two feature sets: the deployed
+      model (GDD, CRF, HP, VPD, WSI, trends, growth-stage one-hot) against the paper's raw control
+      (Tmax, Tmin, relative humidity, rainfall only).
+    </p>
+    <div class="methodline">
+      <span class="chip">5-fold expanding-window CV</span>
+      <span class="chip">Paired t-test / Wilcoxon fallback</span>
+      <span class="chip">&alpha; = 0.05</span>
+    </div>
+  </header>
+
+  <section class="pest-block">
+    <div class="pest-head">
+      <span class="pest-name">Brown Planthopper (BPH)</span>
+      <span class="pest-sub">hoppers / hill &middot; 14-day forecast</span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>Engineered</th>
+            <th>Raw</th>
+            <th>Winner</th>
+            <th>Test</th>
+            <th>p-value</th>
+            <th>Significant</th>
+          </tr>
+        </thead>
+        <tbody id="bph-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="pest-block">
+    <div class="pest-head">
+      <span class="pest-name">Rice Stem Borer (RSB)</span>
+      <span class="pest-sub">% dead hearts / white ears &middot; 14-day forecast</span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>Engineered</th>
+            <th>Raw</th>
+            <th>Winner</th>
+            <th>Test</th>
+            <th>p-value</th>
+            <th>Significant</th>
+          </tr>
+        </thead>
+        <tbody id="rsb-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <strong>Reading this table.</strong> RMSE, MAE and R&sup2; score the continuous forecast directly;
+    Accuracy, Precision, Recall and F1 (macro-averaged) score the Low/Medium/High band each forecast
+    maps to after ETL thresholding. Only MAE reaches significance for either pest &mdash; for both BPH
+    and RSB, the engineered model's mean error is significantly lower than the raw model's
+    (p&nbsp;=&nbsp;0.029 and p&nbsp;=&nbsp;0.0004). RMSE and R&sup2; trend the same direction but fall
+    just short of &alpha;&nbsp;=&nbsp;0.05 with only five paired folds. Precision/Accuracy wins for raw
+    are not significant and reflect how macro-precision and accuracy behave on a Low-dominated,
+    imbalanced target rather than a real forecasting advantage.
+  </footer>
+</div>
+
+<script>
+  const DATA = {
+    bph: {
+      rmse:            { eng: 7.7836, raw: 8.1993, p: 0.0670, sig: false, test: "Paired t-test", winner: "eng", lowerBetter: true },
+      mae:             { eng: 3.7735, raw: 4.1705, p: 0.0293, sig: true,  test: "Paired t-test", winner: "eng", lowerBetter: true },
+      r2:              { eng: 0.0676, raw: -0.0267, p: 0.0607, sig: false, test: "Paired t-test", winner: "eng", lowerBetter: false },
+      accuracy:        { eng: 0.8184, raw: 0.8089, p: 0.5000, sig: false, test: "Wilcoxon", winner: "eng", lowerBetter: false, pct: true },
+      precision_macro: { eng: 0.3161, raw: 0.3308, p: 1.0000, sig: false, test: "Wilcoxon", winner: "raw", lowerBetter: false, pct: true },
+      recall_macro:    { eng: 0.3667, raw: 0.3522, p: 0.5000, sig: false, test: "Wilcoxon", winner: "eng", lowerBetter: false, pct: true },
+      f1_macro:        { eng: 0.3385, raw: 0.3319, p: 0.5000, sig: false, test: "Wilcoxon", winner: "eng", lowerBetter: false, pct: true },
+    },
+    rsb: {
+      rmse:            { eng: 1.2848, raw: 1.3792, p: 0.0509, sig: false, test: "Paired t-test", winner: "eng", lowerBetter: true },
+      mae:             { eng: 0.7647, raw: 0.9237, p: 0.0004, sig: true,  test: "Paired t-test", winner: "eng", lowerBetter: true },
+      r2:              { eng: 0.0999, raw: -0.0286, p: 0.0538, sig: false, test: "Paired t-test", winner: "eng", lowerBetter: false },
+      accuracy:        { eng: 0.8919, raw: 0.9001, p: 0.1149, sig: false, test: "Paired t-test", winner: "raw", lowerBetter: false, pct: true },
+      precision_macro: { eng: 0.3576, raw: 0.3003, p: 0.0964, sig: false, test: "Paired t-test", winner: "eng", lowerBetter: false, pct: true },
+      recall_macro:    { eng: 0.3538, raw: 0.3330, p: 0.1305, sig: false, test: "Paired t-test", winner: "eng", lowerBetter: false, pct: true },
+      f1_macro:        { eng: 0.3500, raw: 0.3158, p: 0.1131, sig: false, test: "Paired t-test", winner: "eng", lowerBetter: false, pct: true },
+    },
+  };
+
+  const LABELS = {
+    rmse:            { name: "RMSE", sub: "lower is better" },
+    mae:             { name: "MAE", sub: "lower is better" },
+    r2:              { name: "R²", sub: "higher is better" },
+    accuracy:        { name: "Accuracy", sub: "ETL band agreement" },
+    precision_macro: { name: "Precision", sub: "macro-averaged" },
+    recall_macro:    { name: "Recall", sub: "macro-averaged" },
+    f1_macro:        { name: "F1-Score", sub: "macro-averaged" },
+  };
+
+  function fmt(v, pct) {
+    return pct ? (v * 100).toFixed(1) + "%" : v.toFixed(4);
+  }
+
+  function renderPest(id, rows) {
+    const tbody = document.getElementById(id);
+    const frag = document.createDocumentFragment();
+    Object.keys(rows).forEach((key) => {
+      const r = rows[key];
+      const label = LABELS[key];
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><span class="metric-name">${label.name}</span><span class="metric-sub">${label.sub}</span></td>
+        <td class="val-eng">${fmt(r.eng, r.pct)}</td>
+        <td class="val-raw">${fmt(r.raw, r.pct)}</td>
+        <td><span class="winner-tag ${r.winner === "eng" ? "winner-eng" : "winner-raw"}">${r.winner === "eng" ? "Engineered" : "Raw"}</span></td>
+        <td class="pval">${r.test}</td>
+        <td class="pval">${r.p.toFixed(4)}</td>
+        <td>${r.sig ? '<span class="sig-badge sig-yes">YES</span>' : '<span class="sig-badge sig-no">no</span>'}</td>
+      `;
+      frag.appendChild(tr);
+    });
+    tbody.appendChild(frag);
+  }
+
+  renderPest("bph-body", DATA.bph);
+  renderPest("rsb-body", DATA.rsb);
+</script>
