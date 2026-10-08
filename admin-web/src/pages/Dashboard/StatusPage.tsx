@@ -433,6 +433,7 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
             latitude={user.latitude}
             longitude={user.longitude}
             label={`${user.municipality}, ${user.province}`}
+            province={user.province}
             reports={reports}
           />
 
@@ -451,6 +452,9 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
             </span>
             <span className="legend-item">
               <span className="legend-dot legend-dot-pending" /> Pending review
+            </span>
+            <span className="legend-item">
+              <span className="legend-line-boundary" /> {user.province} boundary
             </span>
           </div>
         </div>

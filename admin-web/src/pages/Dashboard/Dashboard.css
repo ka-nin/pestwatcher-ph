@@ -522,6 +522,15 @@
   box-sizing: border-box;
 }
 
+/* Province coverage outline — a line swatch rather than a dot, since the
+   map draws it as a dashed border, not a filled marker. */
+.legend-line-boundary {
+  width: 16px;
+  height: 0;
+  border-top: 2.5px dashed #ffd166;
+  display: inline-block;
+}
+
 /* Heatmap */
 .heatmap-block + .heatmap-block {
   margin-top: 18px;

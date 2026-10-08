@@ -12,6 +12,12 @@ const PROVINCE_LON = currentLocation.longitude;
 const PROVINCE_ZOOM = 9;
 const REPORT_ZOOM = 14;
 
+// Served from /public/geo as a plain fetch rather than a bundled import —
+// mirrors admin-web's ProvinceMap.tsx, including the same source file, so
+// both apps draw the identical provincial boundary. Covers all seven
+// Central Luzon provinces, not just Nueva Ecija, for the same reason.
+const PROVINCE_BOUNDARIES_URL = '/geo/central_luzon_provinces.json';
+
 // Mirrors --color-accent-red/-orange/-primary in index.css — kept as literal
 // hex here (not var()) since these values are injected into Leaflet divIcon/
 // popup HTML strings, which render outside this component's own stylesheet
@@ -113,6 +119,31 @@ export default function WeatherMap({ fill = false, showControls = fill, alerts =
   const [mode, setMode] = useState('satellite');
   const containerRef = useRef(null);
   const mapRef = useRef(null);
+  const [boundary, setBoundary] = useState(null);
+
+  // Fetched once on mount — the file covers every province, so there is no
+  // per-farmer variant to re-fetch, and currentLocation.province doesn't
+  // change within a session.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(PROVINCE_BOUNDARIES_URL)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        const match = data.features.find(
+          (f) => f.properties.province.toLowerCase() === currentLocation.province.toLowerCase()
+        );
+        setBoundary(match ?? null);
+      })
+      .catch(() => {
+        // Quiet degradation — the pins and province center still work
+        // without the outline.
+        if (!cancelled) setBoundary(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const pinnableAlerts = useMemo(() => {
     const withCoords = alerts.filter((a) => a.latitude != null && a.longitude != null);
@@ -133,11 +164,29 @@ export default function WeatherMap({ fill = false, showControls = fill, alerts =
       { maxZoom: 18 }
     ).addTo(map);
 
-    // Frame every pin (plus the province center) instead of staying at the
-    // fixed province-wide zoom, matching admin-web's ProvinceMap behavior.
-    if (pinnableAlerts.length > 0) {
-      const bounds = L.latLngBounds([[PROVINCE_LAT, PROVINCE_LON]]);
-      pinnableAlerts.forEach((a) => bounds.extend(a._pos));
+    // The province outline, drawn first so every pin layers on top of it.
+    // Dashed and unfilled — a coverage boundary, not a risk zone — matching
+    // admin-web's ProvinceMap.tsx styling exactly.
+    let boundaryLayer = null;
+    if (boundary) {
+      boundaryLayer = L.geoJSON(boundary, {
+        style: {
+          color: '#ffd166',
+          weight: 2.5,
+          opacity: 0.9,
+          fillOpacity: 0,
+          dashArray: '6 5',
+        },
+        interactive: false,
+      }).addTo(map);
+    }
+
+    // Frame the whole covered area: the province outline when there's one,
+    // widened to include every pin, which can sit right at the edge.
+    const bounds = boundaryLayer ? boundaryLayer.getBounds() : L.latLngBounds([[PROVINCE_LAT, PROVINCE_LON]]);
+    bounds.extend([PROVINCE_LAT, PROVINCE_LON]);
+    pinnableAlerts.forEach((a) => bounds.extend(a._pos));
+    if (boundaryLayer || pinnableAlerts.length > 0) {
       map.fitBounds(bounds, { padding: [24, 24], maxZoom: 12 });
     }
 
@@ -155,7 +204,7 @@ export default function WeatherMap({ fill = false, showControls = fill, alerts =
       map.remove();
       mapRef.current = null;
     };
-  }, [mode, pinnableAlerts]);
+  }, [mode, pinnableAlerts, boundary]);
 
   return (
     <div className={`weather-map${fill ? ' weather-map-fill' : ''}`}>
@@ -177,6 +226,12 @@ export default function WeatherMap({ fill = false, showControls = fill, alerts =
         <span className="weather-map-compass">
           <Compass size={16} />
         </span>
+        {showControls && mode === 'satellite' && boundary && (
+          <span className="weather-map-boundary-legend">
+            <span className="weather-map-boundary-swatch" />
+            {currentLocation.province} boundary
+          </span>
+        )}
       </div>
 
       {showControls && (

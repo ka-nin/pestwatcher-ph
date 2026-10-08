@@ -8,6 +8,7 @@ interface ProvinceMapProps {
   latitude: number
   longitude: number
   label: string
+  province?: string
   reports?: ReportRecord[]
 }
 
@@ -97,10 +98,53 @@ function isRecent(dateSpotted: string): boolean {
   return Number.isNaN(t) || Date.now() - t <= MAX_REPORT_AGE_MS
 }
 
-function ProvinceMap({ latitude, longitude, label, reports = [] }: ProvinceMapProps) {
+// Served from /public/geo rather than bundled, so it's a plain network
+// fetch instead of a build-time JSON import — avoids needing
+// resolveJsonModule in tsconfig for one map layer. Covers all seven
+// Central Luzon provinces (not just the ones LGUs currently use) so a new
+// municipality added to the system still gets an outline for free.
+const PROVINCE_BOUNDARIES_URL = '/geo/central_luzon_provinces.json'
+
+interface ProvinceBoundaryProperties {
+  province: string
+  psgc: number
+  area_km2: number
+}
+
+function ProvinceMap({ latitude, longitude, label, province, reports = [] }: ProvinceMapProps) {
   const [mode, setMode] = useState<MapMode>('satellite')
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
+  const [boundary, setBoundary] = useState<GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon, ProvinceBoundaryProperties> | null>(null)
+
+  // Fetched once per distinct province name, not per render — the file is
+  // 81 KB and covers every province, so there is no per-municipality
+  // variant to re-fetch.
+  useEffect(() => {
+    if (!province) {
+      setBoundary(null)
+      return
+    }
+    let cancelled = false
+    fetch(PROVINCE_BOUNDARIES_URL)
+      .then((res) => res.json())
+      .then((data: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, ProvinceBoundaryProperties>) => {
+        if (cancelled) return
+        const match = data.features.find(
+          (f) => f.properties.province.toLowerCase() === province.toLowerCase(),
+        )
+        setBoundary(match ?? null)
+      })
+      .catch(() => {
+        // No outline is a quiet degradation, not a broken map — the pins
+        // and municipality marker still work without it.
+        if (!cancelled) setBoundary(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [province])
+
   const pinnableReports = useMemo(() => {
     // Rejected reports are hidden — they were reviewed and ruled out, so
     // they aren't a sighting anyone needs to see on the map.
@@ -121,6 +165,24 @@ function ProvinceMap({ latitude, longitude, label, reports = [] }: ProvinceMapPr
       { maxZoom: 18 },
     ).addTo(map)
 
+    // The province outline, drawn first so every pin layers on top of it.
+    // Dashed and unfilled — this is a coverage boundary, not a risk zone,
+    // and a filled polygon would compete with the severity-colored pins
+    // for the same visual channel.
+    let boundaryLayer: L.GeoJSON | null = null
+    if (boundary) {
+      boundaryLayer = L.geoJSON(boundary, {
+        style: {
+          color: '#ffd166',
+          weight: 2.5,
+          opacity: 0.9,
+          fillOpacity: 0,
+          dashArray: '6 5',
+        },
+        interactive: false,
+      }).addTo(map)
+    }
+
     L.circleMarker([latitude, longitude], {
       radius: 8,
       color: '#fff',
@@ -131,12 +193,14 @@ function ProvinceMap({ latitude, longitude, label, reports = [] }: ProvinceMapPr
       .addTo(map)
       .bindPopup(label)
 
-    // Province-wide pins can be far apart, so frame them all (plus the
-    // municipality center) instead of staying at the fixed zoom-11 view.
-    if (pinnableReports.length > 0) {
-      const bounds = L.latLngBounds([[latitude, longitude]])
-      pinnableReports.forEach((r) => bounds.extend(r._pos))
-      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 })
+    // Frame the whole covered area: the province outline when there's one
+    // to show, widened to also include the municipality center and any
+    // report pins, which can sit right at the provincial edge.
+    const bounds = boundaryLayer ? boundaryLayer.getBounds() : L.latLngBounds([[latitude, longitude]])
+    bounds.extend([latitude, longitude])
+    pinnableReports.forEach((r) => bounds.extend(r._pos))
+    if (boundaryLayer || pinnableReports.length > 0) {
+      map.fitBounds(bounds, { padding: [24, 24], maxZoom: 12 })
     }
 
     // Farmer-reported sightings with a known location — colored by the
@@ -176,7 +240,7 @@ function ProvinceMap({ latitude, longitude, label, reports = [] }: ProvinceMapPr
       map.remove()
       mapRef.current = null
     }
-  }, [mode, latitude, longitude, label, pinnableReports])
+  }, [mode, latitude, longitude, label, pinnableReports, boundary])
 
   return (
     <div className="province-map">
