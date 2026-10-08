@@ -308,10 +308,14 @@ function LguAccountsPage({ accessToken, onSessionExpired }: LguAccountsPageProps
                     </span>
                   </td>
                   <td className="admin-table-actions">
-                    <button type="button" className="admin-link-btn" onClick={() => startEdit(account)}>
+                    <button type="button" className="admin-link-btn admin-link-btn-neutral" onClick={() => startEdit(account)}>
                       Edit
                     </button>
-                    <button type="button" className="admin-link-btn" onClick={() => handleToggleActive(account)}>
+                    <button
+                      type="button"
+                      className="admin-link-btn admin-link-btn-neutral"
+                      onClick={() => handleToggleActive(account)}
+                    >
                       {account.isActive ? 'Deactivate' : 'Activate'}
                     </button>
                     <button
