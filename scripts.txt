@@ -6,9 +6,11 @@ Run these in order. Steps marked [ONE-TIME] only need to be done once
 per machine (or once after a fresh git clone). Steps marked [EVERY
 TIME] are what you run each time you sit down to work.
 
-Prerequisites (both OS): Node.js 24.x, Python 3.11.x (TensorFlow 2.21
-in requirements.txt does not support 3.13+), Docker Desktop, Git.
-Docker Desktop must be OPEN/RUNNING before any docker command.
+Prerequisites (both OS): Node.js 24.x, Python 3.11-3.13, Docker
+Desktop, Git. Docker Desktop must be OPEN/RUNNING before any docker
+command. (TensorFlow 2.21 in requirements.txt runs on 3.13 — the dev
+machine is on 3.13.13 — so an earlier note demanding 3.11 was wrong.
+Avoid 3.14+, which TensorFlow has no wheels for yet.)
 
 
 --------------------------------------------------------------------
@@ -17,8 +19,8 @@ Docker Desktop must be OPEN/RUNNING before any docker command.
 Same commands on both OS. Run "npm install" from the repo ROOT — it
 is an npm workspace and installs admin-web + user-mobile in one go.
 
-git clone https://github.com/ka-nin/rice-pest-system.git
-cd rice-pest-system
+git clone https://github.com/ka-nin/pestwatcher-ph.git
+cd pestwatcher-ph
 npm install
 
 
@@ -81,8 +83,13 @@ docker compose up -d
 This starts:
   - PostgreSQL   -> localhost:5432
   - pgAdmin (DB web UI) -> http://localhost:8080
-    (login: System=PostgreSQL, Server=postgres, User=pestwatcher,
-     Password=pestwatcher_dev_only, Database=pestwatcher)
+    Log in to pgAdmin itself first:
+      Email    = admin@pestwatcher.dev
+      Password = pestwatcher_dev_only
+    The server "PestWatcher (local Docker)" is already registered in the
+    left tree; expand it and enter the DATABASE password when asked:
+      Password = pestwatcher_dev_only   (user "pestwatcher", db "pestwatcher")
+    Tables live under: Databases > pestwatcher > Schemas > public > Tables
 
 
 --------------------------------------------------------------------
@@ -106,6 +113,12 @@ npm run dev --workspace=server-python        (from repo root)
 
 Check it: http://localhost:8000/api/health
 API docs: http://localhost:8000/docs
+
+SMS advisories default to SIMULATION (SMS_PROVIDER=console in
+server-python/.env), so the "SMS Advisory" tab in admin-web works
+out of the box with no phone and no SIM — messages are recorded in
+the outbox and printed to the backend log, but nothing is actually
+sent. See section 7 to send real texts.
 
 
 --------------------------------------------------------------------
@@ -207,6 +220,52 @@ python -m ml.bilstm.compare_features --pest RSB
 (trains 10 models per pest — expect this to run for a while. Results go to
 ml/weights/{pest}/bilstm_{pest}_feature_comparison.json)
 
+--- SMS advisories: real texts instead of simulation ---
+The LGU technologist sends these from admin-web > "SMS Advisory".
+Sending is always manual; the system never texts farmers on its own.
+
+Simulation (default, nothing leaves the server) — server-python/.env:
+SMS_PROVIDER=console
+
+Live, via an Android handset acting as the gateway:
+  1. Install "SMS Gateway for Android" (https://docs.sms-gate.app) and
+     turn on LOCAL SERVER mode. Do NOT use Cloud mode — Cloud is the one
+     that asks you to register a device, and it is not needed here.
+     Tap the "Offline" button at the bottom so it reads "Online".
+     The Local Server panel then shows the phone's IP, a username and
+     a password.
+  2. Grant the app the SMS permission, and set its battery usage to
+     UNRESTRICTED. Android Doze freezes the app otherwise: the phone
+     still answers ping and TCP:8080 still accepts, but every HTTP
+     request times out. On Xiaomi/Oppo/Realme/Vivo also enable Autostart.
+  3. The SIM must have ACTIVE SERVICE AND LOAD. SMS rides the cellular
+     network; Wi-Fi/Tailscale only carries the request to the app.
+     A phone showing "No Service" cannot send or receive.
+  4. In server-python/.env:
+     SMS_PROVIDER=android_gateway
+     SMS_GATEWAY_URL=http://<phone-ip>:8080
+     SMS_GATEWAY_USERNAME=<from the app>
+     SMS_GATEWAY_PASSWORD=<from the app>
+     SMS_DEFAULT_COUNTRY_CODE=+63
+     (If the phone is on Tailscale, use its 100.x address so the gateway
+     also works off the local Wi-Fi.)
+  5. Restart the backend. The banner at the top of the SMS Advisory tab
+     turns green when the handset answers.
+
+Test the gateway directly before trusting the UI:
+curl -X POST -u USER:PASS -H "Content-Type: application/json" \
+  -d '{"textMessage":{"text":"test"},"phoneNumbers":["+639XXXXXXXXX"]}' \
+  http://<phone-ip>:8080/message
+
+Clear the outbox before a demo (needs Postgres):
+docker exec pestwatcher-postgres psql -U pestwatcher -d pestwatcher \
+  -c "delete from sms_messages;"
+
+Farmers only appear as pickable recipients once they have a phone
+number on file (farmer_users.phone). Until then, type the number
+straight into the compose box.
+
+
 --- Retrain the ResNet image model (needs the image dataset) ---
 python -m ml.resnet.prepare_dataset --pest BPH   (or RSB)
 python -m ml.resnet.train --pest BPH             (or RSB)
@@ -239,7 +298,7 @@ Close the terminal windows/tabs running them (Ctrl+C), or:
 the only project you're running, otherwise close the specific
 terminal windows instead)
 
---- Both OS: stop the database (Postgres + Adminer) ---
+--- Both OS: stop the database (Postgres + pgAdmin) ---
 docker compose down
 (stops and removes the containers; your data is kept in the Docker
 volume. Only add -v — "docker compose down -v" — if you also want to
@@ -274,8 +333,9 @@ permanently delete the database contents.)
     -> Missing ResNet weights — see the NOTE in section 2.
 
 - pip install fails on tensorflow
-    -> You're on an unsupported Python (need 3.11.x). Check
-       "python --version" and recreate the venv.
+    -> You're on a Python TensorFlow has no wheels for (3.14+ is too
+       new; 3.11-3.13 are fine). Check "python --version" and recreate
+       the venv with a supported interpreter.
 
 - admin-web and user-mobile open the same URL
     -> Check admin-web/vite.config.ts has port: 5173 and
@@ -292,7 +352,8 @@ permanently delete the database contents.)
        (deletes all local DB data, backend recreates + reseeds on
        next startup)
 
-- Adminer says "connection refused"
-    -> Server field must be "postgres" (the Docker service name),
-       NOT "localhost".
+- pgAdmin can't connect to the server
+    -> Inside the pre-registered server the Host must be "postgres"
+       (the Docker service name), NOT "localhost" — pgAdmin runs in its
+       own container, where "localhost" means pgAdmin itself.
 ====================================================================
