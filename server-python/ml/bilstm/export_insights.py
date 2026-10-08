@@ -31,7 +31,7 @@ from ml.config import FORECAST_HORIZON_DAYS, PEST_PARAMS
 from ml.explainability.shap_report import _display_name, _get_explainer
 
 SHAP_SAMPLE_SIZE = 60
-TOP_FEATURES = 8
+TOP_FEATURES = 25  # effectively "all" -- there are 21 unique feature columns
 
 
 def main() -> None:
