@@ -74,6 +74,17 @@
   justify-content: center;
 }
 
+.report-classify-note {
+  margin: 8px 20px 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.report-classify-note-ok {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
 .report-body {
   flex: 1;
   overflow-y: auto;
