@@ -1,41 +1,17 @@
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: pestwatcher-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: pestwatcher
-      POSTGRES_PASSWORD: pestwatcher_dev_only
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: pestwatcher
     ports:
-      - "5432:5432"
+      - "5432:5432" 
     volumes:
-      - pestwatcher_pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pestwatcher -d pestwatcher"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  pgadmin:
-    image: dpage/pgadmin4:8
-    container_name: pestwatcher-pgadmin
-    restart: unless-stopped
-    ports:
-      - "8080:80"
-    environment:
-      # pgAdmin's own login (separate from the database password).
-      PGADMIN_DEFAULT_EMAIL: admin@pestwatcher.dev
-      PGADMIN_DEFAULT_PASSWORD: pestwatcher_dev_only
-    volumes:
-      # Pre-registers the postgres service below, so the server already
-      # appears in the left tree — you only type the database password once.
-      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
-      - pestwatcher_pgadmin:/var/lib/pgadmin
-    depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
-  pestwatcher_pgdata:
-  pestwatcher_pgadmin:
+  postgres_data:

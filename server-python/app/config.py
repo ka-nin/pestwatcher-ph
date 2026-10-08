@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    port: int = 8000
+    port: int = 8001
 
     # Comma-separated list of origins allowed to call this API.
     # Includes the Vite dev servers for admin-web and user-mobile (both default
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
 
     # Local dev default matches docker-compose.yml at the repo root
     # (`docker compose up -d`) — override in .env for any other environment.
-    database_url: str = "postgresql+psycopg2://pestwatcher:pestwatcher_dev_only@localhost:5432/pestwatcher"
+    database_url: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/pestwatcher"
 
     # HS256 signing secret for admin/LGU auth tokens (app/security.py). The
     # default below is fine for local dev only — .env.example generates a
