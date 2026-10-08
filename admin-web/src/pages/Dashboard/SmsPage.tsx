@@ -95,9 +95,13 @@ function defaultAdvisoryMessage(
   return `PESTWATCHER ALERT - ${user.province}
 Munisipyo: ${user.municipality}
 Petsa: ${todayInFilipino()}
+
 Kasalukuyang panganib: ${overall ? OVERALL_RISK_TAGALOG[overall] : 'HINDI AVAILABLE'}
+
 ${bphLine}
+
 ${rsbLine}
+
 Payo: ${advice}`
 }
 

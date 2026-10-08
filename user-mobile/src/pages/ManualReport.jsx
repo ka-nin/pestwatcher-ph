@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Edit3, MapPin, Calendar, ChevronDown, Lock, X, AlertTriangle } from 'lucide-react';
+import { Camera, Edit3, MapPin, Calendar, Lock, X, AlertTriangle } from 'lucide-react';
 import ScreenHeader from '../components/ScreenHeader';
 import { pestTypeOptions, severityOptions, growthStageOptions, growthStageLabels, growthStageDescriptions, etlThresholds } from '../data/mockData';
+import Dropdown from '../components/Dropdown';
 import { submitImageInference, submitReport } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -203,11 +204,17 @@ export default function ManualReport() {
 
   const handleSkipToManual = () => pestSelectRef.current?.focus();
 
-  // Native form validation runs first; only a valid form reaches the
-  // confirmation summary, and the report is sent from there.
+  // The pest-type dropdown is a custom component, not a native <select>, so
+  // its "required"-ness is no longer enforced by the browser's own form
+  // validation — checked explicitly here instead before reaching the
+  // confirmation summary.
   const handleReview = (e) => {
     e.preventDefault();
     setError('');
+    if (!pestType) {
+      pestSelectRef.current?.focus();
+      return;
+    }
     setShowConfirm(true);
   };
 
@@ -288,22 +295,17 @@ export default function ManualReport() {
         <section className="report-section">
           <h2 className="report-section-title">{t('reportSectionPest')}</h2>
 
-          <label className="report-field">
+          <div className="report-field">
             <span>{t('reportFieldPestType')}</span>
-            <div className="report-select">
-              <select ref={pestSelectRef} value={pestType} onChange={(e) => setPestType(e.target.value)} required>
-                <option value="" disabled>
-                  {t('reportPestPlaceholder')}
-                </option>
-                {pestTypeOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt[language]}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={16} />
-            </div>
-          </label>
+            <Dropdown
+              ref={pestSelectRef}
+              value={pestType}
+              onChange={setPestType}
+              placeholder={t('reportPestPlaceholder')}
+              ariaLabel={t('reportFieldPestType')}
+              options={pestTypeOptions.map((opt) => ({ value: opt.value, label: opt[language] }))}
+            />
+          </div>
 
           <div className="report-field">
             <span>{t('reportFieldSeverity')}</span>
@@ -338,20 +340,19 @@ export default function ManualReport() {
         <section className="report-section">
           <h2 className="report-section-title">{t('reportSectionField')}</h2>
 
-          <label className="report-field">
+          <div className="report-field">
             <span>{t('reportFieldGrowthStage')}</span>
-            <div className="report-select">
-              <select value={cropGrowthStage} onChange={(e) => setCropGrowthStage(e.target.value)} required>
-                {growthStageOptions.map((stage) => (
-                  <option key={stage} value={stage}>
-                    {growthStageLabels[stage]?.[language] ?? stage}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={16} />
-            </div>
+            <Dropdown
+              value={cropGrowthStage}
+              onChange={setCropGrowthStage}
+              ariaLabel={t('reportFieldGrowthStage')}
+              options={growthStageOptions.map((stage) => ({
+                value: stage,
+                label: growthStageLabels[stage]?.[language] ?? stage,
+              }))}
+            />
             <p className="report-stage-description">{growthStageDescriptions[cropGrowthStage]?.[language]}</p>
-          </label>
+          </div>
 
           {areaWarningEl}
 
