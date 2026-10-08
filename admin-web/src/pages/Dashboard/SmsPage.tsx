@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  fetchPestForecast,
   fetchSmsGatewayStatus,
   fetchSmsOutbox,
   fetchSmsRecipients,
   sendSms,
+  type PestForecast,
+  type RiskLevel,
   type SmsGatewayStatus,
   type SmsMessageRecord,
   type SmsRecipient,
 } from '../../lib/api'
 import type { LguUser } from '../../lib/api'
+import { ASSUMED_GROWTH_STAGE } from '../../lib/etl'
 import './SmsPage.css'
 
 const MAX_BODY = 640
@@ -21,6 +25,82 @@ interface SmsPageProps {
   draft?: string
 }
 
+// Sentence-initial, since each pest line starts "Brown Planthopper: <this>." —
+// capitalized here rather than lowercased to fit elsewhere.
+const RISK_TAGALOG: Record<RiskLevel, string> = {
+  Low: 'Mababa ang panganib',
+  Medium: 'Katamtaman ang panganib',
+  High: 'Mataas ang panganib',
+}
+
+const OVERALL_RISK_TAGALOG: Record<RiskLevel, string> = {
+  Low: 'MABABA',
+  Medium: 'KATAMTAMAN',
+  High: 'MATAAS',
+}
+
+// Low < Medium < High, so the overall headline risk is whichever pest is worse.
+const RISK_RANK: Record<RiskLevel, number> = { Low: 0, Medium: 1, High: 2 }
+
+function higherRisk(a: RiskLevel | null, b: RiskLevel | null): RiskLevel | null {
+  if (!a) return b
+  if (!b) return a
+  return RISK_RANK[a] >= RISK_RANK[b] ? a : b
+}
+
+function todayInFilipino(): string {
+  return new Date().toLocaleDateString('fil-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+/** Default advisory text the compose box opens with — a starting point the
+ * technologist edits before sending, not a message sent automatically.
+ * Built from today's date and the live BPH/RSB forecasts for the
+ * technologist's own municipality, same data source as the Pest Forecast
+ * and IPM Recommendation pages (GET /api/inference/forecast/live). Moved
+ * here from the old (unwired) "Provincial Advisory" mock on the IPM
+ * Recommendation page, which only faked a send with a setTimeout and a
+ * hardcoded date/risk level. */
+function defaultAdvisoryMessage(
+  user: LguUser,
+  bph: PestForecast | null,
+  rsb: PestForecast | null,
+): string {
+  const bphRisk = bph?.status === 'ok' ? bph.risk_level : null
+  const rsbRisk = rsb?.status === 'ok' ? rsb.risk_level : null
+  const overall = higherRisk(bphRisk, rsbRisk)
+
+  const bphLine = bphRisk
+    ? `Brown Planthopper: ${RISK_TAGALOG[bphRisk]}. ${
+        bphRisk === 'Low'
+          ? 'Ipagpatuloy ang regular na pagmamanman ng palayan.'
+          : 'Mag-ingat at mag-check ng regular sa mga palatandaan ng BPH.'
+      }`
+    : 'Brown Planthopper: hindi pa available ang forecast.'
+
+  const rsbLine = rsbRisk
+    ? `Rice Stem Borer: ${RISK_TAGALOG[rsbRisk]}. ${
+        rsbRisk === 'Low'
+          ? 'Mag-check pa rin ng sintomas tulad ng deadheart o whitehead.'
+          : 'Suriin agad ang mga palatandaan ng deadheart o whitehead.'
+      }`
+    : 'Rice Stem Borer: hindi pa available ang forecast.'
+
+  const advice =
+    overall === 'High'
+      ? 'Agad na kumonsulta sa agricultural technician at maghanda ng intervention.'
+      : overall === 'Medium'
+        ? 'Dagdagan ang pagmamanman ng palayan at bantayan ang susunod na araw.'
+        : 'Mag-monitor ng palayan lingu-linggo. Hindi kailangan ang agarang pag-spray ng pestisidyo. Kumonsulta sa agricultural technician kung may nakitang pagdami ng peste.'
+
+  return `PESTWATCHER ALERT - ${user.province}
+Munisipyo: ${user.municipality}
+Petsa: ${todayInFilipino()}
+Kasalukuyang panganib: ${overall ? OVERALL_RISK_TAGALOG[overall] : 'HINDI AVAILABLE'}
+${bphLine}
+${rsbLine}
+Payo: ${advice}`
+}
+
 function formatStamp(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
@@ -30,8 +110,12 @@ function formatStamp(iso: string): string {
 export default function SmsPage({ user, accessToken, draft }: SmsPageProps) {
   const [recipients, setRecipients] = useState<SmsRecipient[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [extraNumbers, setExtraNumbers] = useState('')
+  const [extraNumberFields, setExtraNumberFields] = useState<string[]>([''])
   const [body, setBody] = useState(draft ?? '')
+  // Only auto-fills the compose box while the technologist hasn't typed
+  // anything of their own — once they edit, the live forecast arriving
+  // later must not silently overwrite what they're writing.
+  const [bodyTouched, setBodyTouched] = useState(Boolean(draft))
   const [gateway, setGateway] = useState<SmsGatewayStatus | null>(null)
   const [outbox, setOutbox] = useState<SmsMessageRecord[]>([])
   const [sending, setSending] = useState(false)
@@ -54,15 +138,50 @@ export default function SmsPage({ user, accessToken, draft }: SmsPageProps) {
   }
 
   useEffect(() => {
+    if (draft) return // caller already supplied the exact text to send
+    let cancelled = false
+
+    Promise.all([
+      fetchPestForecast(user.municipality, 'BPH', ASSUMED_GROWTH_STAGE),
+      fetchPestForecast(user.municipality, 'RSB', ASSUMED_GROWTH_STAGE),
+    ])
+      .then(([bph, rsb]) => {
+        if (cancelled || bodyTouched) return
+        setBody(defaultAdvisoryMessage(user, bph, rsb))
+      })
+      .catch(() => {
+        if (cancelled || bodyTouched) return
+        setBody(defaultAdvisoryMessage(user, null, null))
+      })
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.municipality, draft])
+
+  useEffect(() => {
     refresh()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken])
 
   const typedNumbers = useMemo(
-    () => extraNumbers.split(/[,\n;]/).map((s) => s.trim()).filter(Boolean),
-    [extraNumbers],
+    () => extraNumberFields.map((s) => s.trim()).filter(Boolean),
+    [extraNumberFields],
   )
   const totalTargets = selected.size + typedNumbers.length
+
+  function updateExtraNumber(index: number, value: string) {
+    setExtraNumberFields((prev) => prev.map((n, i) => (i === index ? value : n)))
+  }
+
+  function addExtraNumberField() {
+    setExtraNumberFields((prev) => [...prev, ''])
+  }
+
+  function removeExtraNumberField(index: number) {
+    setExtraNumberFields((prev) => (prev.length === 1 ? [''] : prev.filter((_, i) => i !== index)))
+  }
 
   function toggle(username: string) {
     setSelected((prev) => {
@@ -97,7 +216,7 @@ export default function SmsPage({ user, accessToken, draft }: SmsPageProps) {
       const mode = res.provider === 'console' ? ' (simulation — nothing left the server)' : ''
       setResult(`${bits.join(', ')}${mode}.${res.skipped.length ? ' Skipped: ' + res.skipped.join('; ') : ''}`)
       setSelected(new Set())
-      setExtraNumbers('')
+      setExtraNumberFields([''])
       await refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send')
@@ -160,7 +279,10 @@ export default function SmsPage({ user, accessToken, draft }: SmsPageProps) {
               rows={6}
               maxLength={MAX_BODY}
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+              onChange={(e) => {
+                setBodyTouched(true)
+                setBody(e.target.value)
+              }}
               placeholder="e.g. PestWatcher PH advisory: Brown Planthopper risk is HIGH in your area over the next 14 days. Inspect your field and consult your technician before spraying."
             />
             <div className="sms-counter-row">
@@ -211,19 +333,35 @@ export default function SmsPage({ user, accessToken, draft }: SmsPageProps) {
           </div>
 
           <div className="sms-section">
-            <label className="sms-label" htmlFor="sms-extra">
+            <label className="sms-label">
               <span className="sms-step">3</span> Or type mobile numbers
             </label>
-            <input
-              id="sms-extra"
-              className="sms-input"
-              value={extraNumbers}
-              onChange={(e) => setExtraNumbers(e.target.value)}
-              placeholder="0917 123 4567, 0918 222 3333"
-            />
-            <div className="sms-counter">
-              Separate several with commas. 09xxxxxxxxx or +639xxxxxxxxx both work.
+            <div className="sms-extra-list">
+              {extraNumberFields.map((number, index) => (
+                <div className="sms-extra-row" key={index}>
+                  <input
+                    className="sms-input"
+                    value={number}
+                    onChange={(e) => updateExtraNumber(index, e.target.value)}
+                    placeholder="0917 123 4567"
+                  />
+                  {extraNumberFields.length > 1 && (
+                    <button
+                      type="button"
+                      className="sms-extra-remove"
+                      onClick={() => removeExtraNumberField(index)}
+                      aria-label="Remove this number"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
+            <button type="button" className="sms-link-btn sms-add-number" onClick={addExtraNumberField}>
+              + Add another number
+            </button>
+            <div className="sms-counter">09xxxxxxxxx or +639xxxxxxxxx both work.</div>
           </div>
 
           {error && <div className="sms-error">{error}</div>}
