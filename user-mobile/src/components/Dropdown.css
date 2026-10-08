@@ -1,0 +1,88 @@
+.app-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.app-dropdown-trigger {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 36px 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: var(--text-base);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-dropdown-trigger.is-placeholder {
+  color: var(--color-text-muted);
+}
+
+.app-dropdown-trigger:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.app-dropdown-chevron {
+  position: absolute;
+  right: 12px;
+  pointer-events: none;
+  color: var(--color-text-muted);
+  transition: transform 0.15s ease;
+}
+
+.app-dropdown-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.app-dropdown-list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  /* Solid (not var(--color-surface), which is semi-transparent for cards
+     blended over the page background) — this floats above arbitrary
+     content, so it needs to fully occlude whatever's underneath it. */
+  background: #fffdf7;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.app-dropdown-option {
+  width: 100%;
+  padding: 11px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  font-family: inherit;
+  font-size: var(--text-base);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-dropdown-option:hover,
+.app-dropdown-option:focus-visible {
+  background: var(--color-primary-light);
+}
+
+.app-dropdown-option.is-selected {
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+}

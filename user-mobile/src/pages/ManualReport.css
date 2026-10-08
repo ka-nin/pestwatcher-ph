@@ -125,19 +125,6 @@
   color: var(--color-text);
 }
 
-.report-select {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.report-select svg {
-  position: absolute;
-  right: 12px;
-  pointer-events: none;
-  color: var(--color-text-muted);
-}
-
 .severity-options {
   display: flex;
   gap: 8px;
@@ -346,9 +333,11 @@
   color: var(--color-text);
 }
 
-/* One shared control style so every text field, dropdown and the notes box
-   have the same height, border, radius, font and focus ring. */
-.report-select select,
+/* One shared control style so every text field and the notes box have the
+   same height, border, radius, font and focus ring. (The two dropdowns
+   that used to be here are now the custom <Dropdown> component — see
+   components/Dropdown.css — since a native <select>'s open list can't be
+   reliably restyled across real devices.) */
 .report-static-field,
 .report-field textarea {
   box-sizing: border-box;
@@ -361,17 +350,8 @@
   color: var(--color-text);
 }
 
-.report-select select,
 .report-static-field {
   min-height: 48px;
-}
-
-.report-select select {
-  appearance: none;
-  padding: 0 36px 0 14px;
-}
-
-.report-static-field {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -383,7 +363,6 @@
   resize: vertical;
 }
 
-.report-select select:focus,
 .report-static-field:focus-within,
 .report-field textarea:focus {
   outline: none;
