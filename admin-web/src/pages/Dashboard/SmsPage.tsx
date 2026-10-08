@@ -110,7 +110,7 @@ function formatStamp(iso: string): string {
 export default function SmsPage({ user, accessToken, draft }: SmsPageProps) {
   const [recipients, setRecipients] = useState<SmsRecipient[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [extraNumbers, setExtraNumbers] = useState('')
+  const [extraNumberFields, setExtraNumberFields] = useState<string[]>([''])
   const [body, setBody] = useState(draft ?? '')
   // Only auto-fills the compose box while the technologist hasn't typed
   // anything of their own — once they edit, the live forecast arriving
@@ -166,10 +166,22 @@ export default function SmsPage({ user, accessToken, draft }: SmsPageProps) {
   }, [accessToken])
 
   const typedNumbers = useMemo(
-    () => extraNumbers.split(/[,\n;]/).map((s) => s.trim()).filter(Boolean),
-    [extraNumbers],
+    () => extraNumberFields.map((s) => s.trim()).filter(Boolean),
+    [extraNumberFields],
   )
   const totalTargets = selected.size + typedNumbers.length
+
+  function updateExtraNumber(index: number, value: string) {
+    setExtraNumberFields((prev) => prev.map((n, i) => (i === index ? value : n)))
+  }
+
+  function addExtraNumberField() {
+    setExtraNumberFields((prev) => [...prev, ''])
+  }
+
+  function removeExtraNumberField(index: number) {
+    setExtraNumberFields((prev) => (prev.length === 1 ? [''] : prev.filter((_, i) => i !== index)))
+  }
 
   function toggle(username: string) {
     setSelected((prev) => {
@@ -204,7 +216,7 @@ export default function SmsPage({ user, accessToken, draft }: SmsPageProps) {
       const mode = res.provider === 'console' ? ' (simulation — nothing left the server)' : ''
       setResult(`${bits.join(', ')}${mode}.${res.skipped.length ? ' Skipped: ' + res.skipped.join('; ') : ''}`)
       setSelected(new Set())
-      setExtraNumbers('')
+      setExtraNumberFields([''])
       await refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send')
@@ -321,19 +333,35 @@ export default function SmsPage({ user, accessToken, draft }: SmsPageProps) {
           </div>
 
           <div className="sms-section">
-            <label className="sms-label" htmlFor="sms-extra">
+            <label className="sms-label">
               <span className="sms-step">3</span> Or type mobile numbers
             </label>
-            <input
-              id="sms-extra"
-              className="sms-input"
-              value={extraNumbers}
-              onChange={(e) => setExtraNumbers(e.target.value)}
-              placeholder="0917 123 4567, 0918 222 3333"
-            />
-            <div className="sms-counter">
-              Separate several with commas. 09xxxxxxxxx or +639xxxxxxxxx both work.
+            <div className="sms-extra-list">
+              {extraNumberFields.map((number, index) => (
+                <div className="sms-extra-row" key={index}>
+                  <input
+                    className="sms-input"
+                    value={number}
+                    onChange={(e) => updateExtraNumber(index, e.target.value)}
+                    placeholder="0917 123 4567"
+                  />
+                  {extraNumberFields.length > 1 && (
+                    <button
+                      type="button"
+                      className="sms-extra-remove"
+                      onClick={() => removeExtraNumberField(index)}
+                      aria-label="Remove this number"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
+            <button type="button" className="sms-link-btn sms-add-number" onClick={addExtraNumberField}>
+              + Add another number
+            </button>
+            <div className="sms-counter">09xxxxxxxxx or +639xxxxxxxxx both work.</div>
           </div>
 
           {error && <div className="sms-error">{error}</div>}
