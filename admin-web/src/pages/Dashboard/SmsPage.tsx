@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  fetchPestForecast,
   fetchSmsGatewayStatus,
   fetchSmsOutbox,
   fetchSmsRecipients,
   sendSms,
+  type PestForecast,
+  type RiskLevel,
   type SmsGatewayStatus,
   type SmsMessageRecord,
   type SmsRecipient,
 } from '../../lib/api'
 import type { LguUser } from '../../lib/api'
+import { ASSUMED_GROWTH_STAGE } from '../../lib/etl'
 import './SmsPage.css'
 
 const MAX_BODY = 640
@@ -19,6 +23,82 @@ interface SmsPageProps {
   /** Prefills the advisory from whatever the dashboard is currently showing,
    *  so the technologist edits a draft instead of typing from a blank box. */
   draft?: string
+}
+
+// Sentence-initial, since each pest line starts "Brown Planthopper: <this>." —
+// capitalized here rather than lowercased to fit elsewhere.
+const RISK_TAGALOG: Record<RiskLevel, string> = {
+  Low: 'Mababa ang panganib',
+  Medium: 'Katamtaman ang panganib',
+  High: 'Mataas ang panganib',
+}
+
+const OVERALL_RISK_TAGALOG: Record<RiskLevel, string> = {
+  Low: 'MABABA',
+  Medium: 'KATAMTAMAN',
+  High: 'MATAAS',
+}
+
+// Low < Medium < High, so the overall headline risk is whichever pest is worse.
+const RISK_RANK: Record<RiskLevel, number> = { Low: 0, Medium: 1, High: 2 }
+
+function higherRisk(a: RiskLevel | null, b: RiskLevel | null): RiskLevel | null {
+  if (!a) return b
+  if (!b) return a
+  return RISK_RANK[a] >= RISK_RANK[b] ? a : b
+}
+
+function todayInFilipino(): string {
+  return new Date().toLocaleDateString('fil-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+/** Default advisory text the compose box opens with — a starting point the
+ * technologist edits before sending, not a message sent automatically.
+ * Built from today's date and the live BPH/RSB forecasts for the
+ * technologist's own municipality, same data source as the Pest Forecast
+ * and IPM Recommendation pages (GET /api/inference/forecast/live). Moved
+ * here from the old (unwired) "Provincial Advisory" mock on the IPM
+ * Recommendation page, which only faked a send with a setTimeout and a
+ * hardcoded date/risk level. */
+function defaultAdvisoryMessage(
+  user: LguUser,
+  bph: PestForecast | null,
+  rsb: PestForecast | null,
+): string {
+  const bphRisk = bph?.status === 'ok' ? bph.risk_level : null
+  const rsbRisk = rsb?.status === 'ok' ? rsb.risk_level : null
+  const overall = higherRisk(bphRisk, rsbRisk)
+
+  const bphLine = bphRisk
+    ? `Brown Planthopper: ${RISK_TAGALOG[bphRisk]}. ${
+        bphRisk === 'Low'
+          ? 'Ipagpatuloy ang regular na pagmamanman ng palayan.'
+          : 'Mag-ingat at mag-check ng regular sa mga palatandaan ng BPH.'
+      }`
+    : 'Brown Planthopper: hindi pa available ang forecast.'
+
+  const rsbLine = rsbRisk
+    ? `Rice Stem Borer: ${RISK_TAGALOG[rsbRisk]}. ${
+        rsbRisk === 'Low'
+          ? 'Mag-check pa rin ng sintomas tulad ng deadheart o whitehead.'
+          : 'Suriin agad ang mga palatandaan ng deadheart o whitehead.'
+      }`
+    : 'Rice Stem Borer: hindi pa available ang forecast.'
+
+  const advice =
+    overall === 'High'
+      ? 'Agad na kumonsulta sa agricultural technician at maghanda ng intervention.'
+      : overall === 'Medium'
+        ? 'Dagdagan ang pagmamanman ng palayan at bantayan ang susunod na araw.'
+        : 'Mag-monitor ng palayan lingu-linggo. Hindi kailangan ang agarang pag-spray ng pestisidyo. Kumonsulta sa agricultural technician kung may nakitang pagdami ng peste.'
+
+  return `PESTWATCHER ALERT - ${user.province}
+Munisipyo: ${user.municipality}
+Petsa: ${todayInFilipino()}
+Kasalukuyang panganib: ${overall ? OVERALL_RISK_TAGALOG[overall] : 'HINDI AVAILABLE'}
+${bphLine}
+${rsbLine}
+Payo: ${advice}`
 }
 
 function formatStamp(iso: string): string {
@@ -32,6 +112,10 @@ export default function SmsPage({ user, accessToken, draft }: SmsPageProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [extraNumbers, setExtraNumbers] = useState('')
   const [body, setBody] = useState(draft ?? '')
+  // Only auto-fills the compose box while the technologist hasn't typed
+  // anything of their own — once they edit, the live forecast arriving
+  // later must not silently overwrite what they're writing.
+  const [bodyTouched, setBodyTouched] = useState(Boolean(draft))
   const [gateway, setGateway] = useState<SmsGatewayStatus | null>(null)
   const [outbox, setOutbox] = useState<SmsMessageRecord[]>([])
   const [sending, setSending] = useState(false)
@@ -52,6 +136,29 @@ export default function SmsPage({ user, accessToken, draft }: SmsPageProps) {
       setError(err instanceof Error ? err.message : 'Failed to load SMS data')
     }
   }
+
+  useEffect(() => {
+    if (draft) return // caller already supplied the exact text to send
+    let cancelled = false
+
+    Promise.all([
+      fetchPestForecast(user.municipality, 'BPH', ASSUMED_GROWTH_STAGE),
+      fetchPestForecast(user.municipality, 'RSB', ASSUMED_GROWTH_STAGE),
+    ])
+      .then(([bph, rsb]) => {
+        if (cancelled || bodyTouched) return
+        setBody(defaultAdvisoryMessage(user, bph, rsb))
+      })
+      .catch(() => {
+        if (cancelled || bodyTouched) return
+        setBody(defaultAdvisoryMessage(user, null, null))
+      })
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.municipality, draft])
 
   useEffect(() => {
     refresh()
@@ -160,7 +267,10 @@ export default function SmsPage({ user, accessToken, draft }: SmsPageProps) {
               rows={6}
               maxLength={MAX_BODY}
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+              onChange={(e) => {
+                setBodyTouched(true)
+                setBody(e.target.value)
+              }}
               placeholder="e.g. PestWatcher PH advisory: Brown Planthopper risk is HIGH in your area over the next 14 days. Inspect your field and consult your technician before spraying."
             />
             <div className="sms-counter-row">
