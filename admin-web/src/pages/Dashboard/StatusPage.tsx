@@ -111,6 +111,30 @@ function formatSyncedAt(iso: string) {
   return new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+function LiveBadge() {
+  return (
+    <span className="badge badge-green status-live-badge">
+      <span className="status-live-dot" />
+      LIVE
+    </span>
+  )
+}
+
+function StatusIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="status-stat-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        {children}
+      </svg>
+    </span>
+  )
+}
+
+function RiskBadge({ level }: { level: keyof typeof RISK_TONE | null | undefined }) {
+  if (!level) return <span className="badge badge-neutral">N/A</span>
+  return <span className={`badge badge-${RISK_TONE[level]}`}>{level.toUpperCase()}</span>
+}
+
 function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToReports }: StatusPageProps) {
   const [trajectories, setTrajectories] = useState<Partial<Record<'bph' | 'rsb', TrajectoryPoint[]>>>({})
   const [forecastError, setForecastError] = useState('')
@@ -191,10 +215,10 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
 
   return (
     <>
-      <section className="panel weather-now-panel">
+      <section className="panel status-panel">
         <div className="panel-head">
           <div>
-            <div className="panel-title">Live Weather</div>
+            <div className="panel-title">Live Weather · {user.municipality}</div>
             <div className="panel-subtitle">
               {weather
                 ? `As of ${new Date(weather.current.time).toLocaleString([], {
@@ -207,56 +231,35 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
                 : `${user.municipality}, ${user.province}`}
             </div>
           </div>
-          <span className="badge badge-live">● LIVE</span>
+          <LiveBadge />
         </div>
 
         {weatherError ? (
           <p className="stat-card-error">{weatherError}</p>
         ) : weather ? (
-          <div className="weather-now-grid">
-            <div className="weather-now-item">
-              <svg className="weather-now-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <div className="status-stat-row">
+            <div className="status-stat-card">
+              <StatusIcon>
                 <circle cx="12" cy="12" r="4" />
-                <path
-                  d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div>
-                <div className="weather-now-label">Temperature</div>
-                <div className="weather-now-value">
-                  {Math.round(weather.current.temperature_2m)}°C
-                </div>
-              </div>
+                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+              </StatusIcon>
+              <div className="status-stat-value">{Math.round(weather.current.temperature_2m)}°C</div>
+              <div className="status-stat-label">Temperature</div>
             </div>
-            <div className="weather-now-item">
-              <svg className="weather-now-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path
-                  d="M8 13a4 4 0 0 1 8 0c0 3-4 7-4 7s-4-4-4-7Z"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path d="M12 6V2" strokeLinecap="round" />
-              </svg>
-              <div>
-                <div className="weather-now-label">Rainfall</div>
-                <div className="weather-now-value">{weather.current.rain.toFixed(1)}mm</div>
-              </div>
+            <div className="status-stat-card">
+              <StatusIcon>
+                <path d="M8 13a4 4 0 0 1 8 0c0 3-4 7-4 7s-4-4-4-7Z" />
+                <path d="M12 6V2" />
+              </StatusIcon>
+              <div className="status-stat-value">{weather.current.rain.toFixed(1)}mm</div>
+              <div className="status-stat-label">Rainfall</div>
             </div>
-            <div className="weather-now-item">
-              <svg className="weather-now-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path
-                  d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <div>
-                <div className="weather-now-label">Relative Humidity</div>
-                <div className="weather-now-value">
-                  {Math.round(weather.current.relative_humidity_2m)}%
-                </div>
-              </div>
+            <div className="status-stat-card">
+              <StatusIcon>
+                <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z" />
+              </StatusIcon>
+              <div className="status-stat-value">{Math.round(weather.current.relative_humidity_2m)}%</div>
+              <div className="status-stat-label">Relative Humidity</div>
             </div>
           </div>
         ) : (
@@ -270,7 +273,7 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
             <div className="panel-title">Municipality Risk Status</div>
             <div className="panel-subtitle">Live BPH / RSB risk across every municipality on file</div>
           </div>
-          <span className="badge badge-green">LIVE</span>
+          <LiveBadge />
         </div>
 
         {municipalityRiskError ? (
@@ -278,38 +281,43 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
         ) : municipalityRisk === null ? (
           <p className="stat-card-loading">Loading municipality risk status…</p>
         ) : (
-          <div className="municipality-risk-list">
-            {municipalityRisk.map((row) => (
-              <div
-                key={row.municipality}
-                className={`municipality-risk-row${row.municipality === user.municipality ? ' is-own' : ''}`}
-              >
-                <div className="municipality-risk-name">
-                  {row.municipality}
-                  {row.municipality === user.municipality && (
-                    <span className="municipality-risk-you">Your area</span>
-                  )}
-                </div>
-                <div className="municipality-risk-badges">
-                  <span className="municipality-risk-badge-label">BPH</span>
-                  {row.bph.risk_level ? (
-                    <span className={`badge badge-${RISK_TONE[row.bph.risk_level]}`}>
-                      {row.bph.risk_level.toUpperCase()}
-                    </span>
-                  ) : (
-                    <span className="badge badge-neutral">N/A</span>
-                  )}
-                  <span className="municipality-risk-badge-label">RSB</span>
-                  {row.rsb.risk_level ? (
-                    <span className={`badge badge-${RISK_TONE[row.rsb.risk_level]}`}>
-                      {row.rsb.risk_level.toUpperCase()}
-                    </span>
-                  ) : (
-                    <span className="badge badge-neutral">N/A</span>
-                  )}
-                </div>
-              </div>
-            ))}
+          <div className="status-table-wrap">
+            <table className="status-table">
+              <thead>
+                <tr>
+                  <th>Municipality</th>
+                  <th>Province</th>
+                  <th>BPH (hoppers/hill)</th>
+                  <th>BPH Risk</th>
+                  <th>RSB (% Dead Hearts)</th>
+                  <th>RSB Risk</th>
+                </tr>
+              </thead>
+              <tbody>
+                {municipalityRisk.map((row) => {
+                  const isOwn = row.municipality === user.municipality
+                  return (
+                    <tr key={row.municipality} className={isOwn ? 'is-own' : undefined}>
+                      <td>
+                        <span className="status-table-name">
+                          {row.municipality}
+                          {isOwn && <span className="municipality-risk-you">Your area</span>}
+                        </span>
+                      </td>
+                      <td>{row.province}</td>
+                      <td>{row.bph.predicted_value != null ? Math.round(row.bph.predicted_value) : '—'}</td>
+                      <td>
+                        <RiskBadge level={row.bph.risk_level} />
+                      </td>
+                      <td>{row.rsb.predicted_value != null ? row.rsb.predicted_value.toFixed(1) : '—'}</td>
+                      <td>
+                        <RiskBadge level={row.rsb.risk_level} />
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </section>
@@ -317,9 +325,18 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
       <section className="stat-row">
         <div className="stat-card">
           <div className="stat-card-head">
-            <div>
-              <div className="stat-card-title">Crop Context & Climate Drivers</div>
-              <div className="stat-card-subtitle">Current conditions and growth stage</div>
+            <div className="stat-card-headleft">
+              <span className="stat-icon stat-icon-green" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22V12" />
+                  <path d="M12 12c0-4 3-7 8-7 0 5-3 8-8 8Z" />
+                  <path d="M12 15c0-3-2.5-5.5-7-5.5 0 4.5 2.5 6.5 7 6.5Z" />
+                </svg>
+              </span>
+              <div>
+                <div className="stat-card-title">Crop Context & Climate Drivers</div>
+                <div className="stat-card-subtitle">Current conditions and growth stage</div>
+              </div>
             </div>
             <span className="badge badge-green">Vegetative</span>
           </div>
@@ -351,12 +368,23 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
           const peak = peaks[meta.key]
           const tone = peak ? RISK_TONE[peak.risk_level] : 'blue'
 
+          const highMin = etlBandFor(meta.key, ACTIVE_GROWTH_STAGE).highMin
+          const pct = peak ? Math.min(100, Math.round((peak.predicted_value / highMin) * 100)) : 0
+
           return (
             <div className="stat-card" key={meta.key}>
               <div className="stat-card-head">
-                <div>
-                  <div className="stat-card-title">{meta.title}</div>
-                  <div className="stat-card-subtitle">Projected peak intensity</div>
+                <div className="stat-card-headleft">
+                  <span className={`stat-icon stat-icon-${tone}`} aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m3 17 6-6 4 4 8-8" />
+                      <path d="M15 7h6v6" />
+                    </svg>
+                  </span>
+                  <div>
+                    <div className="stat-card-title">{meta.title}</div>
+                    <div className="stat-card-subtitle">Projected peak intensity</div>
+                  </div>
                 </div>
                 <span className="badge badge-blue">{peak ? formatDateLabel(peak.date) : '…'}</span>
               </div>
@@ -365,14 +393,23 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
                 <span className="stat-card-big-value">{peak ? meta.format(peak.predicted_value) : '—'}</span>
                 <span className="stat-card-big-unit">{meta.unit}</span>
               </div>
-              <div className="stat-card-etl">
-                ETL: <strong>{etlBandFor(meta.key, ACTIVE_GROWTH_STAGE).highMin}{meta.etlSuffix}</strong>
+
+              <div className="etl-meter">
+                <div className="etl-meter-bar">
+                  <span className={`etl-meter-fill etl-${tone}`} style={{ width: `${pct}%` }} />
+                </div>
+                <div className="etl-meter-labels">
+                  <span>{peak ? `${pct}% of ETL` : '…'}</span>
+                  <span>
+                    ETL {highMin}
+                    {meta.etlSuffix}
+                  </span>
+                </div>
               </div>
+
               <div className="stat-card-risk-row">
                 <span className="stat-card-risk-label">Risk</span>
-                <span className={`badge badge-${tone}`}>
-                  {peak ? peak.risk_level.toUpperCase() : 'LOADING…'}
-                </span>
+                <span className={`badge badge-${tone}`}>{peak ? peak.risk_level.toUpperCase() : 'LOADING…'}</span>
               </div>
               <div className="stat-card-footer">
                 {peak ? `${formatDateLabel(peak.date)} · Projected ${meta.pest}` : 'Loading forecast…'}
@@ -389,7 +426,7 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
               <div className="panel-title">{user.province} Province Map</div>
               <div className="panel-subtitle">Farmer-reported sightings across the province, pinned by risk — click a pin to zoom in</div>
             </div>
-            <span className="badge badge-green">LIVE</span>
+            <LiveBadge />
           </div>
 
           <ProvinceMap
@@ -428,7 +465,14 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
                 {user.municipality} forecast · Source: DOST-PAGASA CLSU + BPI-CPMD
               </div>
             </div>
-            <span className="badge badge-green">LIVE</span>
+            <LiveBadge />
+          </div>
+
+          <div className="heatmap-legend">
+            <span><i className="heatmap-low" /> Low</span>
+            <span><i className="heatmap-mid" /> Medium</span>
+            <span><i className="heatmap-high" /> High</span>
+            <span className="heatmap-legend-hint">Click a day for details</span>
           </div>
 
           {heatmapMeta.map((meta) => {

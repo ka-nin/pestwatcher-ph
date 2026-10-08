@@ -51,6 +51,10 @@ class FarmerUserDB(Base):
     municipality: Mapped[str] = mapped_column(String, nullable=False)
     latitude: Mapped[float] = mapped_column(Float, nullable=False)
     longitude: Mapped[float] = mapped_column(Float, nullable=False)
+    # E.164 mobile number for SMS advisories (app/sms/). Nullable: an account
+    # created before this column existed, or a farmer who has not given a
+    # number, simply isn't offered as an SMS recipient.
+    phone: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class SuperAdminDB(Base):
@@ -97,3 +101,37 @@ class ReportDB(Base):
     # app/db.py:init_db() also adds these columns to an already-created table.
     deleted_at: Mapped[str | None] = mapped_column(String, nullable=True)
     deleted_by: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class SmsMessageDB(Base):
+    """Outbox for SMS advisories sent by an agricultural technologist.
+
+    One row per recipient, not per compose action, so a message that reaches
+    four farmers and fails for a fifth records that honestly instead of
+    collapsing to a single ambiguous status. The row is written before the
+    send is attempted and updated afterwards, so a crash mid-send leaves a
+    "queued" row rather than losing the attempt entirely.
+    """
+
+    __tablename__ = "sms_messages"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    # Groups the rows that came from one compose action in the admin app.
+    batch_id: Mapped[str] = mapped_column(String, nullable=False)
+    recipient_phone: Mapped[str] = mapped_column(String, nullable=False)
+    # Null when the technologist typed a bare number rather than picking a
+    # registered farmer.
+    recipient_username: Mapped[str | None] = mapped_column(String, nullable=True)
+    recipient_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    body: Mapped[str] = mapped_column(String, nullable=False)
+    municipality: Mapped[str] = mapped_column(String, nullable=False)
+    sent_by: Mapped[str] = mapped_column(String, nullable=False)
+    # queued | sent | failed
+    status: Mapped[str] = mapped_column(String, nullable=False, default="queued")
+    # console | android_gateway — recorded per row so an outbox that mixes a
+    # simulated run and a real one stays readable afterwards.
+    provider: Mapped[str] = mapped_column(String, nullable=False)
+    provider_message_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    error: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[str] = mapped_column(String, nullable=False)
+    sent_at: Mapped[str | None] = mapped_column(String, nullable=True)

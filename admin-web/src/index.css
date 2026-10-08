@@ -105,3 +105,18 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* The admin UI uses fixed light colours, so native form controls must render
+   light too. Otherwise, on a dark-mode OS, number-input spinners, scrollbars
+   and date pickers come out black against the white inputs. */
+input,
+select,
+textarea {
+  color-scheme: light;
+}
+
+/* Scrollable table areas: keep their native scrollbars light as well. */
+.admin-table-wrap,
+.mi-table-wrap {
+  color-scheme: light;
+}

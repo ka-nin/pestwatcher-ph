@@ -21,7 +21,7 @@
   text-align: left;
   font-size: 11px;
   font-weight: 700;
-  color: #999;
+  color: #111;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   padding: 0 10px 8px;
@@ -206,4 +206,190 @@
   background: #efe9db;
   padding: 1px 5px;
   border-radius: 4px;
+}
+
+.admin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 24, 18, 0.55);
+  backdrop-filter: blur(1px);
+}
+
+.admin-modal {
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 24px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.admin-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.admin-modal .admin-form-title {
+  font-size: 17px;
+  margin-bottom: 2px;
+}
+
+.admin-modal-subtitle {
+  font-size: 12.5px;
+  color: #888;
+}
+
+.admin-modal-close {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #777;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.admin-modal-close:hover {
+  background: #f3f1ea;
+}
+
+.admin-modal .admin-form-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.admin-form-field-full {
+  grid-column: 1 / -1;
+}
+
+.admin-modal .admin-form-actions {
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+@media (max-width: 520px) {
+  .admin-modal .admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Overview stat panels: solid green with white text. */
+.admin-stat-card-green {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100px;
+  padding: 14px 22px;
+  background: linear-gradient(135deg, #4b7a3c, #3a6330);
+  border-color: #3a6330;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(58, 99, 48, 0.2);
+}
+
+.admin-stat-card-green .admin-stat-value {
+  font-size: 48px;
+  line-height: 1.1;
+  color: #fff;
+}
+
+.admin-stat-card-green .admin-stat-label {
+  margin-top: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.admin-stat-icon {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+/* Overview table: fixed layout so the four forecast columns are the same
+   width and the values and badges line up under their centred headers. */
+.admin-table-overview {
+  table-layout: fixed;
+}
+
+.admin-table-overview th:nth-child(1) {
+  width: 24%;
+}
+
+.admin-table-overview th:nth-child(2) {
+  width: 16%;
+}
+
+.admin-table-overview th:nth-child(n + 3) {
+  width: 15%;
+}
+
+.admin-table-overview th,
+.admin-table-overview td {
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.admin-table-overview .admin-col-center {
+  text-align: center;
+}
+
+/* ETL reference table: fixed layout with Low / Medium / High equal width and
+   centred; Pest and Growth Stage stay left-aligned. */
+.admin-table-etl {
+  table-layout: fixed;
+  min-width: 620px;
+}
+
+.admin-table-etl th,
+.admin-table-etl td {
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.admin-table-etl th:nth-child(1) {
+  width: 12%;
+}
+
+.admin-table-etl th:nth-child(2) {
+  width: 18%;
+}
+
+.admin-table-etl th:nth-child(n + 3) {
+  width: calc(70% / 3);
+}
+
+.admin-table-etl th:nth-child(n + 3),
+.admin-table-etl td:nth-child(n + 3) {
+  text-align: center;
+}
+
+.admin-table-etl td {
+  color: #111;
+}
+
+/* The source-file path was pale text on a pale background. */
+.admin-note code {
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: #ece7d8;
+  color: #333;
+  font-size: 11.5px;
 }

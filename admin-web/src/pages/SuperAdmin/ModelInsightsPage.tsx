@@ -295,8 +295,30 @@ function FlowTab() {
             </div>
           </div>
           <div className="mi-controls">
-            <button type="button" className="mi-btn" onClick={() => setPlaying((p) => !p)}>
+            <button
+              type="button"
+              className="mi-btn"
+              onClick={() => {
+                setIndex((i) => (i - 1 + steps.length) % steps.length)
+                setPlaying(false)
+              }}
+              aria-label="Previous step"
+            >
+              ‹ Prev
+            </button>
+            <button type="button" className="mi-btn mi-btn-solid" onClick={() => setPlaying((p) => !p)}>
               {playing ? '❚❚ Pause' : '▶ Play'}
+            </button>
+            <button
+              type="button"
+              className="mi-btn"
+              onClick={() => {
+                setIndex((i) => (i + 1) % steps.length)
+                setPlaying(false)
+              }}
+              aria-label="Next step"
+            >
+              Next ›
             </button>
             <button
               type="button"
@@ -317,37 +339,61 @@ function FlowTab() {
             className={`mi-lane-tab${lane === 'photo' ? ' active' : ''}`}
             onClick={() => chooseLane('photo')}
           >
-            <strong>Images</strong> · ResNet-50 · which pest is in the photo
+            <span className="mi-lane-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z" />
+                <circle cx="12" cy="13" r="3.5" />
+              </svg>
+            </span>
+            <span className="mi-lane-text">
+              <strong>Images</strong>
+              <small>ResNet-50 · which pest is in the photo</small>
+            </span>
           </button>
           <button
             type="button"
             className={`mi-lane-tab${lane === 'weather' ? ' active' : ''}`}
             onClick={() => chooseLane('weather')}
           >
-            <strong>Weather</strong> · BiLSTM · how bad it will get in 14 days
+            <span className="mi-lane-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.5 19H9a7 7 0 1 1 6.7-9h1.8a4.5 4.5 0 0 1 0 9Z" />
+              </svg>
+            </span>
+            <span className="mi-lane-text">
+              <strong>Weather</strong>
+              <small>BiLSTM · how bad it will get in 14 days</small>
+            </span>
           </button>
         </div>
 
-        <ol className="mi-track">
-          {steps.map((s, i) => (
-            <li key={s.id}>
-              <button
-                type="button"
-                className={`mi-node${i === index ? ' active' : ''}${i < index ? ' done' : ''}`}
-                onClick={() => {
-                  setIndex(i)
-                  setPlaying(false)
-                }}
-              >
-                <span className="mi-node-num">{i + 1}</span>
-                <span className="mi-node-label">{s.short}</span>
-              </button>
-            </li>
-          ))}
-        </ol>
-
-        <div className="mi-progress">
-          <span style={{ width: `${((index + 1) / steps.length) * 100}%` }} />
+        <div className="mi-track-wrap">
+          <ol
+            className="mi-track"
+            style={
+              {
+                '--n': steps.length,
+                '--p': steps.length > 1 ? index / (steps.length - 1) : 0,
+              } as React.CSSProperties
+            }
+          >
+            <li className="mi-track-fill" aria-hidden="true" />
+            {steps.map((s, i) => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  className={`mi-node${i === index ? ' active' : ''}${i < index ? ' done' : ''}`}
+                  onClick={() => {
+                    setIndex(i)
+                    setPlaying(false)
+                  }}
+                >
+                  <span className="mi-node-num">{i < index ? '✓' : i + 1}</span>
+                  <span className="mi-node-label">{s.short}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
         </div>
 
         <div className="mi-detail" key={`${lane}-${step.id}`}>
@@ -355,9 +401,9 @@ function FlowTab() {
             <StepArt id={step.id} />
           </div>
           <div className="mi-detail-text">
-            <div className="mi-step-count">
+            <span className="mi-step-count">
               Step {index + 1} of {steps.length}
-            </div>
+            </span>
             <h3>{step.title}</h3>
             <p>{step.body}</p>
             <div className="mi-chips">
@@ -1001,7 +1047,12 @@ function ModelInsightsPage({ accessToken, onSessionExpired }: ModelInsightsPageP
               How the images and weather are processed, and how well each model performs.
             </div>
           </div>
-          {data && <span className="badge badge-green">Live data</span>}
+          {data && (
+            <span className="badge badge-green mi-live-badge">
+              <span className="mi-live-dot" />
+              Live data
+            </span>
+          )}
         </div>
 
         {error && <p className="stat-card-error">{error}</p>}
@@ -1009,18 +1060,25 @@ function ModelInsightsPage({ accessToken, onSessionExpired }: ModelInsightsPageP
 
         {data && (
           <div className="mi-status">
-            {data.models.map((s) => (
-              <div key={s.name} className="mi-status-item">
-                <span className={`mi-dot${s.loaded ? ' on' : ''}`} />
-                <div>
-                  <strong>{s.name}</strong>
-                  <small>
-                    {s.loaded ? 'Loaded' : 'Not loaded'} · {s.detail}
-                    {s.updated ? ` · updated ${s.updated}` : ''}
-                  </small>
+            {data.models.map((s) => {
+              const [model, pest] = s.name.split(' · ')
+              return (
+                <div key={s.name} className={`mi-status-item${s.loaded ? ' loaded' : ''}`}>
+                  <div className="mi-status-top">
+                    <div className="mi-status-title">
+                      <strong>{model}</strong>
+                      {pest && <span className="mi-status-pest">{pest}</span>}
+                    </div>
+                    <span className={`mi-status-state${s.loaded ? ' on' : ''}`}>
+                      <span className={`mi-dot${s.loaded ? ' on' : ''}`} />
+                      {s.loaded ? 'Loaded' : 'Not loaded'}
+                    </span>
+                  </div>
+                  <div className="mi-status-detail">{s.detail}</div>
+                  <div className="mi-status-updated">{s.updated ? `Updated ${s.updated}` : ' '}</div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 

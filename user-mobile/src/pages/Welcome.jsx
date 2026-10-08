@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Check, LocateFixed, ChevronDown } from 'lucide-react';
 import riceFieldImg from '../assets/rice-field.png';
-// Tightly-cropped variant — see Home.jsx's note on logo-shield-mark.png. The
-// padded original (logo-shield.png) leaves too much transparent margin once
-// a box is sized/spaced tightly around it, as both logo spots in this file
-// now are.
-import logoMarkImg from '../assets/logo-shield-mark.png';
+// Vector trace of logo-shield.png, cropped to the mark the same way
+// logo-shield-mark.png is (see Home.jsx's note): identical artwork and colour,
+// but resolution-independent. The bitmap mark is only 92x104, so drawing it at
+// .welcome-logo-img's 110px — more on a 2x/3x screen — visibly upscaled it.
+import logoMarkImg from '../assets/logo-shield-mark.svg';
 import { fetchMunicipalities } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';

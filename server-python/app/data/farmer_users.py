@@ -32,6 +32,7 @@ def _to_schema(row: FarmerUserDB) -> FarmerUser:
         municipality=row.municipality,
         latitude=row.latitude,
         longitude=row.longitude,
+        phone=row.phone,
     )
 
 
@@ -47,3 +48,24 @@ def find_farmer_user(username: str) -> FarmerUser | None:
     with session_scope() as db:
         row = db.get(FarmerUserDB, username)
         return _to_schema(row) if row else None
+
+
+def list_farmers(municipality: str | None = None) -> list[FarmerUser]:
+    """Farmer accounts, optionally scoped to one municipality. Used by the SMS
+    compose screen, which only ever offers a technologist their own town."""
+    with session_scope() as db:
+        query = db.query(FarmerUserDB)
+        if municipality:
+            query = query.filter(FarmerUserDB.municipality.ilike(municipality))
+        rows = query.order_by(FarmerUserDB.full_name).all()
+        return [_to_schema(row) for row in rows]
+
+
+def set_phone(username: str, phone: str | None) -> FarmerUser | None:
+    with session_scope() as db:
+        row = db.get(FarmerUserDB, username)
+        if row is None:
+            return None
+        row.phone = phone
+        db.flush()
+        return _to_schema(row)

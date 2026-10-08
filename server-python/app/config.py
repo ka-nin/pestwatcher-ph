@@ -39,6 +39,22 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-only-insecure-secret-change-me"
     jwt_expire_minutes: int = 60 * 12
 
+    # --- SMS advisories (app/sms/) -------------------------------------
+    # "console" writes the message to the server log and records it in the
+    # outbox without touching a real network — the default, so a demo works
+    # with no phone attached and no credits spent. "android_gateway" relays
+    # through SMS Gateway for Android (https://docs.sms-gate.app) running in
+    # Local Server mode on a handset, which sends through that phone's own SIM.
+    sms_provider: str = "console"
+    # Base URL of the handset's local server, e.g. http://100.68.59.61:8080
+    # (its Tailscale address, so it works off the local Wi-Fi too).
+    sms_gateway_url: str = ""
+    sms_gateway_username: str = ""
+    sms_gateway_password: str = ""
+    sms_gateway_timeout_seconds: float = 15.0
+    # Bare local numbers ("09171234567") are rewritten to this country code.
+    sms_default_country_code: str = "+63"
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

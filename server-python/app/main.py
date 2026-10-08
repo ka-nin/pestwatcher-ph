@@ -14,7 +14,7 @@ from app.data.superadmins import seed_if_empty as seed_superadmins
 from app.db import init_db
 from app.models.bilstm_model import bilstm_forecaster, raw_baseline_forecaster
 from app.models.resnet_model import resnet_classifier
-from app.routers import admin, auth, inference, locations, reports, weather
+from app.routers import admin, auth, inference, locations, reports, sms, weather
 from ml.config import PEST_PARAMS
 
 settings = get_settings()
@@ -87,6 +87,7 @@ app.include_router(weather.router)
 app.include_router(inference.router)
 app.include_router(reports.router)
 app.include_router(locations.router)
+app.include_router(sms.router)
 
 # Serves farmer-uploaded report photos (app/routers/reports.py) so
 # admin-web can render them directly as <img src>. Photos aren't behind

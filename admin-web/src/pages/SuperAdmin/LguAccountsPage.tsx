@@ -151,6 +151,15 @@ function LguAccountsPage({ accessToken, onSessionExpired }: LguAccountsPageProps
 
   const formOpen = showCreateForm || editingUsername !== null
 
+  useEffect(() => {
+    if (!formOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !saving) cancelForm()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [formOpen, saving])
+
   return (
     <section className="panel admin-panel">
       <div className="panel-head">
@@ -158,19 +167,45 @@ function LguAccountsPage({ accessToken, onSessionExpired }: LguAccountsPageProps
           <div className="panel-title">LGU Accounts</div>
           <div className="panel-subtitle">Municipal technician accounts — in-memory, resets on server restart</div>
         </div>
-        {!formOpen && (
-          <button type="button" className="admin-btn admin-btn-primary" onClick={startCreate}>
-            + New Account
-          </button>
-        )}
+        <button type="button" className="admin-btn admin-btn-primary" onClick={startCreate}>
+          + New Account
+        </button>
       </div>
 
       {formOpen && (
-        <form className="admin-form" onSubmit={handleSubmit}>
-          <div className="admin-form-title">{editingUsername ? `Edit ${editingUsername}` : 'New LGU Account'}</div>
+        <div className="admin-modal-backdrop" onClick={() => !saving && cancelForm()}>
+        <form
+          className="admin-modal"
+          onSubmit={handleSubmit}
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-label={editingUsername ? `Edit ${editingUsername}` : 'New LGU Account'}
+        >
+          <div className="admin-modal-head">
+            <div>
+              <div className="admin-form-title">
+                {editingUsername ? `Edit ${editingUsername}` : 'Create LGU Account'}
+              </div>
+              <div className="admin-modal-subtitle">
+                {editingUsername
+                  ? 'Update this technician account.'
+                  : 'Add a municipal technician who can review farmer reports.'}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="admin-modal-close"
+              onClick={cancelForm}
+              disabled={saving}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
           <div className="admin-form-grid">
             {!editingUsername && (
-              <label className="admin-form-field">
+              <label className="admin-form-field admin-form-field-full">
                 Username
                 <input
                   value={form.username}
@@ -179,7 +214,7 @@ function LguAccountsPage({ accessToken, onSessionExpired }: LguAccountsPageProps
                 />
               </label>
             )}
-            <label className="admin-form-field">
+            <label className="admin-form-field admin-form-field-full">
               {editingUsername ? 'New Password (leave blank to keep)' : 'Password'}
               <input
                 type="password"
@@ -188,7 +223,7 @@ function LguAccountsPage({ accessToken, onSessionExpired }: LguAccountsPageProps
                 required={!editingUsername}
               />
             </label>
-            <label className="admin-form-field">
+            <label className="admin-form-field admin-form-field-full">
               Role Level
               <input
                 value={form.roleLevel}
@@ -240,6 +275,7 @@ function LguAccountsPage({ accessToken, onSessionExpired }: LguAccountsPageProps
             </button>
           </div>
         </form>
+        </div>
       )}
 
       {error ? (

@@ -62,7 +62,6 @@ const navIcons: Record<PageKey, React.ReactNode> = {
 
 function SuperAdminConsole({ user, accessToken, onLogout, onSessionExpired }: SuperAdminConsoleProps) {
   const [activePage, setActivePage] = useState<PageKey>('overview')
-  const activeLabel = navItems.find((item) => item.key === activePage)?.label ?? 'Overview'
 
   return (
     <div className="dashboard superadmin-console">
@@ -118,7 +117,6 @@ function SuperAdminConsole({ user, accessToken, onLogout, onSessionExpired }: Su
 
         <main className="dashboard-main">
           <header className="dashboard-header">
-            <h1>{activeLabel}</h1>
             <div className="dashboard-user">
               <span className="dashboard-user-label">SuperAdmin</span>
               <span className="dashboard-user-name">{user.fullName}</span>

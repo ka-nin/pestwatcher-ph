@@ -653,3 +653,79 @@ export async function runSimulationImage(token: string, file: File): Promise<Sim
   }
   return res.json()
 }
+
+// --- SMS advisories (server-python/app/routers/sms.py) --------------------
+
+export interface SmsRecipient {
+  username: string
+  full_name: string
+  municipality: string
+  phone: string
+}
+
+export interface SmsMessageRecord {
+  id: string
+  batch_id: string
+  recipient_phone: string
+  recipient_username: string | null
+  recipient_name: string | null
+  body: string
+  municipality: string
+  sent_by: string
+  status: 'queued' | 'sent' | 'failed'
+  provider: string
+  provider_message_id: string | null
+  error: string | null
+  created_at: string
+  sent_at: string | null
+}
+
+export interface SmsSendResult {
+  batch_id: string
+  provider: string
+  sent: number
+  failed: number
+  skipped: string[]
+  messages: SmsMessageRecord[]
+}
+
+export interface SmsGatewayStatus {
+  provider: string
+  configured: boolean
+  reachable: boolean | null
+  detail: string
+}
+
+export async function fetchSmsRecipients(token: string): Promise<SmsRecipient[]> {
+  const res = await authFetch(token, '/api/sms/recipients')
+  if (!res.ok) throw new Error('Failed to load SMS recipients')
+  return res.json()
+}
+
+export async function fetchSmsGatewayStatus(token: string): Promise<SmsGatewayStatus> {
+  const res = await authFetch(token, '/api/sms/gateway-status')
+  if (!res.ok) throw new Error('Failed to check the SMS gateway')
+  return res.json()
+}
+
+export async function fetchSmsOutbox(token: string): Promise<SmsMessageRecord[]> {
+  const res = await authFetch(token, '/api/sms')
+  if (!res.ok) throw new Error('Failed to load the SMS outbox')
+  return res.json()
+}
+
+export async function sendSms(
+  token: string,
+  payload: { body: string; usernames?: string[]; phone_numbers?: string[]; to_all_farmers?: boolean },
+): Promise<SmsSendResult> {
+  const res = await authFetch(token, '/api/sms/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => null)
+    throw new Error(data?.detail ?? 'Failed to send the advisory')
+  }
+  return res.json()
+}

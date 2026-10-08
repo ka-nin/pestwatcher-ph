@@ -80,7 +80,7 @@ docker compose up -d
 
 This starts:
   - PostgreSQL   -> localhost:5432
-  - Adminer (DB web UI) -> http://localhost:8080
+  - pgAdmin (DB web UI) -> http://localhost:8080
     (login: System=PostgreSQL, Server=postgres, User=pestwatcher,
      Password=pestwatcher_dev_only, Database=pestwatcher)
 
