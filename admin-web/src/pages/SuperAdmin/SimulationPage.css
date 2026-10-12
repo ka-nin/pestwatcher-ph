@@ -795,3 +795,223 @@
 .sim-heldout-table .mi-table td.bad {
   color: #c23b3b;
 }
+
+/* ---- Computation pipeline visualization ---- */
+.pipe-heading {
+  margin-top: 0;
+}
+
+.pipe-wrap {
+  margin-bottom: 22px;
+}
+
+.pipe-rail {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  margin-bottom: 16px;
+}
+
+.pipe-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1 1 0;
+  text-align: center;
+  gap: 6px;
+}
+
+.pipe-step-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #f0eee6;
+  color: #888;
+  font-size: 12px;
+  font-weight: 800;
+  border: 2px solid #e3dfd1;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  z-index: 1;
+}
+
+.pipe-step.active .pipe-step-dot {
+  background: #2f6b32;
+  border-color: #2f6b32;
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(47, 107, 50, 0.15);
+}
+
+.pipe-step.done .pipe-step-dot {
+  background: #dbe8d3;
+  border-color: #9fc191;
+  color: #2f6b32;
+}
+
+.pipe-step-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-width: 130px;
+}
+
+.pipe-step-copy strong {
+  font-size: 11.5px;
+  color: #2b2a22;
+}
+
+.pipe-step-copy span {
+  font-size: 10.5px;
+  color: #999;
+  line-height: 1.3;
+}
+
+.pipe-step.active .pipe-step-copy strong {
+  color: #2f6b32;
+}
+
+.pipe-step-connector {
+  position: absolute;
+  top: 13px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: #e3dfd1;
+  z-index: 0;
+}
+
+.pipe-step.done .pipe-step-connector {
+  background: #9fc191;
+}
+
+.pipe-stage-detail {
+  min-height: 92px;
+}
+
+.pipe-detail-card {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid #eee6d9;
+  background: #faf8f1;
+  animation: pipe-fade-in 0.25s ease;
+}
+
+@keyframes pipe-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pipe-static-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.pipe-static-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #eee6d9;
+}
+
+.pipe-static-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.pipe-static-value {
+  font-size: 16px;
+  color: #1f2124;
+}
+
+.pipe-static-value small {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #999;
+}
+
+.pipe-static-formula {
+  font-size: 10.5px;
+  color: #999;
+  font-style: italic;
+}
+
+.pipe-day-sample {
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
+.pipe-threshold-hint {
+  font-size: 11.5px;
+  color: #777;
+}
+
+.pipe-arch {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pipe-arch-branch,
+.pipe-arch-merge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.pipe-arch-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #888;
+  letter-spacing: 0.01em;
+}
+
+.pipe-arch-box {
+  padding: 8px 18px;
+  border-radius: 10px;
+  background: #f1f7ef;
+  border: 1px solid #cfe3cd;
+  color: #2f6b32;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.pipe-arch-box-alt {
+  background: #fbf5e4;
+  border-color: #f0ddb0;
+  color: #8a6d1f;
+}
+
+.pipe-arch-box-merge {
+  background: #eef2fb;
+  border-color: #cdd9f5;
+  color: #30458c;
+}
+
+.pipe-arch-arrow {
+  color: #bbb;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.pipe-arch .mi-note {
+  margin-top: 6px;
+  text-align: center;
+}
