@@ -239,24 +239,79 @@ function ComputationPipeline({
 }) {
   const [activeStage, setActiveStage] = useState(0)
   const features = useMemo(() => buildPipelineFeatures(pest, days), [pest, days])
+  const startedAtRef = useRef(0)
+  // Identifies which run a pending setTimeout belongs to. The real forecast
+  // call is a single forward pass — often well under a second — and when it
+  // resolves, `running` flips to false, which is also the signal React uses
+  // to clean up the effect below. A plain clearTimeout-based cleanup would
+  // therefore cancel the still-pending stage-2/3 timers the moment the
+  // answer arrives early, which is the opposite of what should happen: a
+  // fast model shouldn't be the reason the walk-through never gets watched.
+  // Each timer checks this instead of being cancelled, so an early finish
+  // lets the remaining stages still play out on schedule.
+  const runSeqRef = useRef(0)
+  const mountedRef = useRef(true)
+  // Set the moment the viewer clicks Next or Back. Once true, the
+  // auto-advance timers below go quiet for the rest of this run — a
+  // presenter who has taken manual control to explain a stage shouldn't
+  // have the rail jump ahead under them mid-sentence.
+  const manualRef = useRef(false)
+  useEffect(() => {
+    // StrictMode mounts, unmounts and remounts every component once in
+    // development specifically to catch effects that don't reset their own
+    // state on remount — this is that reset. Without it, the cleanup below
+    // flips mountedRef to false on StrictMode's synthetic first unmount and
+    // nothing ever sets it back to true, so every pipeline timer after that
+    // silently no-ops and the rail never advances past stage 1.
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+  // Minimum time the full rail stays on screen before the Decision stage is
+  // allowed to show, however quickly the backend actually answers.
+  const MIN_PIPELINE_MS = 2200
 
   useEffect(() => {
     if (!running) return undefined
+    const seq = ++runSeqRef.current
+    manualRef.current = false
     setActiveStage(0)
-    const timers: ReturnType<typeof setTimeout>[] = []
+    startedAtRef.current = Date.now()
     // Walk through the first four stages on a fixed cadence; the final
     // "Decision" stage only lights up once the real backend result lands
-    // (handled by the effect below), since that's the one step this
-    // visualization can't fabricate.
+    // AND the floor above has elapsed (handled by the effect below).
     ;[1, 2, 3].forEach((stage, i) => {
-      timers.push(setTimeout(() => setActiveStage(stage), (i + 1) * 500))
+      setTimeout(() => {
+        if (mountedRef.current && runSeqRef.current === seq && !manualRef.current) setActiveStage(stage)
+      }, (i + 1) * 500)
     })
-    return () => timers.forEach(clearTimeout)
+    return undefined
   }, [running])
 
   useEffect(() => {
-    if (!running && result) setActiveStage(4)
+    if (running || !result) return undefined
+    const seq = runSeqRef.current
+    const elapsed = Date.now() - startedAtRef.current
+    const remaining = Math.max(0, MIN_PIPELINE_MS - elapsed)
+    const timer = setTimeout(() => {
+      if (mountedRef.current && runSeqRef.current === seq && !manualRef.current) setActiveStage(4)
+    }, remaining)
+    return () => clearTimeout(timer)
   }, [running, result])
+
+  // The last stage a click is allowed to reach — Decision needs the real
+  // backend result to exist, so Next stalls at stage 3 (BiLSTM forward
+  // pass) until it lands, rather than showing an empty Decision card.
+  const maxReachableStage = result ? 4 : 3
+  const goNext = () => {
+    manualRef.current = true
+    setActiveStage((s) => Math.min(maxReachableStage, s + 1))
+  }
+  const goBack = () => {
+    manualRef.current = true
+    setActiveStage((s) => Math.max(0, s - 1))
+  }
 
   const lastDay = features.sequenceRows[features.sequenceRows.length - 1]
 
@@ -276,6 +331,25 @@ function ComputationPipeline({
             {i < PIPELINE_STAGES.length - 1 && <div className="pipe-step-connector" />}
           </div>
         ))}
+      </div>
+
+      <div className="pipe-step-controls">
+        <button type="button" className="pipe-step-btn" onClick={goBack} disabled={activeStage === 0}>
+          ← Back
+        </button>
+        <span className="pipe-step-controls-hint">
+          {activeStage >= maxReachableStage && !result
+            ? 'Waiting for the backend result…'
+            : `Step ${activeStage + 1} of ${PIPELINE_STAGES.length}`}
+        </span>
+        <button
+          type="button"
+          className="pipe-step-btn pipe-step-btn-primary"
+          onClick={goNext}
+          disabled={activeStage >= maxReachableStage}
+        >
+          Next →
+        </button>
       </div>
 
       <div className="pipe-stage-detail">

@@ -313,6 +313,30 @@
   gap: 14px;
 }
 
+.scan-result-unavailable-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.scan-result-unavailable-icon:empty {
+  display: none;
+}
+
+.scan-result-unavailable-icon.tone-ok {
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+}
+
+.scan-result-unavailable-icon.tone-warn {
+  background: color-mix(in srgb, var(--color-accent-orange) 18%, transparent);
+  color: var(--color-accent-orange);
+}
+
 .scan-result-unavailable-body h1 {
   margin: 0;
   font-size: var(--text-lg);

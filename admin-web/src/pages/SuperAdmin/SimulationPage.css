@@ -887,6 +887,63 @@
   background: #9fc191;
 }
 
+.pipe-step-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.pipe-step-controls-hint {
+  min-width: 190px;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #999;
+}
+
+.pipe-step-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1.5px solid #e3dfd1;
+  background: #fff;
+  color: #555;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.pipe-step-btn:hover:not(:disabled) {
+  border-color: #9fc191;
+  color: #2f6b32;
+}
+
+.pipe-step-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pipe-step-btn-primary {
+  background: #2f6b32;
+  border-color: #2f6b32;
+  color: #fff;
+}
+
+.pipe-step-btn-primary:hover:not(:disabled) {
+  background: #265a29;
+  border-color: #265a29;
+  color: #fff;
+}
+
+.pipe-step-btn-primary:disabled {
+  background: #cdddc8;
+  border-color: #cdddc8;
+  color: #fff;
+  opacity: 1;
+}
+
 .pipe-stage-detail {
   min-height: 92px;
 }

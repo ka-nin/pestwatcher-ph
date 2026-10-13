@@ -3,6 +3,20 @@
   flex-direction: column;
   height: 100%;
   position: relative;
+  /* One surface value for every card-like element on this page — the map,
+     the alert cards, the municipality-risk rows, the empty states. They'd
+     drifted apart: most used the app-wide var(--color-surface), which at
+     40% opacity + heavy blur reads as barely-there over this page's warm
+     gradient, while the alert cards had been pushed to flat #fff to
+     compensate — stark and cold against everything else that stayed
+     translucent. Neither extreme worked on its own; this is the middle
+     ground, warm-toned instead of a cold pure white and opaque enough to
+     read as a distinct card, with only a light blur left for softness
+     rather than the full frosted-glass wash. Scoped to this page (not
+     index.css's --color-surface) so this is a deliberate choice for the
+     Alerts screen specifically, not a change to every card in the app. */
+  --alerts-surface: rgba(255, 253, 248, 0.92);
+  --alerts-surface-blur: 8px;
 }
 
 /* Green gradient/rounding/shadow now come from .hero-surface (index.css). */
@@ -37,7 +51,9 @@
 }
 
 .alerts-map {
-  background: var(--color-surface);
+  background: var(--alerts-surface);
+  backdrop-filter: blur(var(--alerts-surface-blur));
+  -webkit-backdrop-filter: blur(var(--alerts-surface-blur));
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
   overflow: hidden;
@@ -107,7 +123,9 @@
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
   color: var(--color-text-muted);
-  background: var(--color-surface);
+  background: var(--alerts-surface);
+  backdrop-filter: blur(var(--alerts-surface-blur));
+  -webkit-backdrop-filter: blur(var(--alerts-surface-blur));
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
 }
@@ -129,7 +147,9 @@
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-4);
-  background: var(--color-surface);
+  background: var(--alerts-surface);
+  backdrop-filter: blur(var(--alerts-surface-blur));
+  -webkit-backdrop-filter: blur(var(--alerts-surface-blur));
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
   border: 1.5px solid transparent;
@@ -190,7 +210,17 @@
 
 /* Severity reads from the card's full outline. */
 .alert-card {
-  background: var(--color-surface);
+  /* Shares --alerts-surface with the map, the municipality-risk rows and
+     the empty states above (defined once on .alerts-screen) — flat #fff
+     was tried here first to pull these cards out of the app-wide 40%
+     frosted-glass wash, but next to those still-translucent siblings it
+     read as a harsh, unrelated patch rather than part of the same page.
+     This is the shared middle ground: warm-toned, opaque enough to stand
+     apart from the gradient behind it, still enough to carry the
+     risk-colored border clearly. */
+  background: var(--alerts-surface);
+  backdrop-filter: blur(var(--alerts-surface-blur));
+  -webkit-backdrop-filter: blur(var(--alerts-surface-blur));
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
   padding: var(--space-4);
@@ -230,13 +260,6 @@
   white-space: nowrap;
 }
 
-.alert-date {
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  margin-left: auto;
-  white-space: nowrap;
-}
-
 .alert-card h3 {
   margin: 0;
   font-size: var(--text-md);
@@ -246,31 +269,58 @@
   color: var(--color-text);
 }
 
+/* Supporting identity detail (English name / scientific name) — kept
+   small and quiet so the Filipino pest name above it is the one thing
+   that reads as "the headline" at a glance. */
 .alert-scientific {
-  margin: 2px 0 var(--space-3);
-  font-size: var(--text-xs);
-  font-style: italic;
+  margin: 1px 0 var(--space-2);
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+  opacity: 0.85;
+}
+
+/* Where and when, paired on one line now that distance (the "should I
+   care" number) has already moved up to the top row. Both are secondary
+   to the risk/pest/distance glance above, so this whole line sits smaller
+   and quieter than it did as two separate full-width rows. */
+.alert-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-2xs);
   color: var(--color-text-muted);
 }
 
-.alert-location {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  margin: 0 0 var(--space-3);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--color-primary-dark);
+.alert-meta svg {
+  flex-shrink: 0;
+  opacity: 0.7;
 }
 
 .alert-location-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
-/* Distance is the "should I care about this one" signal, so it gets its own
-   pill on the right rather than sitting as muted text among other chips. */
+.alert-meta-dot {
+  flex-shrink: 0;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+.alert-date {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Distance is the "should I care about this one" signal, so it sits in
+   the top row next to the risk badge — the glance line — rather than
+   waiting at the bottom of the card to be noticed. */
 .alert-distance {
   margin-left: auto;
   flex-shrink: 0;
@@ -284,9 +334,18 @@
   white-space: nowrap;
 }
 
+/* Farmer-written free text is the least structured field on the card and
+   the one most likely to run long — clamped to two lines so one verbose
+   report can't push every card below it off the first screenful. The
+   glance facts (risk, pest, distance, verification) are all above this
+   line regardless of how long the note runs. */
 .alert-desc {
   margin: 0;
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
   color: var(--color-text);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }

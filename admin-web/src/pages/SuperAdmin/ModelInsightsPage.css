@@ -813,3 +813,71 @@
     box-shadow: 0 0 0 3px rgba(63, 156, 70, 0.18);
   }
 }
+
+/* ---- System-wide performance (SOP RQ1) — deliberately separate from the
+   .mi-shap* rules above, which belong to the single-pest SHAP section and
+   are laid out for a different column count. ---- */
+.mi-syswide-shap-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.mi-syswide-shap-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) 1fr 86px;
+  align-items: center;
+  gap: 12px;
+}
+
+.mi-syswide-shap-row-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #444;
+}
+
+.mi-syswide-shap-group-tag {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: #fff;
+}
+
+.mi-syswide-shap-group-tag.static {
+  background: #2f6b32;
+}
+
+.mi-syswide-shap-group-tag.sequence {
+  background: #c99a2e;
+}
+
+.mi-syswide-shap-bar-track {
+  height: 8px;
+  border-radius: 999px;
+  background: #ece8da;
+  overflow: hidden;
+}
+
+.mi-syswide-shap-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2f6b32, #4a9c4f);
+}
+
+.mi-syswide-shap-row-values {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #777;
+  text-align: right;
+  white-space: nowrap;
+}
