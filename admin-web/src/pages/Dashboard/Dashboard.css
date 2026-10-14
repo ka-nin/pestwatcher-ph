@@ -396,6 +396,38 @@
   color: #999;
 }
 
+/* Used by OverviewPage specifically — its one fetch runs a live forecast
+   for every municipality, both pests, in sequence, so it genuinely takes
+   several seconds. Plain static text for that long reads as a hang; the
+   spinner is here so the wait reads as "working" instead. */
+.overview-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.overview-loading-spinner {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #e5e0d2;
+  border-top-color: #2f6b32;
+  animation: overview-spin 0.8s linear infinite;
+}
+
+@keyframes overview-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overview-loading-spinner {
+    animation-duration: 2s;
+  }
+}
+
 .stat-card-error {
   color: #c23b3b;
 }

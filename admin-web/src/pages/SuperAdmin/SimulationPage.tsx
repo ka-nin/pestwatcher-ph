@@ -442,7 +442,7 @@ function ComputationPipeline({
                   The raw output is inverse-transformed (undoing the log target used at training time), clamped
                   to ≥ 0, giving <strong>{result.engineered.predicted_value.toFixed(2)}</strong>{' '}
                   {result.engineered.unit === 'hoppers_per_hill' ? 'hoppers/hill' : '% damage'}. That value is then
-                  bucketed into a risk level using the thesis's fixed thresholds — not learned by the model:
+                  bucketed into a risk level using the fixed agronomic thresholds — not learned by the model:
                 </p>
                 <p className="mi-note pipe-threshold-hint">{RISK_THRESHOLD_HINT[pest]}</p>
               </>
@@ -796,7 +796,7 @@ function SimulationPage({ accessToken, onSessionExpired }: SimulationPageProps) 
                   />
                   <ModelResultCard
                     title="Raw (baseline)"
-                    subtitle="Tmax / Tmin / RH / Rainfall only — the thesis's RQ2 control"
+                    subtitle="Tmax / Tmin / RH / Rainfall only — the raw-variable control"
                     result={result.raw}
                     tone="yellow"
                   />

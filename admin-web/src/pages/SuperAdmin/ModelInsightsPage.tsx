@@ -806,7 +806,7 @@ function FeatureComparisonSection({ data, unit }: { data: FeatureComparisonRespo
         <div className="panel-head">
           <div>
             <div className="panel-title">Baseline: engineered vs. raw climate features</div>
-            <div className="panel-subtitle">The thesis's RQ2 / RQ3 comparison</div>
+            <div className="panel-subtitle">Engineered features vs. the raw-variable control</div>
           </div>
         </div>
         <p className="mi-note">
@@ -869,7 +869,7 @@ function FeatureComparisonSection({ data, unit }: { data: FeatureComparisonRespo
       <p className="mi-note">
         Engineered and raw configurations were trained and evaluated on the exact same {data.n_folds} chronological
         test folds, so each metric's 5 paired differences were checked for normality (Shapiro-Wilk) before choosing a
-        paired t-test or a Wilcoxon signed-rank test — matching the thesis's stated statistical treatment for RQ2/RQ3.
+        paired t-test or a Wilcoxon signed-rank test, whichever the normality check called for.
       </p>
     </section>
   )
@@ -1180,19 +1180,25 @@ function PerClassTable({
   rows,
   rowHeader = 'Band',
   countLabel = 'Windows',
+  col1Label = 'Precision',
+  col2Label = 'Recall',
+  col3Label = 'F1',
 }: {
   rows: { label: string; precision: number; recall: number; f1: number; support: number }[]
   rowHeader?: string
   countLabel?: string
+  col1Label?: string
+  col2Label?: string
+  col3Label?: string
 }) {
   return (
     <table className="mi-perclass-table">
       <thead>
         <tr>
           <th>{rowHeader}</th>
-          <th>Precision</th>
-          <th>Recall</th>
-          <th>F1</th>
+          <th>{col1Label}</th>
+          <th>{col2Label}</th>
+          <th>{col3Label}</th>
           <th>{countLabel}</th>
         </tr>
       </thead>
@@ -1232,6 +1238,48 @@ function SystemPerformanceSection({ data }: { data: ModelInsightsResponse }) {
     const labels = ['not this pest', 'this pest']
     return { matrix, labels, ...macroMetricsFromMatrix(matrix, labels) }
   }, [bphResnet, rsbResnet])
+
+  const bphMetrics = data.bilstm.BPH.metrics
+  const rsbMetrics = data.bilstm.RSB.metrics
+  const bphPoints = data.bilstm.BPH.predictions?.points
+  const rsbPoints = data.bilstm.RSB.predictions?.points
+
+  /** RMSE and MAE can't be pooled in their raw units (hoppers/hill vs. %
+   * damage — see the Forecast accuracy card's own disclosure). Dividing
+   * each by its own test set's observed range turns both into the same
+   * thing: "error as a share of how much this pest's target actually
+   * varies." That IS unitless, so averaging the two normalized values is
+   * legitimate in a way averaging 6.71 and 1.38 directly never was. R² is
+   * already unitless by definition (it's a ratio of variances), so it was
+   * always safe to average — it just hadn't been, for consistency with the
+   * two it was sitting next to.
+   * This is a derived metric, not one the manuscript currently defines —
+   * flagged in the card itself, not quietly introduced. */
+  const normalizedForecast = useMemo(() => {
+    if (!bphMetrics || !rsbMetrics || !bphPoints?.length || !rsbPoints?.length) return null
+    const rangeOf = (points: { actual: number }[]) => {
+      const actuals = points.map((p) => p.actual)
+      return Math.max(...actuals) - Math.min(...actuals)
+    }
+    const bphRange = rangeOf(bphPoints)
+    const rsbRange = rangeOf(rsbPoints)
+    if (bphRange <= 0 || rsbRange <= 0) return null
+    const bphNrmse = bphMetrics.rmse / bphRange
+    const rsbNrmse = rsbMetrics.rmse / rsbRange
+    const bphNmae = bphMetrics.mae / bphRange
+    const rsbNmae = rsbMetrics.mae / rsbRange
+    return {
+      bphRange,
+      rsbRange,
+      bphNrmse,
+      rsbNrmse,
+      bphNmae,
+      rsbNmae,
+      avgNrmse: (bphNrmse + rsbNrmse) / 2,
+      avgNmae: (bphNmae + rsbNmae) / 2,
+      avgR2: (bphMetrics.r2 + rsbMetrics.r2) / 2,
+    }
+  }, [bphMetrics, rsbMetrics, bphPoints, rsbPoints])
 
   const shapRows = useMemo(() => mergeShap(bphShap, rsbShap), [bphShap, rsbShap])
   // Scaled against the largest single pest share in the list (not the
@@ -1357,6 +1405,50 @@ function SystemPerformanceSection({ data }: { data: ModelInsightsResponse }) {
             </span>
           </button>
         )}
+        {normalizedForecast && (
+          <button
+            type="button"
+            className="mi-syswide-headline-item"
+            onClick={() =>
+              openModal(
+                'Forecast error, normalized',
+                <>
+                  <p className="mi-note">
+                    <strong>This is a derived figure, computed here rather than reported directly by the models.</strong> RMSE and MAE can't
+                    be averaged in their raw units — BPH is hoppers/hill, RSB is % damage, and 6.71 plus 1.38
+                    isn't a real quantity in either unit. Dividing each pest's RMSE and MAE by its own test set's
+                    observed range turns both into "error as a share of how much this pest's target actually
+                    varies," which has no unit — so averaging the two normalized values is legitimate in a way
+                    averaging the raw numbers never was. R² is already unitless by definition, so it's a plain
+                    average of the two.
+                  </p>
+                  <PerClassTable
+                    rows={[
+                      { label: 'BPH', precision: normalizedForecast.bphNrmse, recall: normalizedForecast.bphNmae, f1: bphMetrics?.r2 ?? 0, support: Math.round(normalizedForecast.bphRange * 100) / 100 },
+                      { label: 'RSB', precision: normalizedForecast.rsbNrmse, recall: normalizedForecast.rsbNmae, f1: rsbMetrics?.r2 ?? 0, support: Math.round(normalizedForecast.rsbRange * 100) / 100 },
+                    ]}
+                    rowHeader="Pest"
+                    countLabel="Observed range"
+                    col1Label="NRMSE"
+                    col2Label="NMAE"
+                    col3Label="R²"
+                  />
+                  <p className="mi-note mi-syswide-callout">
+                    Raw, real-unit RMSE/MAE/R² per pest still live on the <strong>BiLSTM regression</strong> tab —
+                    this card doesn't replace those, it's the one number this tab can show that they can't.
+                  </p>
+                </>,
+              )
+            }
+          >
+            <span className="mi-syswide-headline-value">{pct(normalizedForecast.avgNrmse)}</span>
+            <span className="mi-syswide-headline-label">Forecast error, normalized</span>
+            <span className="mi-syswide-headline-sub">RMSE ÷ observed range, averaged across both pests</span>
+            <span className="mi-clickable-hint-icon" aria-hidden="true">
+              ⓘ
+            </span>
+          </button>
+        )}
       </div>
 
       {pooledEtl && (
@@ -1430,7 +1522,7 @@ function SystemPerformanceSection({ data }: { data: ModelInsightsResponse }) {
           <NConfusionMatrix matrix={pooledEtl.matrix} labels={pooledEtl.labels} />
           <p className="mi-note mi-syswide-callout">
             <strong>The High column is entirely zero.</strong> System-wide, the deployed models never predict the
-            High band — the same finding each pest shows on its own (Technical Documentation §15.2).
+            High band — the same finding each pest shows on its own.
           </p>
         </div>
       )}
@@ -1531,12 +1623,13 @@ function SystemPerformanceSection({ data }: { data: ModelInsightsResponse }) {
       )}
 
       {/* This tab only does what the per-model tabs can't: pool across both
-          pests. Forecast error (RMSE/MAE/R²) deliberately isn't repeated
-          here — it can't be pooled across two different units, and the
-          BiLSTM tab already presents it properly per pest. */}
+          pests. Raw-unit forecast error (RMSE/MAE in hoppers/hill vs. %
+          damage) still isn't repeated here — those genuinely can't be
+          averaged — but the normalized headline card above is the single
+          number this tab can show that the per-pest tabs can't. */}
       <p className="mi-note mi-syswide-footer">
-        Per-pest detail lives on the other tabs: forecast error in <strong>BiLSTM regression</strong> (kept there
-        because hoppers/hill and % damage can't be averaged into one figure), and per-classifier scores in{' '}
+        Raw, real-unit detail lives on the other tabs: forecast error in <strong>BiLSTM regression</strong> (kept
+        there because hoppers/hill and % damage can't be averaged directly), and per-classifier scores in{' '}
         <strong>ResNet-50 performance</strong>.
       </p>
 
