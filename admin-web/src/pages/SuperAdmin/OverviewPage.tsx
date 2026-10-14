@@ -104,7 +104,16 @@ function OverviewPage({ accessToken, onSessionExpired }: OverviewPageProps) {
       {error ? (
         <p className="stat-card-error">{error}</p>
       ) : rows === null ? (
-        <p className="stat-card-loading">Loading municipalities…</p>
+        // This genuinely takes several seconds — it's a live BiLSTM
+        // forecast for every municipality, both pests, run one after
+        // another on the server before anything comes back. Static grey
+        // text with no motion made that wait look identical to a hang;
+        // the spinner plus the reason is here so the page reads as
+        // "working" instead of "broken" for however long it takes.
+        <p className="stat-card-loading overview-loading">
+          <span className="overview-loading-spinner" aria-hidden="true" />
+          Running live forecasts for every municipality — this takes a few seconds…
+        </p>
       ) : rows.length === 0 ? (
         <p className="stat-card-loading">No municipalities on file yet.</p>
       ) : (

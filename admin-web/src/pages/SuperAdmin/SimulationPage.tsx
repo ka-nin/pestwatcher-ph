@@ -268,9 +268,17 @@ function ComputationPipeline({
       mountedRef.current = false
     }
   }, [])
+  // How long each stage sits on screen before the next one takes over. 500ms
+  // was tuned to the backend's own response time, not to how long it takes a
+  // viewer to actually read a stage's detail card — stage 2 alone explains
+  // nine engineered features, which doesn't fit in half a second. 1300ms is
+  // closer to a comfortable reading pace for the shorter stages, with stage
+  // 2 held a bit longer since it carries the most content.
+  const STAGE_MS = 1300
   // Minimum time the full rail stays on screen before the Decision stage is
-  // allowed to show, however quickly the backend actually answers.
-  const MIN_PIPELINE_MS = 2200
+  // allowed to show, however quickly the backend actually answers — one
+  // stage interval past when stage 3 appears, so stage 3 gets read too.
+  const MIN_PIPELINE_MS = 4 * STAGE_MS + 700 // = 5900ms (stage 2 gets +700ms)
 
   useEffect(() => {
     if (!running) return undefined
@@ -281,10 +289,11 @@ function ComputationPipeline({
     // Walk through the first four stages on a fixed cadence; the final
     // "Decision" stage only lights up once the real backend result lands
     // AND the floor above has elapsed (handled by the effect below).
+    const stageDelays = [STAGE_MS, STAGE_MS * 2 + 700, STAGE_MS * 3 + 700] // stage 2 held +700ms longer
     ;[1, 2, 3].forEach((stage, i) => {
       setTimeout(() => {
         if (mountedRef.current && runSeqRef.current === seq && !manualRef.current) setActiveStage(stage)
-      }, (i + 1) * 500)
+      }, stageDelays[i])
     })
     return undefined
   }, [running])
@@ -433,7 +442,7 @@ function ComputationPipeline({
                   The raw output is inverse-transformed (undoing the log target used at training time), clamped
                   to ≥ 0, giving <strong>{result.engineered.predicted_value.toFixed(2)}</strong>{' '}
                   {result.engineered.unit === 'hoppers_per_hill' ? 'hoppers/hill' : '% damage'}. That value is then
-                  bucketed into a risk level using the thesis's fixed thresholds — not learned by the model:
+                  bucketed into a risk level using the fixed agronomic thresholds — not learned by the model:
                 </p>
                 <p className="mi-note pipe-threshold-hint">{RISK_THRESHOLD_HINT[pest]}</p>
               </>
@@ -787,7 +796,7 @@ function SimulationPage({ accessToken, onSessionExpired }: SimulationPageProps) 
                   />
                   <ModelResultCard
                     title="Raw (baseline)"
-                    subtitle="Tmax / Tmin / RH / Rainfall only — the thesis's RQ2 control"
+                    subtitle="Tmax / Tmin / RH / Rainfall only — the raw-variable control"
                     result={result.raw}
                     tone="yellow"
                   />

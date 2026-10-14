@@ -268,7 +268,7 @@ function IpmPage({ user }: IpmPageProps) {
 
       <p className="ipm-footnote">
         BPH/RSB forecasts and the 14-day timeline above are live from the trained BiLSTM model
-        for {user.municipality}, {user.province}, with risk levels from the thesis's Table 2 ETL
+        for {user.municipality}, {user.province}, with risk levels from the fixed ETL
         standards. The advisory message below remains placeholder data.
       </p>
     </>

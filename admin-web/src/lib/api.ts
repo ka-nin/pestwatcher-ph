@@ -588,6 +588,9 @@ export interface ModelInsightsResponse {
   models: ModelStatusItem[]
   resnet: Record<'BPH' | 'RSB', ResnetTestMetrics | null>
   bilstm: Record<'BPH' | 'RSB', BilstmInsights>
+  // Separate bug-vs-no-bug detector (ml/weights/unknown/) — consulted only
+  // when neither tracked pest fires, so it has no per-pest variant.
+  resnetUnknown: ResnetTestMetrics | null
   resnetBphComparison: {
     note: string
     rows: { label: string; kind: 'falseAlarm' | 'recall'; n: number; old: number; new: number }[]

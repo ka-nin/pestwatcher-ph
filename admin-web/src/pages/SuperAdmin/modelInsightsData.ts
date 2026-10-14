@@ -77,7 +77,7 @@ export const WEATHER_FLOW: FlowStep[] = [
     id: 'features',
     title: 'Biologically-informed features',
     short: 'Features',
-    body: 'Instead of feeding raw numbers to the network, the framework first computes growing degree days (GDD), cumulative rainfall (CRF), humidity persistence (HP), vapor pressure deficit (VPD), a water stress index (WSI) and trends. This is the thesis’s answer to learning from limited data.',
+    body: 'Instead of feeding raw numbers to the network, the framework first computes growing degree days (GDD), cumulative rainfall (CRF), humidity persistence (HP), vapor pressure deficit (VPD), a water stress index (WSI) and trends. This is how the system learns from limited data.',
     code: 'app/preprocessing/features.py',
     outputs: ['12 daily features × 14 days', '9 window summaries'],
   },
