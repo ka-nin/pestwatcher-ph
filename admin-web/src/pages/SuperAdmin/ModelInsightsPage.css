@@ -40,13 +40,8 @@
   padding: 14px 16px;
   background: #fff;
   border: 1px solid #e9e4d6;
-  border-left: 4px solid #c9c5b8;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(60, 50, 20, 0.05);
-}
-
-.mi-status-item.loaded {
-  border-left-color: #3f9c46;
 }
 
 .mi-status-top {
@@ -569,52 +564,103 @@
   color: #777;
 }
 
-/* ---- Expandable metric cards (System Performance tab) ---- */
+/* ---- Clickable metric cards (System Performance tab) — open the shared
+   modal below rather than expanding in place. ---- */
 
-.mi-metric.mi-expandable {
-  padding: 0;
-  overflow: hidden;
-}
-
-.mi-expandable-trigger {
+.mi-metric.mi-clickable {
   position: relative;
   width: 100%;
   display: block;
-  padding: 14px 32px 14px 16px;
-  border: none;
-  background: none;
+  padding-right: 32px;
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.mi-expandable-trigger:hover .mi-metric-label {
+.mi-metric.mi-clickable:hover {
+  border-color: #9fc191;
+  box-shadow: 0 2px 8px rgba(47, 107, 50, 0.12);
+}
+
+.mi-metric.mi-clickable:hover .mi-metric-label {
   color: #2f6b32;
 }
 
-.mi-expandable-chevron {
+.mi-clickable-hint-icon {
   position: absolute;
-  top: 14px;
+  top: 12px;
   right: 12px;
-  font-size: 12px;
-  color: #999;
+  font-size: 13px;
+  color: #aaa;
 }
 
-.mi-metric.mi-expandable.is-open .mi-expandable-trigger {
-  padding-bottom: 10px;
+/* ---- Shared detail overlay (System Performance tab) ---- */
+
+.mi-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 24, 18, 0.5);
+  backdrop-filter: blur(1px);
 }
 
-.mi-expandable-detail {
-  padding: 2px 16px 16px;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
-  margin-top: 2px;
-  padding-top: 12px;
-  animation: mi-expand-in 0.15s ease;
+.mi-modal {
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 24px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  color-scheme: light;
+  animation: mi-modal-in 0.15s ease;
 }
 
-@keyframes mi-expand-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes mi-modal-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.mi-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mi-modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #23331f;
+}
+
+.mi-modal-close {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #777;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mi-modal-close:hover {
+  background: #f3f1ea;
+}
+
+.mi-modal-body .mi-note:first-child {
+  margin-top: 0;
 }
 
 .mi-perclass-table {
@@ -933,15 +979,6 @@
   box-shadow: 0 2px 10px rgba(47, 107, 50, 0.12);
 }
 
-.mi-syswide-headline-item.is-open {
-  border-color: #2f6b32;
-  box-shadow: 0 2px 10px rgba(47, 107, 50, 0.16);
-}
-
-.mi-syswide-headline-detail {
-  margin: -2px 0 6px;
-}
-
 .mi-syswide-shap-list-compact {
   margin-top: 4px;
 }
@@ -978,7 +1015,7 @@
   padding: 10px 12px;
   border-radius: 10px;
   background: #fdf4f3;
-  border-left: 3px solid #c23b3b;
+  border: 1px solid #f0cac8;
 }
 
 .mi-syswide-footer {
@@ -990,15 +1027,25 @@
 .mi-syswide-shap-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
   margin-top: 6px;
 }
 
 .mi-syswide-shap-row {
   display: grid;
-  grid-template-columns: 185px 1fr 58px;
+  grid-template-columns: 185px 1fr;
   align-items: center;
   gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid #ece7d8;
+}
+
+.mi-syswide-shap-row:first-child {
+  padding-top: 0;
+}
+
+.mi-syswide-shap-row:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 .mi-syswide-shap-row-label {
@@ -1035,8 +1082,38 @@
   background: #c99a2e;
 }
 
+/* One bar per pest, stacked, instead of a single shared bar next to two
+   numbers — each percentage now sits directly against the bar it belongs
+   to, so there's no longer a question of which number the bar is showing. */
+.mi-syswide-shap-pest-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mi-syswide-shap-pest-bar {
+  display: grid;
+  grid-template-columns: 34px 1fr 38px;
+  align-items: center;
+  gap: 8px;
+}
+
+.mi-syswide-shap-pest-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: #999;
+}
+
+.mi-syswide-shap-pest-tag.bph {
+  color: #2f6b32;
+}
+
+.mi-syswide-shap-pest-tag.rsb {
+  color: #b5842a;
+}
+
 .mi-syswide-shap-bar-track {
-  height: 8px;
+  height: 7px;
   border-radius: 999px;
   background: #ece8da;
   overflow: hidden;
@@ -1045,16 +1122,20 @@
 .mi-syswide-shap-bar {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #2f6b32, #4a9c4f);
 }
 
-.mi-syswide-shap-row-values {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  font-size: 10.5px;
-  font-weight: 600;
-  color: #777;
+.mi-syswide-shap-bar.bph {
+  background: #2f6b32;
+}
+
+.mi-syswide-shap-bar.rsb {
+  background: #c99a2e;
+}
+
+.mi-syswide-shap-pest-value {
+  font-size: 11px;
+  font-weight: 700;
+  color: #666;
   text-align: right;
-  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }

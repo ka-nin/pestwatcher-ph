@@ -1125,34 +1125,50 @@ function mergeShap(bph: ShapFeatureDto[] | undefined, rsb: ShapFeatureDto[] | un
  * MetricCard at rest — only a chevron hints it's interactive — so the
  * at-a-glance headline numbers aren't cluttered until someone actually
  * wants the explanation behind one. */
-function ExpandableMetricCard({
+/** A MetricCard that opens a detail overlay on click, rather than pushing
+ * the rest of the page down to make room for an inline panel — with eight
+ * of these on one tab, an inline expansion meant the cards below it kept
+ * jumping position depending on what was already open. A modal keeps every
+ * card exactly where it is; only the detail content appears, on top. */
+function ClickableMetricCard({
   label,
   value,
   hint,
   tone,
-  expanded,
-  onToggle,
-  children,
+  onClick,
 }: {
   label: string
   value: string
   hint: string
   tone?: 'good' | 'warn'
-  expanded: boolean
-  onToggle: () => void
-  children: ReactNode
+  onClick: () => void
 }) {
   return (
-    <div className={`mi-metric mi-expandable${tone ? ` ${tone}` : ''}${expanded ? ' is-open' : ''}`}>
-      <button type="button" className="mi-expandable-trigger" onClick={onToggle} aria-expanded={expanded}>
-        <div className="mi-metric-label">{label}</div>
-        <div className="mi-metric-value">{value}</div>
-        <div className="mi-metric-hint">{hint}</div>
-        <span className="mi-expandable-chevron" aria-hidden="true">
-          {expanded ? '▴' : '▾'}
-        </span>
-      </button>
-      {expanded && <div className="mi-expandable-detail">{children}</div>}
+    <button type="button" className={`mi-metric mi-clickable${tone ? ` ${tone}` : ''}`} onClick={onClick}>
+      <div className="mi-metric-label">{label}</div>
+      <div className="mi-metric-value">{value}</div>
+      <div className="mi-metric-hint">{hint}</div>
+      <span className="mi-clickable-hint-icon" aria-hidden="true">
+        ⓘ
+      </span>
+    </button>
+  )
+}
+
+/** The shared overlay every card opens into — one instance per section,
+ * swapping its content, rather than one modal per card. */
+function DetailModal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <div className="mi-modal-backdrop" onClick={onClose}>
+      <div className="mi-modal" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+        <div className="mi-modal-head">
+          <div className="mi-modal-title">{title}</div>
+          <button type="button" className="mi-modal-close" onClick={onClose} aria-label="Close">
+            ×
+          </button>
+        </div>
+        <div className="mi-modal-body">{children}</div>
+      </div>
     </div>
   )
 }
@@ -1218,10 +1234,47 @@ function SystemPerformanceSection({ data }: { data: ModelInsightsResponse }) {
   }, [bphResnet, rsbResnet])
 
   const shapRows = useMemo(() => mergeShap(bphShap, rsbShap), [bphShap, rsbShap])
-  const topShapShare = Math.max(0.0001, ...shapRows.map((r) => r.avgShare))
+  // Scaled against the largest single pest share in the list (not the
+  // averaged value each row is ranked by) — so a bar's length is directly
+  // comparable to every other bar, BPH or RSB, row or row.
+  const topShapShare = Math.max(0.0001, ...shapRows.flatMap((r) => [r.bphShare, r.rsbShare]))
 
-  const [open, setOpen] = useState<Record<string, boolean>>({})
-  const toggle = (key: string) => setOpen((prev) => ({ ...prev, [key]: !prev[key] }))
+  const [modal, setModal] = useState<{ title: string; node: ReactNode } | null>(null)
+  const openModal = (title: string, node: ReactNode) => setModal({ title, node })
+  const closeModal = () => setModal(null)
+
+  const shapList = (compact?: boolean) => (
+    <div className={`mi-syswide-shap-list${compact ? ' mi-syswide-shap-list-compact' : ''}`}>
+      {shapRows.slice(0, compact ? 5 : 10).map((row) => (
+        <div className="mi-syswide-shap-row" key={row.label}>
+          <div className="mi-syswide-shap-row-label">
+            {row.label}
+            <span className={`mi-syswide-shap-group-tag ${row.group}`}>{row.group}</span>
+          </div>
+          {/* One bar per pest, not one shared bar for two numbers — the old
+              version put a single bar (scaled to the average) next to two
+              percentages, so it was never clear which number the bar was
+              actually showing. */}
+          <div className="mi-syswide-shap-pest-bars">
+            <div className="mi-syswide-shap-pest-bar">
+              <span className="mi-syswide-shap-pest-tag bph">BPH</span>
+              <div className="mi-syswide-shap-bar-track">
+                <div className="mi-syswide-shap-bar bph" style={{ width: `${(row.bphShare / topShapShare) * 100}%` }} />
+              </div>
+              <span className="mi-syswide-shap-pest-value">{pct(row.bphShare, 0)}</span>
+            </div>
+            <div className="mi-syswide-shap-pest-bar">
+              <span className="mi-syswide-shap-pest-tag rsb">RSB</span>
+              <div className="mi-syswide-shap-bar-track">
+                <div className="mi-syswide-shap-bar rsb" style={{ width: `${(row.rsbShare / topShapShare) * 100}%` }} />
+              </div>
+              <span className="mi-syswide-shap-pest-value">{pct(row.rsbShare, 0)}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 
   if (!bphEtl && !rsbEtl && !bphResnet && !rsbResnet) return null
 
@@ -1237,90 +1290,74 @@ function SystemPerformanceSection({ data }: { data: ModelInsightsResponse }) {
         </div>
       </div>
 
-      {/* The one-glance answer, before any of the detail below it — each
-          one opens into what's actually behind the number on click. */}
+      {/* The one-glance answer, before any of the detail — each one opens
+          what's actually behind the number in an overlay, on click. */}
       <div className="mi-syswide-headline">
         {pooledEtl && bphEtl && rsbEtl && (
           <button
             type="button"
-            className={`mi-syswide-headline-item${open['h-etl'] ? ' is-open' : ''}`}
-            onClick={() => toggle('h-etl')}
-            aria-expanded={!!open['h-etl']}
+            className="mi-syswide-headline-item"
+            onClick={() =>
+              openModal(
+                'Risk-level calls correct',
+                <>
+                  <p className="mi-note">
+                    <strong>Not even across pests.</strong> BPH lands at {pct(bphEtl.accuracy)}, RSB at{' '}
+                    {pct(rsbEtl.accuracy)} — RSB's higher number is mostly its Low band being easier to call
+                    correctly (90%+ of its windows are Low to begin with), not the model doing better work.
+                  </p>
+                  {shapRows.length > 0 && (
+                    <>
+                      <p className="mi-note" style={{ marginBottom: 8 }}>
+                        <strong>What the forecast behind this decision is actually reading</strong> — live SHAP
+                        attribution, not a written description of it:
+                      </p>
+                      {shapList(true)}
+                    </>
+                  )}
+                </>,
+              )
+            }
           >
             <span className="mi-syswide-headline-value">{pct(pooledEtl.accuracy)}</span>
             <span className="mi-syswide-headline-label">Risk-level calls correct</span>
             <span className="mi-syswide-headline-sub">Forecast → Low / Medium / High, both pests</span>
-            <span className="mi-expandable-chevron" aria-hidden="true">
-              {open['h-etl'] ? '▴' : '▾'}
+            <span className="mi-clickable-hint-icon" aria-hidden="true">
+              ⓘ
             </span>
           </button>
         )}
         {pooledResnet && bphResnet && rsbResnet && (
           <button
             type="button"
-            className={`mi-syswide-headline-item${open['h-resnet'] ? ' is-open' : ''}`}
-            onClick={() => toggle('h-resnet')}
-            aria-expanded={!!open['h-resnet']}
+            className="mi-syswide-headline-item"
+            onClick={() =>
+              openModal(
+                'Photo calls correct',
+                <>
+                  <p className="mi-note">
+                    <strong>Per pest:</strong> BPH identification is {pct(bphResnet.accuracy)} accurate, RSB{' '}
+                    {pct(rsbResnet.accuracy)} — both classifiers are close, unlike the forecast side above.
+                  </p>
+                  <p className="mi-note mi-syswide-callout">
+                    <strong>No SHAP here, honestly.</strong> SHAP in this system explains the BiLSTM's engineered
+                    climate features — it was never applied to ResNet's convolutional layers, which would need a
+                    different method (e.g. Grad-CAM) to show which pixels drove a call. That explainability layer
+                    doesn't exist yet; this card can't manufacture one.
+                  </p>
+                </>,
+              )
+            }
           >
             <span className="mi-syswide-headline-value">{pct(pooledResnet.accuracy)}</span>
             <span className="mi-syswide-headline-label">Photo calls correct</span>
             <span className="mi-syswide-headline-sub">Pest present / absent, both classifiers</span>
-            <span className="mi-expandable-chevron" aria-hidden="true">
-              {open['h-resnet'] ? '▴' : '▾'}
+            <span className="mi-clickable-hint-icon" aria-hidden="true">
+              ⓘ
             </span>
           </button>
         )}
       </div>
-
-      {open['h-etl'] && bphEtl && rsbEtl && (
-        <div className="mi-expandable-detail mi-syswide-headline-detail">
-          <p className="mi-note">
-            <strong>Not even across pests.</strong> BPH lands at {pct(bphEtl.accuracy)}, RSB at{' '}
-            {pct(rsbEtl.accuracy)} — RSB's higher number is mostly its Low band being easier to call correctly
-            (90%+ of its windows are Low to begin with), not the model doing better work.
-          </p>
-          {shapRows.length > 0 && (
-            <>
-              <p className="mi-note" style={{ marginBottom: 8 }}>
-                <strong>What the forecast behind this decision is actually reading</strong> — live SHAP
-                attribution, not a written description of it:
-              </p>
-              <div className="mi-syswide-shap-list mi-syswide-shap-list-compact">
-                {shapRows.slice(0, 5).map((row) => (
-                  <div className="mi-syswide-shap-row" key={row.label}>
-                    <div className="mi-syswide-shap-row-label">
-                      {row.label}
-                      <span className={`mi-syswide-shap-group-tag ${row.group}`}>{row.group}</span>
-                    </div>
-                    <div className="mi-syswide-shap-bar-track">
-                      <div className="mi-syswide-shap-bar" style={{ width: `${(row.avgShare / topShapShare) * 100}%` }} />
-                    </div>
-                    <div className="mi-syswide-shap-row-values">
-                      <span>BPH {pct(row.bphShare, 0)}</span>
-                      <span>RSB {pct(row.rsbShare, 0)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {open['h-resnet'] && bphResnet && rsbResnet && (
-        <div className="mi-expandable-detail mi-syswide-headline-detail">
-          <p className="mi-note">
-            <strong>Per pest:</strong> BPH identification is {pct(bphResnet.accuracy)} accurate, RSB{' '}
-            {pct(rsbResnet.accuracy)} — both classifiers are close, unlike the forecast side above.
-          </p>
-          <p className="mi-note mi-syswide-callout">
-            <strong>No SHAP here, honestly.</strong> SHAP in this system explains the BiLSTM's engineered climate
-            features — it was never applied to ResNet's convolutional layers, which would need a different method
-            (e.g. Grad-CAM) to show which pixels drove a call. That explainability layer doesn't exist yet; this
-            card can't manufacture one.
-          </p>
-        </div>
-      )}
 
       {pooledEtl && (
         <div className="mi-syswide-block">
@@ -1331,51 +1368,64 @@ function SystemPerformanceSection({ data }: { data: ModelInsightsResponse }) {
             between pests.
           </p>
           <div className="mi-metrics three" style={{ marginBottom: 14 }}>
-            <ExpandableMetricCard
+            <ClickableMetricCard
               label="Accuracy"
               value={pct(pooledEtl.accuracy)}
               hint="All bands, both pests"
               tone="good"
-              expanded={!!open['etl-acc']}
-              onToggle={() => toggle('etl-acc')}
-            >
-              <p className="mi-note">
-                Accuracy this high mostly reflects how common Low is ({pooledEtl.perClass[0]?.support.toLocaleString()}{' '}
-                of the pooled windows) — a model that only ever said "Low" would already score well on this metric
-                alone. The per-band split below is the honest read.
-              </p>
-              <PerClassTable rows={pooledEtl.perClass} />
-            </ExpandableMetricCard>
-            <ExpandableMetricCard
+              onClick={() =>
+                openModal(
+                  'Decision agreement — Accuracy',
+                  <>
+                    <p className="mi-note">
+                      Accuracy this high mostly reflects how common Low is (
+                      {pooledEtl.perClass[0]?.support.toLocaleString()} of the pooled windows) — a model that only
+                      ever said "Low" would already score well on this metric alone. The per-band split below is
+                      the honest read.
+                    </p>
+                    <PerClassTable rows={pooledEtl.perClass} />
+                  </>,
+                )
+              }
+            />
+            <ClickableMetricCard
               label="Precision (macro)"
               value={pct(pooledEtl.precisionMacro)}
               hint="Unweighted mean across the three bands"
               tone="good"
-              expanded={!!open['etl-prec']}
-              onToggle={() => toggle('etl-prec')}
-            >
-              <p className="mi-note">
-                Low's precision carries this average; High sits at 0% because the matrix above shows zero High
-                predictions to be precise <em>about</em> — there's nothing to divide by, so it counts as 0 rather
-                than undefined.
-              </p>
-              <PerClassTable rows={pooledEtl.perClass} />
-            </ExpandableMetricCard>
-            <ExpandableMetricCard
+              onClick={() =>
+                openModal(
+                  'Decision agreement — Precision',
+                  <>
+                    <p className="mi-note">
+                      Low's precision carries this average; High sits at 0% because the matrix above shows zero
+                      High predictions to be precise <em>about</em> — there's nothing to divide by, so it counts as
+                      0 rather than undefined.
+                    </p>
+                    <PerClassTable rows={pooledEtl.perClass} />
+                  </>,
+                )
+              }
+            />
+            <ClickableMetricCard
               label="Recall (macro)"
               value={pct(pooledEtl.recallMacro)}
               hint="Unweighted mean across the three bands"
               tone="good"
-              expanded={!!open['etl-rec']}
-              onToggle={() => toggle('etl-rec')}
-            >
-              <p className="mi-note">
-                Medium's recall ({pct(pooledEtl.perClass[1]?.recall ?? 0)}) is the most informative number in this
-                row — it's the system's rate of actually catching a real Medium-risk window, not just how often
-                "Medium" happens to be right when guessed.
-              </p>
-              <PerClassTable rows={pooledEtl.perClass} />
-            </ExpandableMetricCard>
+              onClick={() =>
+                openModal(
+                  'Decision agreement — Recall',
+                  <>
+                    <p className="mi-note">
+                      Medium's recall ({pct(pooledEtl.perClass[1]?.recall ?? 0)}) is the most informative number in
+                      this row — it's the system's rate of actually catching a real Medium-risk window, not just
+                      how often "Medium" happens to be right when guessed.
+                    </p>
+                    <PerClassTable rows={pooledEtl.perClass} />
+                  </>,
+                )
+              }
+            />
           </div>
           <NConfusionMatrix matrix={pooledEtl.matrix} labels={pooledEtl.labels} />
           <p className="mi-note mi-syswide-callout">
@@ -1395,50 +1445,75 @@ function SystemPerformanceSection({ data }: { data: ModelInsightsResponse }) {
             them.
           </p>
           <div className="mi-metrics three" style={{ marginBottom: 14 }}>
-            <ExpandableMetricCard
+            <ClickableMetricCard
               label="Accuracy"
               value={pct(pooledResnet.accuracy)}
               hint="Across every yes/no call both classifiers make"
               tone="good"
-              expanded={!!open['resnet-acc']}
-              onToggle={() => toggle('resnet-acc')}
-            >
-              <p className="mi-note">
-                Pooling hides which classifier earned this: BPH alone is {pct(bphResnet?.accuracy ?? 0)}, RSB alone{' '}
-                {pct(rsbResnet?.accuracy ?? 0)} — see the per-class table for where the combined count actually
-                came from.
-              </p>
-              <PerClassTable rows={pooledResnet.perClass.map((c) => ({ ...c, label: c.label === 'not this pest' ? 'Absent' : 'Present' }))} rowHeader="Photo" countLabel="Crops" />
-            </ExpandableMetricCard>
-            <ExpandableMetricCard
+              onClick={() =>
+                openModal(
+                  'Visual identification — Accuracy',
+                  <>
+                    <p className="mi-note">
+                      Pooling hides which classifier earned this: BPH alone is {pct(bphResnet?.accuracy ?? 0)}, RSB
+                      alone {pct(rsbResnet?.accuracy ?? 0)} — see the per-class table for where the combined count
+                      actually came from.
+                    </p>
+                    <PerClassTable
+                      rows={pooledResnet.perClass.map((c) => ({ ...c, label: c.label === 'not this pest' ? 'Absent' : 'Present' }))}
+                      rowHeader="Photo"
+                      countLabel="Crops"
+                    />
+                  </>,
+                )
+              }
+            />
+            <ClickableMetricCard
               label="Precision (macro)"
               value={pct(pooledResnet.precisionMacro)}
               hint="Unweighted mean, present/absent"
               tone="good"
-              expanded={!!open['resnet-prec']}
-              onToggle={() => toggle('resnet-prec')}
-            >
-              <p className="mi-note">
-                "Present" precision ({pct(pooledResnet.perClass[1]?.precision ?? 0)}) is the one that matters most
-                operationally — when either classifier says a pest is in the photo, this is how often that's true.
-              </p>
-              <PerClassTable rows={pooledResnet.perClass.map((c) => ({ ...c, label: c.label === 'not this pest' ? 'Absent' : 'Present' }))} rowHeader="Photo" countLabel="Crops" />
-            </ExpandableMetricCard>
-            <ExpandableMetricCard
+              onClick={() =>
+                openModal(
+                  'Visual identification — Precision',
+                  <>
+                    <p className="mi-note">
+                      "Present" precision ({pct(pooledResnet.perClass[1]?.precision ?? 0)}) is the one that matters
+                      most operationally — when either classifier says a pest is in the photo, this is how often
+                      that's true.
+                    </p>
+                    <PerClassTable
+                      rows={pooledResnet.perClass.map((c) => ({ ...c, label: c.label === 'not this pest' ? 'Absent' : 'Present' }))}
+                      rowHeader="Photo"
+                      countLabel="Crops"
+                    />
+                  </>,
+                )
+              }
+            />
+            <ClickableMetricCard
               label="Recall (macro)"
               value={pct(pooledResnet.recallMacro)}
               hint="Unweighted mean, present/absent"
               tone="good"
-              expanded={!!open['resnet-rec']}
-              onToggle={() => toggle('resnet-rec')}
-            >
-              <p className="mi-note">
-                "Present" recall ({pct(pooledResnet.perClass[1]?.recall ?? 0)}) is the share of real sightings the
-                system actually catches — the number that matters if a missed detection is the costly direction
-                of error.
-              </p>
-              <PerClassTable rows={pooledResnet.perClass.map((c) => ({ ...c, label: c.label === 'not this pest' ? 'Absent' : 'Present' }))} rowHeader="Photo" countLabel="Crops" />
-            </ExpandableMetricCard>
+              onClick={() =>
+                openModal(
+                  'Visual identification — Recall',
+                  <>
+                    <p className="mi-note">
+                      "Present" recall ({pct(pooledResnet.perClass[1]?.recall ?? 0)}) is the share of real
+                      sightings the system actually catches — the number that matters if a missed detection is the
+                      costly direction of error.
+                    </p>
+                    <PerClassTable
+                      rows={pooledResnet.perClass.map((c) => ({ ...c, label: c.label === 'not this pest' ? 'Absent' : 'Present' }))}
+                      rowHeader="Photo"
+                      countLabel="Crops"
+                    />
+                  </>,
+                )
+              }
+            />
           </div>
           <NConfusionMatrix matrix={pooledResnet.matrix} labels={pooledResnet.labels} />
         </div>
@@ -1451,23 +1526,7 @@ function SystemPerformanceSection({ data }: { data: ModelInsightsResponse }) {
             Each pest's attribution shares averaged and re-ranked — what moves the system overall, not one
             forecast. Climate Drivers runs this same mechanism on a single live prediction.
           </p>
-          <div className="mi-syswide-shap-list">
-            {shapRows.slice(0, 10).map((row) => (
-              <div className="mi-syswide-shap-row" key={row.label}>
-                <div className="mi-syswide-shap-row-label">
-                  {row.label}
-                  <span className={`mi-syswide-shap-group-tag ${row.group}`}>{row.group}</span>
-                </div>
-                <div className="mi-syswide-shap-bar-track">
-                  <div className="mi-syswide-shap-bar" style={{ width: `${(row.avgShare / topShapShare) * 100}%` }} />
-                </div>
-                <div className="mi-syswide-shap-row-values">
-                  <span>BPH {pct(row.bphShare, 0)}</span>
-                  <span>RSB {pct(row.rsbShare, 0)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+          {shapList(false)}
         </div>
       )}
 
@@ -1480,6 +1539,12 @@ function SystemPerformanceSection({ data }: { data: ModelInsightsResponse }) {
         because hoppers/hill and % damage can't be averaged into one figure), and per-classifier scores in{' '}
         <strong>ResNet-50 performance</strong>.
       </p>
+
+      {modal && (
+        <DetailModal title={modal.title} onClose={closeModal}>
+          {modal.node}
+        </DetailModal>
+      )}
     </section>
   )
 }
