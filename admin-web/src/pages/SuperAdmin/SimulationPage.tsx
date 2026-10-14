@@ -882,6 +882,9 @@ function SimulationPage({ accessToken, onSessionExpired }: SimulationPageProps) 
               {imageResult.status === 'no_pest_detected' && (
                 <p className="mi-note">No tracked pest (BPH/RSB) detected with sufficient confidence.</p>
               )}
+              {imageResult.status === 'unidentified_pest_detected' && (
+                <p className="mi-note">Unidentified pest detected — an insect was found, but it isn't BPH or RSB.</p>
+              )}
 
               {imageResult.heldOutMetrics && (
                 <>

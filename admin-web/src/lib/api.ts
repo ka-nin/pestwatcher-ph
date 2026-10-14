@@ -652,7 +652,7 @@ export async function runSimulationForecast(
 }
 
 export interface SimulationImageResult {
-  status: 'ok' | 'model_not_loaded' | 'no_pest_detected'
+  status: 'ok' | 'model_not_loaded' | 'no_pest_detected' | 'unidentified_pest_detected'
   pest_detected: PestKey | null
   confidence: number | null
   pests_detected: PestKey[]
