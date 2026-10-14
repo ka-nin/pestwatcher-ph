@@ -186,6 +186,8 @@ export default function ManualReport() {
         if (result.status === 'ok' && PEST_TYPE_BY_CODE[result.pest_detected]) {
           setPestType(PEST_TYPE_BY_CODE[result.pest_detected]);
           setClassifyResult({ label: result.pest_detected, confidence: result.confidence });
+        } else if (result.status === 'unidentified_pest_detected') {
+          setClassifyResult('unidentified');
         } else {
           setClassifyResult('none');
         }
@@ -289,6 +291,9 @@ export default function ManualReport() {
       )}
       {!classifying && classifyResult === 'none' && (
         <p className="report-classify-note">{t('reportClassifyNone')}</p>
+      )}
+      {!classifying && classifyResult === 'unidentified' && (
+        <p className="report-classify-note">{t('reportClassifyUnidentified')}</p>
       )}
 
       <form className="report-body" onSubmit={handleReview}>

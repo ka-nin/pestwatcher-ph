@@ -132,13 +132,23 @@ export default function ScanResult() {
   }, [inference, user, growthStage]);
 
   if (!inference || inference.status !== 'ok') {
+    // "no_pest_detected"/"unidentified_pest_detected" are real classification
+    // results (the model ran fine, it just didn't find BPH/RSB) — only
+    // "model_not_loaded" (or no inference at all) is an actual error. Each
+    // gets its own title rather than the generic "model not ready" message.
+    const title =
+      inference?.status === 'no_pest_detected'
+        ? t('scanResultNoPestTitle')
+        : inference?.status === 'unidentified_pest_detected'
+          ? t('scanResultUnidentifiedTitle')
+          : t('scanResultModelNotReady');
     return (
       <div className="guide-detail-screen scan-result-unavailable">
         <button className="guide-detail-close scan-result-unavailable-close" onClick={() => navigate('/home')} aria-label="Close">
           <X size={18} />
         </button>
         <div className="scan-result-unavailable-body">
-          <h1>{t('scanResultModelNotReady')}</h1>
+          <h1>{title}</h1>
           <p>{inference?.message || t('scanResultModelNotReadyBody')}</p>
           <button className="scan-result-rescan-btn" onClick={() => navigate('/scan')}>
             {t('scanResultRescan')}

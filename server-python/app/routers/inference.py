@@ -79,6 +79,15 @@ async def infer_image(
         )
 
     if result.label is None:
+        if result.unidentified:
+            return ImageInferenceResponse(
+                status="unidentified_pest_detected",
+                message="An insect was detected in this photo, but it isn't BPH or RSB.",
+                pest_scores=result.pest_scores,
+                grid_used=result.grid_tiles is not None,
+                grid_tiles=result.grid_tiles,
+                bph_grid_count=result.grid_count,
+            )
         return ImageInferenceResponse(
             status="no_pest_detected",
             message="No tracked pest (BPH/RSB) was detected in this photo with sufficient confidence.",

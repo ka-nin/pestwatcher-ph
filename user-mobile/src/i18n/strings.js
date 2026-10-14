@@ -110,6 +110,8 @@ export const translations = {
     scanResultModelNotReady: 'Hindi pa handa ang AI model',
     scanResultModelNotReadyBody:
       'Ang larawan ay na-save na para sa training, pero wala pang trained na image classification model. Subukan ulit sa susunod.',
+    scanResultNoPestTitle: 'Walang natukoy na peste',
+    scanResultUnidentifiedTitle: 'Hindi kilalang peste',
     scanResultRescan: 'Scan Ulit',
     scanResultFromPhoto: 'Mula sa Larawan',
     scanResultNoneDetected: 'Walang natukoy',
@@ -140,6 +142,7 @@ export const translations = {
     reportClassifiedAs: 'Natukoy bilang',
     reportClassifiedEditable: 'maaari mong palitan sa ibaba.',
     reportClassifyNone: 'Walang natukoy na peste sa larawan — pakipili nalang sa ibaba.',
+    reportClassifyUnidentified: 'May nakitang insekto sa larawan, ngunit hindi ito BPH o RSB — pakipili nalang sa ibaba.',
     reportSectionPest: 'Peste at Antas ng Panganib',
     reportSectionField: 'Kondisyon ng Bukid',
     reportSectionDetails: 'Detalye ng Ulat',
@@ -334,6 +337,8 @@ export const translations = {
     scanResultModelNotReady: 'AI model not ready yet',
     scanResultModelNotReadyBody:
       'Your photo has been saved for training, but there is no trained image classification model yet. Please try again later.',
+    scanResultNoPestTitle: 'No pest detected',
+    scanResultUnidentifiedTitle: 'Unidentified pest',
     scanResultRescan: 'Scan Again',
     scanResultFromPhoto: 'From the Photo',
     scanResultNoneDetected: 'Nothing detected',
@@ -364,6 +369,7 @@ export const translations = {
     reportClassifiedAs: 'Detected as',
     reportClassifiedEditable: 'you can change this below.',
     reportClassifyNone: 'No pest detected in the photo — please select manually below.',
+    reportClassifyUnidentified: 'An insect was detected in the photo, but it isn\'t BPH or RSB — please select manually below.',
     reportSectionPest: 'Pest & Severity',
     reportSectionField: 'Field Conditions',
     reportSectionDetails: 'Report Details',

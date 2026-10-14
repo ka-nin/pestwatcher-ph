@@ -38,7 +38,7 @@ class SimulationForecastResponse(BaseModel):
 
 
 class SimulationImageResult(BaseModel):
-    status: Literal["ok", "model_not_loaded", "no_pest_detected"]
+    status: Literal["ok", "model_not_loaded", "no_pest_detected", "unidentified_pest_detected"]
     pest_detected: Literal["BPH", "RSB"] | None = None
     confidence: float | None = None
     pests_detected: list[Literal["BPH", "RSB"]] = []
