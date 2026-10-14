@@ -4,6 +4,7 @@ import {
   type FeatureComparisonResponse,
   type ModelInsightsResponse,
   type PredictionPointDto,
+  type ResnetTestMetrics,
   type ShapFeatureDto,
 } from '../../lib/api'
 import { PHOTO_FLOW, WEATHER_FLOW, type FlowStep, type PestCode } from './modelInsightsData'
@@ -473,16 +474,24 @@ function MetricCard({ label, value, hint, tone }: { label: string; value: string
 /* Tab 2: ResNet-50                                                    */
 /* ------------------------------------------------------------------ */
 
-function ConfusionMatrix({ matrix }: { matrix: [[number, number], [number, number]] }) {
+function ConfusionMatrix({
+  matrix,
+  negLabel = 'not this pest',
+  posLabel = 'this pest',
+}: {
+  matrix: [[number, number], [number, number]]
+  negLabel?: string
+  posLabel?: string
+}) {
   const rows = [
-    { name: 'Actual: not this pest', cells: matrix[0] },
-    { name: 'Actual: this pest', cells: matrix[1] },
+    { name: `Actual: ${negLabel}`, cells: matrix[0] },
+    { name: `Actual: ${posLabel}`, cells: matrix[1] },
   ]
   return (
     <div className="mi-cm">
       <div className="mi-cm-corner" />
-      <div className="mi-cm-col">Predicted: not this pest</div>
-      <div className="mi-cm-col">Predicted: this pest</div>
+      <div className="mi-cm-col">Predicted: {negLabel}</div>
+      <div className="mi-cm-col">Predicted: {posLabel}</div>
       {rows.map((row, r) => {
         const total = row.cells[0] + row.cells[1]
         return (
@@ -518,6 +527,79 @@ const GRID_SHOWN: [number, number][] = [
   [0.99, 4],
 ]
 
+/** Held-out performance of the separate bug-vs-no-bug detector. It runs only
+ * when neither tracked pest fires, so it is what lets the app say "an insect
+ * we don't recognise" instead of "no pest" — the metrics were previously only
+ * in the artifact file, never on screen. */
+function UnknownInsectPanel({ metrics }: { metrics: ResnetTestMetrics | null }) {
+  if (!metrics) {
+    return (
+      <section className="panel mi-panel">
+        <div className="panel-head">
+          <div>
+            <div className="panel-title">Unknown-insect detector</div>
+            <div className="panel-subtitle">Held-out test metrics not found on the server</div>
+          </div>
+        </div>
+        <p className="mi-note">
+          No test metrics file was found for the unknown-insect detector. The detector itself still runs if its
+          weights are present; only this report is missing.
+        </p>
+      </section>
+    )
+  }
+
+  const testSize = metrics.confusion_matrix.flat().reduce((a, b) => a + b, 0)
+
+  return (
+    <section className="panel mi-panel">
+      <div className="panel-head">
+        <div>
+          <div className="panel-title">Unknown-insect detector</div>
+          <div className="panel-subtitle">
+            Is there an insect at all? · {testSize.toLocaleString()} held-out test crops
+          </div>
+        </div>
+      </div>
+
+      <p className="mi-note">
+        This is a third classifier, separate from the two pest models. It is consulted only when neither the BPH nor
+        the RSB classifier fires, and it is what lets the app answer “there is an insect here, just not one we track”
+        instead of wrongly reporting no pest.
+      </p>
+
+      <div className="mi-metrics">
+        <MetricCard label="Accuracy" value={pct(metrics.accuracy)} hint="Share of all crops judged correctly" tone="good" />
+        <MetricCard label="Precision" value={pct(metrics.positive_precision)} hint="When it says “an insect”, how often it is right" tone="good" />
+        <MetricCard label="Recall" value={pct(metrics.positive_recall)} hint="Share of real insects it finds" tone="good" />
+        <MetricCard label="F1 score" value={pct(metrics.positive_f1)} hint="Balance of precision and recall" tone="good" />
+      </div>
+
+      <div className="mi-two-col">
+        <div>
+          <h4 className="mi-h4">Confusion matrix</h4>
+          <ConfusionMatrix matrix={metrics.confusion_matrix} negLabel="no insect" posLabel="an insect" />
+          <p className="mi-note">Rows are the truth, columns are the model’s answer. Green cells are correct; red cells are mistakes.</p>
+        </div>
+        <div>
+          <h4 className="mi-h4">Why this matters</h4>
+          <p className="mi-note">
+            Without this detector, any insect outside the two trained pests would be reported to the farmer as “no pest
+            detected”, which is the more damaging error of the two: it tells someone their field is clear when
+            something is eating it. With it, the farmer is told an unrecognised insect was found and advised to have it
+            checked.
+          </p>
+          <p className="mi-note">
+            The {metrics.confusion_matrix[1][0].toLocaleString()} missed insects and{' '}
+            {metrics.confusion_matrix[0][1].toLocaleString()} false alarms are on cropped images, not whole field
+            photos.
+          </p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function ResnetTab({ data }: { data: ModelInsightsResponse }) {
   const [pest, setPest] = useState<PestCode>('BPH')
   const m = data.resnet[pest]
@@ -548,6 +630,9 @@ function ResnetTab({ data }: { data: ModelInsightsResponse }) {
   }
 
   const testSize = m.confusion_matrix.flat().reduce((a, b) => a + b, 0)
+  // Don't claim a perfect score the matrix doesn't support — RSB sits at
+  // 99.5%, not 100%, and a panelist reading the matrix would catch it.
+  const mistakes = m.confusion_matrix[0][1] + m.confusion_matrix[1][0]
 
   return (
     <>
@@ -616,17 +701,21 @@ function ResnetTab({ data }: { data: ModelInsightsResponse }) {
             </div>
           ) : (
             <div>
-              <h4 className="mi-h4">Reading a perfect score</h4>
+              <h4 className="mi-h4">Reading a very high score</h4>
               <p className="mi-note">
-                Every one of the {testSize.toLocaleString()} test crops was classified correctly. That is expected here:
-                RSB photos are large close-ups of one insect, which look very different from the other classes, so the
-                task is easy. Be ready to explain this if a panelist asks, and note that these scores are on cropped
-                insects, not whole field photos.
+                {mistakes === 0
+                  ? `Every one of the ${testSize.toLocaleString()} test crops was classified correctly.`
+                  : `${mistakes} of ${testSize.toLocaleString()} test crops were misclassified.`}{' '}
+                A score this high is expected here: RSB photos are large close-ups of one insect, which look very
+                different from the other classes, so the task is easy. Be ready to explain this if a panelist asks, and
+                note that these scores are on cropped insects, not whole field photos.
               </p>
             </div>
           )}
         </div>
       </section>
+
+      <UnknownInsectPanel metrics={data.resnetUnknown} />
 
       {pest === 'BPH' && (
         <section className="panel mi-panel">
