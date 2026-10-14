@@ -499,10 +499,27 @@ export interface ResnetTestMetrics {
   confusion_matrix: [[number, number], [number, number]]
 }
 
+export interface EtlClassificationMetrics {
+  accuracy: number
+  precision_macro: number
+  recall_macro: number
+  f1_macro: number
+  confusion_matrix: number[][]
+  confusion_matrix_labels: string[]
+  support_per_level: Record<string, number>
+}
+
 export interface RegressionTestMetrics {
   rmse: number
   mae: number
   r2: number
+  // The backend has always sent this (model_insights.py passes each test
+  // metrics file through unfiltered) — it just had no field here to land
+  // in, so TypeScript silently dropped it and nothing on this page could
+  // ever read it. It's the downstream decision-agreement half of RQ1.1
+  // (Low/Medium/High vs. the fixed ETL table), separate from the
+  // continuous rmse/mae/r2 above.
+  etl_classification?: EtlClassificationMetrics
 }
 
 export interface PredictionPointDto {

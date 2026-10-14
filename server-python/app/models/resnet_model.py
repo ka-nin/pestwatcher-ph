@@ -50,16 +50,18 @@ from ml.config import PEST_PARAMS, WEIGHTS_DIR
 IMAGE_SIZE = (224, 224)
 POSITIVE_THRESHOLD = 0.5  # matches the 0.5 cutoff used at training-time evaluation (ml/resnet/train.py)
 
-# UNKNOWN is a third classifier, not one of the two tracked pests: "is any
-# insect in frame at all" (bug vs. no-bug), trained separately
-# (ml/resnet/train.py --pest UNKNOWN) so a photo of an unrelated insect
-# (e.g. a butterfly) can be told apart from a truly empty photo instead of
-# both collapsing into the same "no pest detected" result. It has no
-# PEST_PARAMS entry (that dataclass is BiLSTM/weather config this model
-# doesn't use), so its weights path is just a constant here, matching
-# ml/resnet/train.py's UNKNOWN_WEIGHTS_PATH.
-UNKNOWN_PEST_KEY = "UNKNOWN"
-UNKNOWN_WEIGHTS_PATH = WEIGHTS_DIR / "unknown" / "resnet50_unknown.keras"
+# Below POSITIVE_THRESHOLD but at or above this, "not BPH/RSB" is read as
+# "something's there, just not a pest we're trained on" rather than "no
+# insect at all" — e.g. one of the four unrelated rice pests, or a species
+# the model has never seen. This is a confidence-based heuristic on top of
+# an already-binary classifier, not a trained three-way distinction: the
+# model was never fit on a "which pest, if any, excluding BPH/RSB" target,
+# so it cannot name the organism, only flag that the photo didn't look like
+# plain background either. The value itself is a starting point, not a
+# validated boundary — ml/resnet/crops.py's background patches give a real
+# no-insect population to check this threshold against before trusting it
+# for anything beyond a softer UI message.
+OTHER_PEST_THRESHOLD = 0.15
 
 RiskLevel = Literal["Low", "Moderate", "High", "Critical"]
 
@@ -89,6 +91,11 @@ class ResnetPrediction:
     # approximate density hint, not an insect count — see tiling.py.
     grid_tiles: int | None = None
     grid_count: int | None = None
+    # Only meaningful when label is None. True when the strongest score
+    # still cleared OTHER_PEST_THRESHOLD — read as "an insect is probably
+    # present, just not BPH or RSB" rather than "nothing here." See that
+    # constant's docstring for exactly what this claim is and isn't.
+    likely_other_pest: bool = False
 
 
 def _risk_level_for_confidence(confidence: float) -> Literal["Low", "Moderate", "High", "Critical"]:
@@ -191,6 +198,13 @@ class ResNet50PestClassifier:
                 _, unidentified, _, _ = self._score_pest(UNKNOWN_PEST_KEY, img)
             return ResnetPrediction(
                 label=None, confidence=max(confidences.values()), risk_level="Low", unidentified=unidentified, **common
+            top_score = max(confidences.values())
+            return ResnetPrediction(
+                label=None,
+                confidence=top_score,
+                risk_level="Low",
+                likely_other_pest=top_score >= OTHER_PEST_THRESHOLD,
+                **common,
             )
 
         best_pest = detected[0]

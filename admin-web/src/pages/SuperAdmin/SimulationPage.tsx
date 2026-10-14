@@ -10,6 +10,7 @@ import {
   type SimulationImageResult,
   type SimulationModelResult,
 } from '../../lib/api'
+import { buildPipelineFeatures, RISK_THRESHOLD_HINT } from '../../lib/pipelineMath'
 import './ModelInsightsPage.css'
 import './SimulationPage.css'
 
@@ -213,6 +214,235 @@ function HeldOutMetricsTable({ heldOut }: { heldOut: SimulationForecastResponse[
           })}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+const PIPELINE_STAGES = [
+  { key: 'input', label: 'Raw input', hint: '14 daily observations' },
+  { key: 'features', label: 'Feature engineering', hint: 'per-day + window-level biology features' },
+  { key: 'scaling', label: 'Normalization', hint: 'scaled to the training distribution' },
+  { key: 'model', label: 'BiLSTM forward pass', hint: 'sequence branch + static branch → dense head' },
+  { key: 'decision', label: 'Decision', hint: 'inverse-transform, clamp, risk bucket' },
+] as const
+
+function ComputationPipeline({
+  pest,
+  days,
+  running,
+  result,
+}: {
+  pest: PestKey
+  days: SimulationDailyObservation[]
+  running: boolean
+  result: SimulationForecastResponse | null
+}) {
+  const [activeStage, setActiveStage] = useState(0)
+  const features = useMemo(() => buildPipelineFeatures(pest, days), [pest, days])
+  const startedAtRef = useRef(0)
+  // Identifies which run a pending setTimeout belongs to. The real forecast
+  // call is a single forward pass — often well under a second — and when it
+  // resolves, `running` flips to false, which is also the signal React uses
+  // to clean up the effect below. A plain clearTimeout-based cleanup would
+  // therefore cancel the still-pending stage-2/3 timers the moment the
+  // answer arrives early, which is the opposite of what should happen: a
+  // fast model shouldn't be the reason the walk-through never gets watched.
+  // Each timer checks this instead of being cancelled, so an early finish
+  // lets the remaining stages still play out on schedule.
+  const runSeqRef = useRef(0)
+  const mountedRef = useRef(true)
+  // Set the moment the viewer clicks Next or Back. Once true, the
+  // auto-advance timers below go quiet for the rest of this run — a
+  // presenter who has taken manual control to explain a stage shouldn't
+  // have the rail jump ahead under them mid-sentence.
+  const manualRef = useRef(false)
+  useEffect(() => {
+    // StrictMode mounts, unmounts and remounts every component once in
+    // development specifically to catch effects that don't reset their own
+    // state on remount — this is that reset. Without it, the cleanup below
+    // flips mountedRef to false on StrictMode's synthetic first unmount and
+    // nothing ever sets it back to true, so every pipeline timer after that
+    // silently no-ops and the rail never advances past stage 1.
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+  // Minimum time the full rail stays on screen before the Decision stage is
+  // allowed to show, however quickly the backend actually answers.
+  const MIN_PIPELINE_MS = 2200
+
+  useEffect(() => {
+    if (!running) return undefined
+    const seq = ++runSeqRef.current
+    manualRef.current = false
+    setActiveStage(0)
+    startedAtRef.current = Date.now()
+    // Walk through the first four stages on a fixed cadence; the final
+    // "Decision" stage only lights up once the real backend result lands
+    // AND the floor above has elapsed (handled by the effect below).
+    ;[1, 2, 3].forEach((stage, i) => {
+      setTimeout(() => {
+        if (mountedRef.current && runSeqRef.current === seq && !manualRef.current) setActiveStage(stage)
+      }, (i + 1) * 500)
+    })
+    return undefined
+  }, [running])
+
+  useEffect(() => {
+    if (running || !result) return undefined
+    const seq = runSeqRef.current
+    const elapsed = Date.now() - startedAtRef.current
+    const remaining = Math.max(0, MIN_PIPELINE_MS - elapsed)
+    const timer = setTimeout(() => {
+      if (mountedRef.current && runSeqRef.current === seq && !manualRef.current) setActiveStage(4)
+    }, remaining)
+    return () => clearTimeout(timer)
+  }, [running, result])
+
+  // The last stage a click is allowed to reach — Decision needs the real
+  // backend result to exist, so Next stalls at stage 3 (BiLSTM forward
+  // pass) until it lands, rather than showing an empty Decision card.
+  const maxReachableStage = result ? 4 : 3
+  const goNext = () => {
+    manualRef.current = true
+    setActiveStage((s) => Math.min(maxReachableStage, s + 1))
+  }
+  const goBack = () => {
+    manualRef.current = true
+    setActiveStage((s) => Math.max(0, s - 1))
+  }
+
+  const lastDay = features.sequenceRows[features.sequenceRows.length - 1]
+
+  return (
+    <div className="pipe-wrap">
+      <div className="pipe-rail">
+        {PIPELINE_STAGES.map((stage, i) => (
+          <div
+            key={stage.key}
+            className={`pipe-step${i < activeStage ? ' done' : ''}${i === activeStage ? ' active' : ''}`}
+          >
+            <div className="pipe-step-dot">{i < activeStage ? '✓' : i + 1}</div>
+            <div className="pipe-step-copy">
+              <strong>{stage.label}</strong>
+              <span>{stage.hint}</span>
+            </div>
+            {i < PIPELINE_STAGES.length - 1 && <div className="pipe-step-connector" />}
+          </div>
+        ))}
+      </div>
+
+      <div className="pipe-step-controls">
+        <button type="button" className="pipe-step-btn" onClick={goBack} disabled={activeStage === 0}>
+          ← Back
+        </button>
+        <span className="pipe-step-controls-hint">
+          {activeStage >= maxReachableStage && !result
+            ? 'Waiting for the backend result…'
+            : `Step ${activeStage + 1} of ${PIPELINE_STAGES.length}`}
+        </span>
+        <button
+          type="button"
+          className="pipe-step-btn pipe-step-btn-primary"
+          onClick={goNext}
+          disabled={activeStage >= maxReachableStage}
+        >
+          Next →
+        </button>
+      </div>
+
+      <div className="pipe-stage-detail">
+        {activeStage === 0 && (
+          <div className="pipe-detail-card">
+            <p className="mi-note">
+              The model consumes the most recent <strong>14 consecutive days</strong> of weather, most-recent day
+              last. Today's window: <strong>{features.sequenceRows[0]?.date}</strong> →{' '}
+              <strong>{lastDay?.date}</strong>, growth stage <strong>{lastDay?.growth_stage}</strong>.
+            </p>
+          </div>
+        )}
+
+        {activeStage === 1 && (
+          <div className="pipe-detail-card">
+            <p className="mi-note">
+              Each day is expanded from 4 raw readings into <strong>{features.sequenceFeatureCount} sequence
+              features</strong> (Tmax, Tmin, RH, rainfall, VPD, diurnal range, + 6 growth-stage one-hot columns).
+              The whole window is also collapsed into <strong>{features.staticFeatureCount} static biology
+              features</strong>:
+            </p>
+            <div className="pipe-static-grid">
+              {features.staticRows.map((row) => (
+                <div key={row.key} className="pipe-static-cell">
+                  <span className="pipe-static-label">{row.label}</span>
+                  <strong className="pipe-static-value">
+                    {row.value.toFixed(row.unit === '0/1' || row.unit === '0–1' ? 2 : 1)}
+                    <small> {row.unit}</small>
+                  </strong>
+                  <span className="pipe-static-formula">{row.formulaHint}</span>
+                </div>
+              ))}
+            </div>
+            <p className="pipe-day-sample mi-note">
+              Most recent day's per-day features — VPD {lastDay?.vpd.toFixed(2)} kPa, diurnal range{' '}
+              {lastDay?.diurnalRange.toFixed(1)}°C.
+            </p>
+          </div>
+        )}
+
+        {activeStage === 2 && (
+          <div className="pipe-detail-card">
+            <p className="mi-note">
+              Both feature blocks are rescaled with the <code>StandardScaler</code>s fitted at training time —
+              the same transform, applied to this window's raw numbers, so the network sees inputs on the scale
+              it was trained on. The sequence block becomes a <strong>14 × {features.sequenceFeatureCount}</strong>{' '}
+              tensor; the static block becomes a <strong>1 × {features.staticFeatureCount}</strong> vector.
+            </p>
+          </div>
+        )}
+
+        {activeStage === 3 && (
+          <div className="pipe-detail-card pipe-arch">
+            <div className="pipe-arch-branch">
+              <span className="pipe-arch-tag">sequence_input (14 × {features.sequenceFeatureCount})</span>
+              <div className="pipe-arch-box">Bidirectional LSTM</div>
+              <div className="pipe-arch-arrow">↓</div>
+            </div>
+            <div className="pipe-arch-branch">
+              <span className="pipe-arch-tag">static_input (1 × {features.staticFeatureCount})</span>
+              <div className="pipe-arch-box pipe-arch-box-alt">Dense</div>
+              <div className="pipe-arch-arrow">↓</div>
+            </div>
+            <div className="pipe-arch-merge">
+              <div className="pipe-arch-box pipe-arch-box-merge">Concatenate</div>
+              <div className="pipe-arch-arrow">↓</div>
+              <div className="pipe-arch-box pipe-arch-box-merge">Dense head → 1 value</div>
+            </div>
+            <p className="mi-note">
+              The BiLSTM reads the 14-day sequence in both directions to pick up build-up and decay patterns, then
+              merges that with the static biology features before a final dense layer produces one raw number.
+            </p>
+          </div>
+        )}
+
+        {activeStage === 4 && (
+          <div className="pipe-detail-card">
+            {result?.engineered?.predicted_value != null ? (
+              <>
+                <p className="mi-note">
+                  The raw output is inverse-transformed (undoing the log target used at training time), clamped
+                  to ≥ 0, giving <strong>{result.engineered.predicted_value.toFixed(2)}</strong>{' '}
+                  {result.engineered.unit === 'hoppers_per_hill' ? 'hoppers/hill' : '% damage'}. That value is then
+                  bucketed into a risk level using the thesis's fixed thresholds — not learned by the model:
+                </p>
+                <p className="mi-note pipe-threshold-hint">{RISK_THRESHOLD_HINT[pest]}</p>
+              </>
+            ) : (
+              <p className="mi-note">Waiting for the backend result…</p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -543,13 +773,10 @@ function SimulationPage({ accessToken, onSessionExpired }: SimulationPageProps) 
               </button>
             </div>
 
-            {running || !result ? (
-              <div className="sim-loading" role="status" aria-live="polite">
-                <span className="sim-spinner" aria-hidden="true" />
-                <strong>Running forecast…</strong>
-                <span>Running the engineered and raw-baseline models on your 14-day window.</span>
-              </div>
-            ) : (
+            <h4 className="mi-h4 pipe-heading">How the engineered model digests this window</h4>
+            <ComputationPipeline pest={pest} days={days} running={running} result={result} />
+
+            {!running && result && (
               <>
                 <div className="sim-results-row">
                   <ModelResultCard

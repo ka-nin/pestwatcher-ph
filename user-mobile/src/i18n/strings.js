@@ -110,8 +110,12 @@ export const translations = {
     scanResultModelNotReady: 'Hindi pa handa ang AI model',
     scanResultModelNotReadyBody:
       'Ang larawan ay na-save na para sa training, pero wala pang trained na image classification model. Subukan ulit sa susunod.',
-    scanResultNoPestTitle: 'Walang natukoy na peste',
-    scanResultUnidentifiedTitle: 'Hindi kilalang peste',
+    scanResultHealthyTitle: 'Walang natukoy na peste',
+    scanResultHealthyBody:
+      'Mukhang malusog ang tanim batay sa larawan — walang nakitang Kayumangging Hanip o Aksip. Ipagpatuloy ang regular na pagmamanman.',
+    scanResultOtherPestTitle: 'May nakitang kakaibang insekto',
+    scanResultOtherPestBody:
+      'May insekto sa larawan, pero hindi ito tumutugma sa Kayumangging Hanip o Aksip na sinanay naming matukoy. Maaaring ibang peste ito — konsultahin ang inyong teknolohistang pang-agrikultura.',
     scanResultRescan: 'Scan Ulit',
     scanResultFromPhoto: 'Mula sa Larawan',
     scanResultNoneDetected: 'Walang natukoy',
@@ -337,8 +341,12 @@ export const translations = {
     scanResultModelNotReady: 'AI model not ready yet',
     scanResultModelNotReadyBody:
       'Your photo has been saved for training, but there is no trained image classification model yet. Please try again later.',
-    scanResultNoPestTitle: 'No pest detected',
-    scanResultUnidentifiedTitle: 'Unidentified pest',
+    scanResultHealthyTitle: 'No pest detected',
+    scanResultHealthyBody:
+      'This photo looks healthy — no Brown Planthopper or Rice Stem Borer was found. Keep up your regular monitoring.',
+    scanResultOtherPestTitle: 'An unrecognized insect was found',
+    scanResultOtherPestBody:
+      'An insect appears in this photo, but it did not match the Brown Planthopper or Rice Stem Borer models we trained. It may be a different pest — please consult your local agricultural technologist.',
     scanResultRescan: 'Scan Again',
     scanResultFromPhoto: 'From the Photo',
     scanResultNoneDetected: 'Nothing detected',

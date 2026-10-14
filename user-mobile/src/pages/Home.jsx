@@ -15,7 +15,7 @@ import {
   Camera,
   LogOut,
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { currentLocation, dashboardSummary } from '../data/mockData';
 import { fetchWeatherForecast, fetchPestForecast, fetchPestForecastTrajectory } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -83,10 +83,20 @@ function TrendTick({ x, y, payload, data }) {
 }
 
 const RISK_WORD_KEY = { 1: 'riskWordLow', 2: 'riskWordMedium', 3: 'riskWordHigh' };
+const UNIT_KEY = { BPH: 'reportEstimatedUnitBph', RSB: 'reportEstimatedUnitRsb' };
 
-// Tap/hover a bar to see which day it is and its risk level — recharts
-// renders this in place of the default plain white tooltip box.
-function TrendTooltip({ active, payload, language, t }) {
+// A plain dot would hide the one thing that made the old bar chart readable
+// at a glance — which band each day falls in. Recharts' `dot` prop takes a
+// render function per point, so each dot keeps the same Low/Medium/High
+// color the bars used, while the line between them shows the actual shape
+// of the trend (rising, falling, flat) that discrete bar heights couldn't.
+function TrendDot({ cx, cy, payload }) {
+  return <circle cx={cx} cy={cy} r={4} fill={LEVEL_COLOR[payload.level]} stroke="#fff" strokeWidth={1.5} />;
+}
+
+// Tap/hover a point to see the day, its forecast value, and its risk level
+// — recharts renders this in place of the default plain white tooltip box.
+function TrendTooltip({ active, payload, language, t, pest }) {
   if (!active || !payload?.length) return null;
   const point = payload[0].payload;
   const date = new Date(`${point.key}T00:00:00`);
@@ -98,6 +108,11 @@ function TrendTooltip({ active, payload, language, t }) {
   return (
     <div className="trend-tooltip">
       <strong>{dateLabel}</strong>
+      {point.value != null && (
+        <span className="trend-tooltip-value">
+          {point.value.toFixed(1)} {t(UNIT_KEY[pest])}
+        </span>
+      )}
       <span>
         <i style={{ background: LEVEL_COLOR[point.level] }} />
         {t(RISK_WORD_KEY[point.level])}
@@ -194,6 +209,11 @@ export default function Home() {
                   dow: date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2),
                   dom: date.getDate(),
                   level: (RISK_RANK[p.risk_level] ?? 0) + 1,
+                  // The continuous forecast itself — plotted as the line now,
+                  // so the chart shows the actual shape of the trend (rising,
+                  // falling, flattening out) instead of just which of three
+                  // bands each day happens to land in.
+                  value: p.predicted_value,
                 };
               })
             : null;
@@ -410,7 +430,7 @@ export default function Home() {
               </p>
             ) : (
             <ResponsiveContainer width="100%" height={128}>
-              <BarChart data={trendData} barCategoryGap="22%" margin={{ top: 4, right: 0, left: 0, bottom: 0 }} key={activePest}>
+              <LineChart data={trendData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }} key={activePest}>
                 <XAxis
                   dataKey={(d) => d.key ?? d.day}
                   axisLine={false}
@@ -419,22 +439,24 @@ export default function Home() {
                   height={32}
                   tick={<TrendTick data={trendData} />}
                 />
-                <YAxis hide domain={[0, 3]} />
+                {/* A fixed [0, 3] domain made sense for the old band-height
+                    bars; the real forecast value needs real headroom, padded
+                    a little past the max so the top point's dot doesn't sit
+                    flush against the chart edge. */}
+                <YAxis hide domain={[0, (max) => Math.ceil(max * 1.15)]} />
                 <Tooltip
-                  content={<TrendTooltip language={language} t={t} />}
-                  cursor={{ fill: 'rgba(42, 42, 34, 0.06)', radius: 5 }}
+                  content={<TrendTooltip language={language} t={t} pest={activePest} />}
+                  cursor={{ stroke: 'var(--color-text-muted)', strokeDasharray: '3 3' }}
                 />
-                <Bar
-                  dataKey="level"
-                  radius={[5, 5, 2, 2]}
-                  minPointSize={6}
-                  activeBar={{ stroke: 'var(--color-text)', strokeWidth: 2 }}
-                >
-                  {trendData.map((entry, i) => (
-                    <Cell key={i} fill={LEVEL_COLOR[entry.level]} />
-                  ))}
-                </Bar>
-              </BarChart>
+                <Line
+                  dataKey="value"
+                  type="monotone"
+                  stroke="var(--color-primary)"
+                  strokeWidth={2.5}
+                  dot={<TrendDot />}
+                  activeDot={{ r: 6, stroke: 'var(--color-text)', strokeWidth: 2 }}
+                />
+              </LineChart>
             </ResponsiveContainer>
             )}
             {trendData?.length === TREND_DAYS && <span className="trend-week-divider" aria-hidden="true" />}

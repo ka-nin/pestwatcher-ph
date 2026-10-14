@@ -110,28 +110,40 @@ export default function Alerts() {
         <div className="alerts-list">
           {reports.map((alert) => (
             <article key={alert.id} className={`alert-card risk-${alert.risk}`}>
+              {/* Top row is the whole glance: how bad, how sure, how close —
+                  the three facts that decide whether this card deserves a
+                  second look. Distance moves up here from the location line
+                  below it used to share, since it's the "should I care"
+                  signal and was previously the last thing on the card. */}
               <div className="alert-card-top">
                 <RiskBadge level={alert.risk} label={t(riskLabelKeyFor(alert.risk))} />
                 {alert.status === 'verified' && (
                   <span className="alert-verified-badge">{t('alertsLguVerified')}</span>
                 )}
-                <span className="alert-date">{alert.date}</span>
+                <span className="alert-distance">{alert.distance}</span>
               </div>
 
               <h3>{alert.pestName}</h3>
-              <p className="alert-scientific">
-                {alert.pestNameAlt}
-                {alert.pestNameAlt && alert.scientificName !== '—' && ' · '}
-                {alert.scientificName !== '—' && <em>{alert.scientificName}</em>}
-              </p>
 
-              <p className="alert-location">
-                <MapPin size={13} />
+              {(alert.pestNameAlt || alert.scientificName !== '—') && (
+                <p className="alert-scientific">
+                  {alert.pestNameAlt}
+                  {alert.pestNameAlt && alert.scientificName !== '—' && ' · '}
+                  {alert.scientificName !== '—' && <em>{alert.scientificName}</em>}
+                </p>
+              )}
+
+              {/* Location and date are supporting detail once distance has
+                  already answered "how close" above — paired on one quiet
+                  line instead of each claiming a full row of their own. */}
+              <p className="alert-meta">
+                <MapPin size={12} />
                 <span className="alert-location-name">{alert.location}</span>
-                <span className="alert-distance">{alert.distance}</span>
+                <span className="alert-meta-dot" aria-hidden="true" />
+                <span className="alert-date">{alert.date}</span>
               </p>
 
-              <p className="alert-desc">{alert.description}</p>
+              {alert.description && <p className="alert-desc">{alert.description}</p>}
             </article>
           ))}
         </div>
