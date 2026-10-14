@@ -50,6 +50,12 @@ from ml.config import PEST_PARAMS, WEIGHTS_DIR
 IMAGE_SIZE = (224, 224)
 POSITIVE_THRESHOLD = 0.5  # matches the 0.5 cutoff used at training-time evaluation (ml/resnet/train.py)
 
+# Separate bug-vs-no-bug detector consulted only when neither tracked pest
+# fires (see ResnetPrediction.unidentified) — matches
+# ml/resnet/train.py's UNKNOWN_WEIGHTS_PATH.
+UNKNOWN_PEST_KEY = "UNKNOWN"
+UNKNOWN_WEIGHTS_PATH = WEIGHTS_DIR / "unknown" / "resnet50_unknown.keras"
+
 # Below POSITIVE_THRESHOLD but at or above this, "not BPH/RSB" is read as
 # "something's there, just not a pest we're trained on" rather than "no
 # insect at all" — e.g. one of the four unrelated rice pests, or a species
@@ -196,13 +202,12 @@ class ResNet50PestClassifier:
             unidentified = False
             if self.is_loaded(UNKNOWN_PEST_KEY):
                 _, unidentified, _, _ = self._score_pest(UNKNOWN_PEST_KEY, img)
-            return ResnetPrediction(
-                label=None, confidence=max(confidences.values()), risk_level="Low", unidentified=unidentified, **common
             top_score = max(confidences.values())
             return ResnetPrediction(
                 label=None,
                 confidence=top_score,
                 risk_level="Low",
+                unidentified=unidentified,
                 likely_other_pest=top_score >= OTHER_PEST_THRESHOLD,
                 **common,
             )
