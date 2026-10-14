@@ -1,16 +1,16 @@
 {
-  "accuracy": 0.9900530503978779,
-  "positive_precision": 0.9740634005763689,
-  "positive_recall": 0.9825581395348837,
-  "positive_f1": 0.9782923299565847,
+  "accuracy": 0.9837184873949579,
+  "positive_precision": 0.9329446064139941,
+  "positive_recall": 0.975609756097561,
+  "positive_f1": 0.9538002980625931,
   "confusion_matrix": [
     [
-      1155,
-      9
+      1553,
+      23
     ],
     [
-      6,
-      338
+      8,
+      320
     ]
   ],
   "confusion_matrix_labels": [

@@ -33,6 +33,14 @@ is an insect, so without them the model has never seen empty leaf, water or
 soil and fires on it when a photo is cut into a grid (app/preprocessing/
 tiling.py). Pass --no-background to rebuild the original crop-only dataset.
 
+Whole, realistically-framed negatives from unknown_negatives/ (see
+UNKNOWN_WHOLE_IMAGE_NEGATIVE_DIRS below) are also mixed in, for the same
+reason they were added to the UNKNOWN classifier: a tight insect-sized crop
+or background patch is not the same distribution as a normal photo a farmer
+actually uploads, so without them BPH/RSB had no real exposure to "a whole
+photo with no pest in it" and could swing to high-confidence false positives
+on things as unrelated as a beaver (see the conversation that added this).
+
 Run from server-python/:
     .venv/Scripts/python.exe -m ml.resnet.prepare_dataset --pest BPH
     .venv/Scripts/python.exe -m ml.resnet.prepare_dataset --pest RSB
@@ -305,11 +313,27 @@ def main() -> None:
             background_dirs.append(out_dir)
         summary["background_in_negative"] = {"train": 0, "val": 0, "test": 0}
 
+    # Whole, realistically-framed negatives from unknown_negatives/ — same
+    # fix as UNKNOWN's (see prepare_unknown's docstring): BPH/RSB's negatives
+    # were otherwise only ever insect crops (the other pest, four unrelated
+    # pests) or tiny background patches, never a normal whole photo with no
+    # pest in it. Without these, an out-of-distribution photo (a random
+    # animal, an empty field) could score a confident false positive — e.g.
+    # a beaver photo scoring 100% RSB — because the model had no exposure to
+    # "a whole photo, no pest" at all. See the conversation that added this.
+    whole_image_negative_dir = crops_tmp_dir / "whole_image_negatives"
+    n_whole_negatives = sum(
+        extract_whole_images(source, whole_image_negative_dir, prefix=source.name)
+        for source in UNKNOWN_WHOLE_IMAGE_NEGATIVE_DIRS
+        if source.exists()
+    )
+    print(f"{pest}: extracted {n_whole_negatives} whole-image negatives from unknown_negatives/")
+
     pos_counts = distribute_crops(positive_crops_dir, "positive", pest_out_dir)
     for split, n in pos_counts.items():
         summary["positive"][split] += n
 
-    for source_dir in (other_pest_crops_dir, negative_crops_dir, *background_dirs):
+    for source_dir in (other_pest_crops_dir, negative_crops_dir, *background_dirs, whole_image_negative_dir):
         neg_counts = distribute_crops(source_dir, "negative", pest_out_dir)
         for split, n in neg_counts.items():
             summary["negative"][split] += n
