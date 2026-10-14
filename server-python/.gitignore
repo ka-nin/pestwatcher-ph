@@ -16,5 +16,7 @@ certs/
 ml/resnet/bph/
 ml/resnet/sb/
 ml/resnet/negative/
+ml/resnet/unidentified/
+ml/resnet/unknown_negatives/
 ml/resnet/datasets/
 ml/weights/*/resnet50_*.keras

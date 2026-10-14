@@ -39,6 +39,7 @@ Run from server-python/:
 """
 
 import argparse
+import csv
 import hashlib
 import json
 import shutil
@@ -66,6 +67,36 @@ PEST_SOURCE_DIRS: dict[str, list[Path]] = {
     "RSB": [RESNET_DIR / "sb", LARVA_DIR],
 }
 NEGATIVE_DIR = RESNET_DIR / "negative"
+
+# "UNKNOWN" is a third, separate binary classifier: not "which pest" but "is
+# there any insect in frame at all" (bug vs. no-bug), so a photo of an
+# unrelated insect (e.g. a butterfly) reads as "unidentified pest detected"
+# instead of being lumped in with truly empty photos as "no pest detected".
+# Positives are every insect crop already collected for the other two models
+# (BPH, RSB's two sources, the four unrelated pests in negative/) plus a
+# general insect-classification export (unidentified/) that has no bounding
+# boxes — those whole images are used directly instead of being cropped.
+# Negatives are background patches (empty leaf/water/soil, cropped the same
+# tight way as an insect box) PLUS whole, realistically-framed photos from
+# unknown_negatives/ — the patches alone turned out not to be enough: they
+# only ever taught the model "zoomed-in texture with no insect", so a real,
+# normally-framed photo (an empty field, or anything unrelated like a random
+# object) was out-of-distribution and often scored as "insect present"
+# anyway. unknown_negatives/healthy_rice (real rice-leaf photos confirmed
+# pest-free by their own Roboflow label) and /not_rice_leaf (that same
+# dataset's "not a rice leaf" class) fix the "empty field" blind spot;
+# /caltech101 (a sample of the public Caltech-101 object dataset) fixes the
+# "totally unrelated photo" blind spot. See ml/resnet/README or the
+# conversation that added this for how each was sourced.
+UNKNOWN_BOX_SOURCE_DIRS: list[Path] = [RESNET_DIR / "bph", RESNET_DIR / "sb", LARVA_DIR, NEGATIVE_DIR]
+UNIDENTIFIED_DIR = RESNET_DIR / "unidentified"
+UNIDENTIFIED_SPLITS = ("train", "valid", "test")  # Roboflow's own split folders, merged and re-split below
+
+UNKNOWN_WHOLE_IMAGE_NEGATIVE_DIRS: list[Path] = [
+    RESNET_DIR / "unknown_negatives" / "healthy_rice",
+    RESNET_DIR / "unknown_negatives" / "not_rice_leaf",
+    RESNET_DIR / "unknown_negatives" / "caltech101",
+]
 
 # Background patches per source image, by which folder the image came from:
 # the target pest's own photos are the scenes the model will actually see, so
@@ -104,12 +135,122 @@ def distribute_crops(source_dir: Path, label: str, pest_out_dir: Path) -> dict[s
     return counts
 
 
+def extract_unidentified_images(out_dir: Path) -> int:
+    """Copies every image from unidentified/{train,valid,test}/_classes.csv
+    whose row has at least one class column set to 1 — i.e. some insect is
+    present, regardless of which species — into `out_dir`, prefixed so
+    filenames can't clash with the other positive sources. Unlike
+    extract_crops, these are whole images (no bounding boxes in this
+    Roboflow export), which is fine here since the "UNKNOWN" model only
+    needs to learn "insect somewhere in frame", not a tight crop around it."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    written = 0
+    for split in UNIDENTIFIED_SPLITS:
+        split_dir = UNIDENTIFIED_DIR / split
+        classes_csv = split_dir / "_classes.csv"
+        if not classes_csv.exists():
+            continue
+        with open(classes_csv, newline="") as f:
+            reader = csv.DictReader(f, skipinitialspace=True)
+            for row in reader:
+                filename = row["filename"].strip()
+                has_insect = any(
+                    v.strip() == "1" for k, v in row.items() if k and k.strip() != "filename"
+                )
+                if not has_insect:
+                    continue
+                src = split_dir / filename
+                if not src.exists():
+                    continue
+                shutil.copy2(src, out_dir / f"unidentified-{split}_{filename}")
+                written += 1
+    return written
+
+
+def extract_whole_images(source_dir: Path, out_dir: Path, prefix: str) -> int:
+    """Copies every image straight from a flat folder with no annotations —
+    used for unknown_negatives/* (healthy_rice, not_rice_leaf, caltech101),
+    which are plain, realistically-framed photos rather than Roboflow
+    exports with bounding boxes or a _classes.csv."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    written = 0
+    for img_path in sorted(source_dir.glob("*.jpg")):
+        shutil.copy2(img_path, out_dir / f"{prefix}_{img_path.name}")
+        written += 1
+    return written
+
+
+def prepare_unknown(args: argparse.Namespace) -> None:
+    """UNKNOWN: "is any insect in frame" (bug vs. no-bug), not which pest.
+    Positives: every insect crop from BPH/RSB/negative/, plus whole images
+    from unidentified/. Negatives: background patches (empty leaf/water/soil
+    crops, same scale as an insect box) PLUS whole realistic photos from
+    unknown_negatives/ (empty rice-leaf photos and unrelated Caltech-101
+    objects) — the patches alone left the model untrained on normally-framed
+    photos entirely, see UNKNOWN_WHOLE_IMAGE_NEGATIVE_DIRS's comment."""
+    pest_out_dir = PROCESSED_DIR / "unknown"
+    crops_tmp_dir = pest_out_dir / "_crops_tmp"
+    if crops_tmp_dir.exists():
+        shutil.rmtree(crops_tmp_dir)
+    for split in ("train", "val", "test"):
+        split_dir = pest_out_dir / split
+        if split_dir.exists():
+            shutil.rmtree(split_dir)
+
+    positive_crops_dir = crops_tmp_dir / "positive"
+    n_boxed = sum(
+        extract_crops(source, positive_crops_dir, prefix=f"pos-{source.name}")
+        for source in UNKNOWN_BOX_SOURCE_DIRS
+    )
+    n_unidentified = extract_unidentified_images(positive_crops_dir)
+    print(f"UNKNOWN: extracted {n_boxed} boxed insect crops, {n_unidentified} unidentified-insect images")
+
+    summary: dict[str, dict[str, int]] = {"positive": {"train": 0, "val": 0, "test": 0}, "negative": {"train": 0, "val": 0, "test": 0}}
+
+    background_dirs: list[Path] = []
+    if not args.no_background:
+        for source in UNKNOWN_BOX_SOURCE_DIRS:
+            target_sides = padded_box_sides(source)
+            out_dir = crops_tmp_dir / f"background_{source.name}"
+            n = extract_background(source, out_dir, source.name, BACKGROUND_PER_IMAGE["negative"], target_sides)
+            print(f"UNKNOWN: extracted {n} background patches from {source.name}/")
+            background_dirs.append(out_dir)
+
+    whole_image_negative_dir = crops_tmp_dir / "whole_image_negatives"
+    n_whole_negatives = sum(
+        extract_whole_images(source, whole_image_negative_dir, prefix=source.name)
+        for source in UNKNOWN_WHOLE_IMAGE_NEGATIVE_DIRS
+        if source.exists()
+    )
+    print(f"UNKNOWN: extracted {n_whole_negatives} whole-image negatives from unknown_negatives/")
+
+    pos_counts = distribute_crops(positive_crops_dir, "positive", pest_out_dir)
+    for split, n in pos_counts.items():
+        summary["positive"][split] += n
+
+    for source_dir in (*background_dirs, whole_image_negative_dir):
+        neg_counts = distribute_crops(source_dir, "negative", pest_out_dir)
+        for split, n in neg_counts.items():
+            summary["negative"][split] += n
+
+    shutil.rmtree(crops_tmp_dir)
+
+    summary_path = pest_out_dir / "prepare_summary.json"
+    summary_path.write_text(json.dumps(summary, indent=2))
+    print(f"UNKNOWN split summary: {json.dumps(summary, indent=2)}")
+    print(f"Saved crops to {pest_out_dir}/{{train,val,test}}/{{positive,negative}}/")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--pest", choices=["BPH", "RSB"], required=True)
+    parser.add_argument("--pest", choices=["BPH", "RSB", "UNKNOWN"], required=True)
     parser.add_argument("--no-background", action="store_true", help="skip background patches (original crop-only dataset)")
     args = parser.parse_args()
     pest = args.pest
+
+    if pest == "UNKNOWN":
+        prepare_unknown(args)
+        return
 
     positive_sources = PEST_SOURCE_DIRS[pest]
     negative_pest_sources = PEST_SOURCE_DIRS["RSB" if pest == "BPH" else "BPH"]
