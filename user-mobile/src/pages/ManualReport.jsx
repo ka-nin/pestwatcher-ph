@@ -1,12 +1,19 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Edit3, MapPin, Calendar, ChevronDown, Lock, X, AlertTriangle } from 'lucide-react';
+import { Camera, Edit3, MapPin, Calendar, Lock, X, AlertTriangle } from 'lucide-react';
 import ScreenHeader from '../components/ScreenHeader';
 import { pestTypeOptions, severityOptions, growthStageOptions, growthStageLabels, growthStageDescriptions, etlThresholds } from '../data/mockData';
-import { submitReport } from '../api/client';
+import Dropdown from '../components/Dropdown';
+import { submitImageInference, submitReport } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { derivePestCode } from '../utils/pestMatching';
+
+// ResNet-50's BPH/RSB code -> this form's actual pest_type dropdown value.
+const PEST_TYPE_BY_CODE = {
+  BPH: 'Brown Planthopper (Kayumangging Hanip)',
+  RSB: 'Rice Stem Borer (Aksip o Atip)',
+};
 import './ManualReport.css';
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -73,6 +80,8 @@ export default function ManualReport() {
 
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState(null);
+  const [classifying, setClassifying] = useState(false);
+  const [classifyResult, setClassifyResult] = useState(null); // { label, confidence } | 'none' | 'error' | null
 
   const [pestType, setPestType] = useState('');
   const [severity, setSeverity] = useState('medium');
@@ -165,21 +174,49 @@ export default function ManualReport() {
     if (!file) return;
     setPhotoFile(file);
     setPhotoPreviewUrl(URL.createObjectURL(file));
+    setClassifyResult(null);
+    setClassifying(true);
+
+    // Best-effort auto-fill only — the farmer can still change the dropdown
+    // below, and submission still runs its own server-side classification
+    // (app/routers/reports.py) independent of this. No municipality/growth
+    // stage passed: we only want the pest label here, not a forecast.
+    submitImageInference(file)
+      .then((result) => {
+        if (result.status === 'ok' && PEST_TYPE_BY_CODE[result.pest_detected]) {
+          setPestType(PEST_TYPE_BY_CODE[result.pest_detected]);
+          setClassifyResult({ label: result.pest_detected, confidence: result.confidence });
+        } else if (result.status === 'unidentified_pest_detected') {
+          setClassifyResult('unidentified');
+        } else {
+          setClassifyResult('none');
+        }
+      })
+      .catch(() => setClassifyResult('error'))
+      .finally(() => setClassifying(false));
   };
 
   const handleRemovePhoto = () => {
     setPhotoFile(null);
     setPhotoPreviewUrl(null);
+    setClassifying(false);
+    setClassifyResult(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSkipToManual = () => pestSelectRef.current?.focus();
 
-  // Native form validation runs first; only a valid form reaches the
-  // confirmation summary, and the report is sent from there.
+  // The pest-type dropdown is a custom component, not a native <select>, so
+  // its "required"-ness is no longer enforced by the browser's own form
+  // validation — checked explicitly here instead before reaching the
+  // confirmation summary.
   const handleReview = (e) => {
     e.preventDefault();
     setError('');
+    if (!pestType) {
+      pestSelectRef.current?.focus();
+      return;
+    }
     setShowConfirm(true);
   };
 
@@ -246,26 +283,34 @@ export default function ManualReport() {
         </div>
       )}
 
+      {classifying && <p className="report-classify-note">{t('reportClassifying')}</p>}
+      {!classifying && classifyResult && classifyResult !== 'none' && classifyResult !== 'error' && (
+        <p className="report-classify-note report-classify-note-ok">
+          {t('reportClassifiedAs')} {pestTypeOptions.find((o) => derivePestCode(o.value) === classifyResult.label)?.[language]} ({Math.round(classifyResult.confidence * 100)}%) — {t('reportClassifiedEditable')}
+        </p>
+      )}
+      {!classifying && classifyResult === 'none' && (
+        <p className="report-classify-note">{t('reportClassifyNone')}</p>
+      )}
+      {!classifying && classifyResult === 'unidentified' && (
+        <p className="report-classify-note">{t('reportClassifyUnidentified')}</p>
+      )}
+
       <form className="report-body" onSubmit={handleReview}>
         <section className="report-section">
           <h2 className="report-section-title">{t('reportSectionPest')}</h2>
 
-          <label className="report-field">
+          <div className="report-field">
             <span>{t('reportFieldPestType')}</span>
-            <div className="report-select">
-              <select ref={pestSelectRef} value={pestType} onChange={(e) => setPestType(e.target.value)} required>
-                <option value="" disabled>
-                  {t('reportPestPlaceholder')}
-                </option>
-                {pestTypeOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt[language]}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={16} />
-            </div>
-          </label>
+            <Dropdown
+              ref={pestSelectRef}
+              value={pestType}
+              onChange={setPestType}
+              placeholder={t('reportPestPlaceholder')}
+              ariaLabel={t('reportFieldPestType')}
+              options={pestTypeOptions.map((opt) => ({ value: opt.value, label: opt[language] }))}
+            />
+          </div>
 
           <div className="report-field">
             <span>{t('reportFieldSeverity')}</span>
@@ -300,20 +345,19 @@ export default function ManualReport() {
         <section className="report-section">
           <h2 className="report-section-title">{t('reportSectionField')}</h2>
 
-          <label className="report-field">
+          <div className="report-field">
             <span>{t('reportFieldGrowthStage')}</span>
-            <div className="report-select">
-              <select value={cropGrowthStage} onChange={(e) => setCropGrowthStage(e.target.value)} required>
-                {growthStageOptions.map((stage) => (
-                  <option key={stage} value={stage}>
-                    {growthStageLabels[stage]?.[language] ?? stage}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={16} />
-            </div>
+            <Dropdown
+              value={cropGrowthStage}
+              onChange={setCropGrowthStage}
+              ariaLabel={t('reportFieldGrowthStage')}
+              options={growthStageOptions.map((stage) => ({
+                value: stage,
+                label: growthStageLabels[stage]?.[language] ?? stage,
+              }))}
+            />
             <p className="report-stage-description">{growthStageDescriptions[cropGrowthStage]?.[language]}</p>
-          </label>
+          </div>
 
           {areaWarningEl}
 

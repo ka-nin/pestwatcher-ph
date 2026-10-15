@@ -1,6 +1,6 @@
 """Assembles what admin-web's Model Insights page shows, from the artifacts the
 training/evaluation scripts already write next to the model weights
-(ml/weights/{bph,rsb}/): test metrics, per-sample BiLSTM predictions, SHAP
+(ml/weights/{bph,rsb,unknown}/): test metrics, per-sample BiLSTM predictions, SHAP
 summaries, the BPH background-training comparison and the BPH grid test.
 Any artifact that hasn't been generated yet comes back as null, and the page
 shows a hint instead of failing.
@@ -12,7 +12,11 @@ from pathlib import Path
 from typing import Any
 
 from app.models.bilstm_model import bilstm_forecaster
-from app.models.resnet_model import resnet_classifier
+from app.models.resnet_model import (
+    UNKNOWN_PEST_KEY,
+    UNKNOWN_WEIGHTS_PATH,
+    resnet_classifier,
+)
 from app.preprocessing.tiling import MIN_GROUP_TILES, TILE_HIT_THRESHOLD
 from ml.config import PEST_PARAMS
 
@@ -52,6 +56,15 @@ def build_model_insights() -> dict[str, Any]:
             }
         )
 
+    models.append(
+        {
+            "name": "ResNet-50 · Unknown",
+            "detail": "insect / no-insect detector",
+            "loaded": resnet_classifier.is_loaded(UNKNOWN_PEST_KEY),
+            "updated": _modified_date(UNKNOWN_WEIGHTS_PATH),
+        }
+    )
+
     resnet: dict[str, Any] = {}
     bilstm: dict[str, Any] = {}
     for pest, params in PEST_PARAMS.items():
@@ -70,6 +83,9 @@ def build_model_insights() -> dict[str, Any]:
         "models": models,
         "resnet": resnet,
         "bilstm": bilstm,
+        "resnetUnknown": _read_json(
+            UNKNOWN_WEIGHTS_PATH.parent / "resnet50_unknown_test_metrics.json"
+        ),
         "resnetBphComparison": _read_json(bph_folder / "resnet50_bph_background_comparison.json"),
         "grid": {
             "current": {"threshold": TILE_HIT_THRESHOLD, "minTiles": MIN_GROUP_TILES},

@@ -60,6 +60,15 @@ def load_ml_models() -> None:
         except (FileNotFoundError, OSError, ValueError):
             print(f"[startup] Raw-baseline BiLSTM weights for {pest} not found — the Simulation page's baseline column will report model_not_loaded for {pest}")
 
+    # UNKNOWN isn't one of the tracked forecast pests (no PEST_PARAMS entry,
+    # no BiLSTM), just the bug-vs-no-bug classifier that tells "unidentified
+    # pest" apart from "no pest" — loaded separately for that reason.
+    try:
+        resnet_classifier.load("UNKNOWN")
+    except (FileNotFoundError, OSError, ValueError):
+        print("[startup] ResNet-50 weights for UNKNOWN not found — /api/inference/image will report plain no_pest_detected instead of unidentified_pest_detected")
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,

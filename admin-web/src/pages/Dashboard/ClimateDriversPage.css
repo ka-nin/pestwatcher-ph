@@ -137,3 +137,7 @@
     grid-template-columns: 140px 1fr 48px;
   }
 }
+
+.shap-pest-tabs {
+  margin: 10px 0 14px;
+}

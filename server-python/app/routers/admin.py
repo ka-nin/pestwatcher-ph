@@ -250,7 +250,7 @@ async def run_simulation_image(file: UploadFile = File(...)) -> SimulationImageR
 
     if result.label is None:
         return SimulationImageResult(
-            status="no_pest_detected",
+            status="unidentified_pest_detected" if result.unidentified else "no_pest_detected",
             pest_scores=result.pest_scores,
             heldOutMetrics=held_out,
         )

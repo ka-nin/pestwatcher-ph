@@ -23,7 +23,7 @@ interface ClimateDriversPageProps {
   climateMetrics: ClimateMetrics | null
 }
 
-const SHAP_PEST = 'BPH' as const
+const SHAP_PESTS = ['BPH', 'RSB'] as const
 const SHAP_GROWTH_STAGE: GrowthStage = ASSUMED_GROWTH_STAGE
 
 const CHART_WIDTH = 340
@@ -297,14 +297,18 @@ function ClimateIcon({ children }: { children: React.ReactNode }) {
 function ClimateDriversPage({ user, weather, weatherError, climateMetrics }: ClimateDriversPageProps) {
   // Hovering a day in one chart highlights the same day in the other.
   const [hoverDay, setHoverDay] = useState<number | null>(null)
+  const [shapPest, setShapPest] = useState<(typeof SHAP_PESTS)[number]>('BPH')
   const [shapFeatures, setShapFeatures] = useState<ExplanationFeature[]>([])
   const [shapError, setShapError] = useState('')
   const [shapStatus, setShapStatus] = useState<'ok' | 'model_not_loaded' | null>(null)
 
   useEffect(() => {
     let cancelled = false
+    setShapFeatures([])
+    setShapStatus(null)
+    setShapError('')
 
-    fetchPestForecastExplanation(user.municipality, SHAP_PEST, SHAP_GROWTH_STAGE)
+    fetchPestForecastExplanation(user.municipality, shapPest, SHAP_GROWTH_STAGE)
       .then((res) => {
         if (cancelled) return
         setShapStatus(res.status)
@@ -317,7 +321,7 @@ function ClimateDriversPage({ user, weather, weatherError, climateMetrics }: Cli
     return () => {
       cancelled = true
     }
-  }, [user.municipality])
+  }, [user.municipality, shapPest])
 
   const maxShap = Math.max(1e-6, ...shapFeatures.map((f) => Math.abs(f.value)))
 
@@ -455,7 +459,7 @@ function ClimateDriversPage({ user, weather, weatherError, climateMetrics }: Cli
             <div>
               <div className="panel-title">Feature Influence on Current Risk (SHAP Explanations)</div>
               <div className="panel-subtitle">
-                Which time-lagged climate variables drive the current BPH outbreak prediction
+                Which time-lagged climate variables drive the current {shapPest} outbreak prediction
               </div>
             </div>
             <div className="shap-legend">
@@ -468,10 +472,23 @@ function ClimateDriversPage({ user, weather, weatherError, climateMetrics }: Cli
             </div>
           </div>
 
+          <div className="reports-filter-tabs shap-pest-tabs">
+            {SHAP_PESTS.map((p) => (
+              <button
+                key={p}
+                type="button"
+                className={`reports-filter-tab${shapPest === p ? ' active' : ''}`}
+                onClick={() => setShapPest(p)}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+
           {shapError ? (
             <p className="stat-card-error">{shapError}</p>
           ) : shapStatus === 'model_not_loaded' ? (
-            <p className="stat-card-error">BiLSTM model for {SHAP_PEST} not loaded yet.</p>
+            <p className="stat-card-error">BiLSTM model for {shapPest} not loaded yet.</p>
           ) : shapFeatures.length === 0 ? (
             <p className="stat-card-loading">Computing live SHAP explanation…</p>
           ) : (
@@ -495,7 +512,7 @@ function ClimateDriversPage({ user, weather, weatherError, climateMetrics }: Cli
           )}
 
           <p className="ipm-footnote">
-            Live SHAP attributions from the trained BiLSTM for {SHAP_PEST} in {user.municipality} —
+            Live SHAP attributions from the trained BiLSTM for {shapPest} in {user.municipality} —
             positive values pushed the forecast up, negative values pulled it down.
           </p>
         </div>

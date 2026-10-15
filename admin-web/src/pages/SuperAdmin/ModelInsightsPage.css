@@ -40,13 +40,8 @@
   padding: 14px 16px;
   background: #fff;
   border: 1px solid #e9e4d6;
-  border-left: 4px solid #c9c5b8;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(60, 50, 20, 0.05);
-}
-
-.mi-status-item.loaded {
-  border-left-color: #3f9c46;
 }
 
 .mi-status-top {
@@ -569,6 +564,139 @@
   color: #777;
 }
 
+/* ---- Clickable metric cards (System Performance tab) — open the shared
+   modal below rather than expanding in place. ---- */
+
+.mi-metric.mi-clickable {
+  position: relative;
+  width: 100%;
+  display: block;
+  padding-right: 32px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mi-metric.mi-clickable:hover {
+  border-color: #9fc191;
+  box-shadow: 0 2px 8px rgba(47, 107, 50, 0.12);
+}
+
+.mi-metric.mi-clickable:hover .mi-metric-label {
+  color: #2f6b32;
+}
+
+.mi-clickable-hint-icon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 13px;
+  color: #aaa;
+}
+
+/* ---- Shared detail overlay (System Performance tab) ---- */
+
+.mi-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 24, 18, 0.5);
+  backdrop-filter: blur(1px);
+}
+
+.mi-modal {
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 24px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  color-scheme: light;
+  animation: mi-modal-in 0.15s ease;
+}
+
+@keyframes mi-modal-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.mi-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mi-modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #23331f;
+}
+
+.mi-modal-close {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #777;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mi-modal-close:hover {
+  background: #f3f1ea;
+}
+
+.mi-modal-body .mi-note:first-child {
+  margin-top: 0;
+}
+
+.mi-perclass-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.mi-perclass-table th {
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #888;
+  padding: 0 8px 6px 0;
+  border-bottom: 1px solid #e5e0d2;
+}
+
+.mi-perclass-table td {
+  padding: 6px 8px 6px 0;
+  border-bottom: 1px solid #f0ece0;
+  color: #333;
+  font-variant-numeric: tabular-nums;
+}
+
+.mi-perclass-table td:first-child {
+  font-weight: 700;
+  color: #23331f;
+}
+
+.mi-perclass-table tr:last-child td {
+  border-bottom: none;
+}
+
 .mi-two-col {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -812,4 +940,202 @@
     animation: none;
     box-shadow: 0 0 0 3px rgba(63, 156, 70, 0.18);
   }
+}
+
+/* ---- System-wide performance tab — deliberately separate from the
+   .mi-shap* rules above, which belong to the single-pest SHAP section and
+   are laid out for a different column count. ---- */
+
+/* The one-glance answer, before any methodology. */
+.mi-syswide-headline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 4px 0 6px;
+}
+
+.mi-syswide-headline-item {
+  flex: 1 1 220px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 16px 44px 16px 18px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f1f7ef, #e6f1e3);
+  border: 1px solid #cfe3ca;
+  /* These are rendered as <button> so they're keyboard- and
+     screen-reader-accessible — reset button chrome back to the card look
+     the div version had. */
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.mi-syswide-headline-item:hover {
+  border-color: #9fc191;
+  box-shadow: 0 2px 10px rgba(47, 107, 50, 0.12);
+}
+
+.mi-syswide-shap-list-compact {
+  margin-top: 4px;
+}
+
+.mi-syswide-headline-value {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.05;
+  color: #2f6b32;
+  font-variant-numeric: tabular-nums;
+}
+
+.mi-syswide-headline-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #3a382f;
+}
+
+.mi-syswide-headline-sub {
+  font-size: 11.5px;
+  color: #777;
+}
+
+/* Each pooled result is its own band, separated by a rule rather than
+   relying on heading weight alone to break up a long scroll. */
+.mi-syswide-block {
+  padding-top: 20px;
+  margin-top: 20px;
+  border-top: 1px solid #ebe7da;
+}
+
+.mi-syswide-callout {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fdf4f3;
+  border: 1px solid #f0cac8;
+}
+
+.mi-syswide-footer {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid #ebe7da;
+  color: #888;
+}
+.mi-syswide-shap-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+}
+
+.mi-syswide-shap-row {
+  display: grid;
+  grid-template-columns: 185px 1fr;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid #ece7d8;
+}
+
+.mi-syswide-shap-row:first-child {
+  padding-top: 0;
+}
+
+.mi-syswide-shap-row:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.mi-syswide-shap-row-label {
+  /* Stacked, not inline — the group tag used to sit beside the label text
+     at vertical-center of the whole box, so a long label wrapping to two
+     lines (e.g. "Growth Stage: Ripening") left the tag floating beside
+     the wrap instead of next to the first line. Putting the tag on its
+     own line under the label means a wrap never touches it. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #444;
+}
+
+.mi-syswide-shap-group-tag {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: #fff;
+}
+
+.mi-syswide-shap-group-tag.static {
+  background: #2f6b32;
+}
+
+.mi-syswide-shap-group-tag.sequence {
+  background: #c99a2e;
+}
+
+/* One bar per pest, stacked, instead of a single shared bar next to two
+   numbers — each percentage now sits directly against the bar it belongs
+   to, so there's no longer a question of which number the bar is showing. */
+.mi-syswide-shap-pest-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mi-syswide-shap-pest-bar {
+  display: grid;
+  grid-template-columns: 34px 1fr 38px;
+  align-items: center;
+  gap: 8px;
+}
+
+.mi-syswide-shap-pest-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: #999;
+}
+
+.mi-syswide-shap-pest-tag.bph {
+  color: #2f6b32;
+}
+
+.mi-syswide-shap-pest-tag.rsb {
+  color: #b5842a;
+}
+
+.mi-syswide-shap-bar-track {
+  height: 7px;
+  border-radius: 999px;
+  background: #ece8da;
+  overflow: hidden;
+}
+
+.mi-syswide-shap-bar {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.mi-syswide-shap-bar.bph {
+  background: #2f6b32;
+}
+
+.mi-syswide-shap-bar.rsb {
+  background: #c99a2e;
+}
+
+.mi-syswide-shap-pest-value {
+  font-size: 11px;
+  font-weight: 700;
+  color: #666;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }

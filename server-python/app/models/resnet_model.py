@@ -45,22 +45,48 @@ from app.preprocessing.tiling import (
     needs_grid,
     prepare_for_grid,
 )
-from ml.config import PEST_PARAMS
+from ml.config import PEST_PARAMS, WEIGHTS_DIR
 
 IMAGE_SIZE = (224, 224)
 POSITIVE_THRESHOLD = 0.5  # matches the 0.5 cutoff used at training-time evaluation (ml/resnet/train.py)
+
+# Separate bug-vs-no-bug detector consulted only when neither tracked pest
+# fires (see ResnetPrediction.unidentified) — matches
+# ml/resnet/train.py's UNKNOWN_WEIGHTS_PATH.
+UNKNOWN_PEST_KEY = "UNKNOWN"
+UNKNOWN_WEIGHTS_PATH = WEIGHTS_DIR / "unknown" / "resnet50_unknown.keras"
+
+# Below POSITIVE_THRESHOLD but at or above this, "not BPH/RSB" is read as
+# "something's there, just not a pest we're trained on" rather than "no
+# insect at all" — e.g. one of the four unrelated rice pests, or a species
+# the model has never seen. This is a confidence-based heuristic on top of
+# an already-binary classifier, not a trained three-way distinction: the
+# model was never fit on a "which pest, if any, excluding BPH/RSB" target,
+# so it cannot name the organism, only flag that the photo didn't look like
+# plain background either. The value itself is a starting point, not a
+# validated boundary — ml/resnet/crops.py's background patches give a real
+# no-insect population to check this threshold against before trusting it
+# for anything beyond a softer UI message.
+OTHER_PEST_THRESHOLD = 0.15
 
 RiskLevel = Literal["Low", "Moderate", "High", "Critical"]
 
 
 @dataclass
 class ResnetPrediction:
-    # None means both loaded classifiers reported "not this pest" — a real,
-    # expected outcome (e.g. a photo of a healthy plant), distinct from
-    # predict() returning None outright when no model is loaded at all.
+    # None means every loaded tracked-pest classifier reported "not this
+    # pest" AND the UNKNOWN bug-detector (if loaded) also found no insect —
+    # a real, expected outcome (e.g. a photo of a healthy plant), distinct
+    # from predict() returning None outright when no model is loaded at all.
     label: Literal["BPH", "RSB"] | None
     confidence: float
     risk_level: RiskLevel
+    # True when no tracked pest (BPH/RSB) was detected, but the separate
+    # UNKNOWN classifier found some insect in frame anyway (e.g. a
+    # butterfly) — callers should report "unidentified pest detected"
+    # rather than "no pest detected" in this case. Always False when
+    # `label` is set.
+    unidentified: bool = False
     # Every loaded pest's own score, and every pest that cleared its own
     # cutoff (strongest first) — `label` is only the top one, so a photo
     # holding both BPH and RSB is visible here.
@@ -71,6 +97,11 @@ class ResnetPrediction:
     # approximate density hint, not an insect count — see tiling.py.
     grid_tiles: int | None = None
     grid_count: int | None = None
+    # Only meaningful when label is None. True when the strongest score
+    # still cleared OTHER_PEST_THRESHOLD — read as "an insect is probably
+    # present, just not BPH or RSB" rather than "nothing here." See that
+    # constant's docstring for exactly what this claim is and isn't.
+    likely_other_pest: bool = False
 
 
 def _risk_level_for_confidence(confidence: float) -> Literal["Low", "Moderate", "High", "Critical"]:
@@ -98,7 +129,7 @@ class ResNet50PestClassifier:
         (ml/resnet/train.py --pest <pest>) — callers should catch this at
         startup rather than let it crash the whole app, same pattern as
         BiLstmOutbreakForecaster.load()."""
-        weights_path = PEST_PARAMS[pest].resnet_weights_path
+        weights_path = UNKNOWN_WEIGHTS_PATH if pest == UNKNOWN_PEST_KEY else PEST_PARAMS[pest].resnet_weights_path
         self._models[pest] = keras.models.load_model(weights_path)
 
     def is_loaded(self, pest: str) -> bool:
@@ -135,13 +166,18 @@ class ResNet50PestClassifier:
         return max(scores), bool(groups), len(tiles), len(groups)
 
     def predict(self, image_path: Path) -> Optional[ResnetPrediction]:
-        """Returns None only if NEITHER model is loaded yet (mirrors the
-        BiLSTM forecaster's "model_not_loaded" contract) — distinct from a
-        real classification that found no pest, which returns a
-        ResnetPrediction with label=None instead (see that field's
-        docstring). If only one pest's model is loaded, prediction proceeds
-        with just that one — a partially-trained deployment still returns
-        useful results rather than an all-or-nothing failure.
+        """Returns None only if NEITHER tracked-pest model is loaded yet
+        (mirrors the BiLSTM forecaster's "model_not_loaded" contract) —
+        distinct from a real classification that found no pest, which
+        returns a ResnetPrediction with label=None instead (see that
+        field's docstring). If only one pest's model is loaded, prediction
+        proceeds with just that one — a partially-trained deployment still
+        returns useful results rather than an all-or-nothing failure.
+
+        UNKNOWN (bug vs. no-bug) is consulted separately and only matters
+        when neither tracked pest fires: it doesn't affect which tracked
+        pest wins, just whether a non-detection is reported as "no pest"
+        or "unidentified pest" (see ResnetPrediction.unidentified).
         """
         loaded_pests = [pest for pest in PEST_PARAMS if self.is_loaded(pest)]
         if not loaded_pests:
@@ -163,8 +199,17 @@ class ResNet50PestClassifier:
         common = dict(pest_scores=confidences, pests_detected=detected, grid_tiles=grid_tiles, grid_count=grid_count)
 
         if not detected:
+            unidentified = False
+            if self.is_loaded(UNKNOWN_PEST_KEY):
+                _, unidentified, _, _ = self._score_pest(UNKNOWN_PEST_KEY, img)
+            top_score = max(confidences.values())
             return ResnetPrediction(
-                label=None, confidence=max(confidences.values()), risk_level="Low", **common
+                label=None,
+                confidence=top_score,
+                risk_level="Low",
+                unidentified=unidentified,
+                likely_other_pest=top_score >= OTHER_PEST_THRESHOLD,
+                **common,
             )
 
         best_pest = detected[0]

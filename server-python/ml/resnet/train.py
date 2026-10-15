@@ -38,10 +38,15 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.applications import resnet50
 
-from ml.config import PEST_PARAMS
+from ml.config import PEST_PARAMS, WEIGHTS_DIR
 
 RESNET_DIR = Path(__file__).resolve().parent
 PROCESSED_DIR = RESNET_DIR / "datasets" / "processed"
+
+# UNKNOWN (bug vs. no-bug) isn't one of the thesis's two forecast pests, so
+# it has no PEST_PARAMS entry (that dataclass is BiLSTM/weather-feature
+# config this model doesn't use) — its weights path is just a constant here.
+UNKNOWN_WEIGHTS_PATH = WEIGHTS_DIR / "unknown" / "resnet50_unknown.keras"
 
 IMAGE_SIZE = (224, 224)
 BATCH_SIZE = 32
@@ -141,7 +146,7 @@ def evaluate(model: keras.Model, test_ds: tf.data.Dataset) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--pest", choices=["BPH", "RSB"], required=True)
+    parser.add_argument("--pest", choices=["BPH", "RSB", "UNKNOWN"], required=True)
     args = parser.parse_args()
 
     pest = args.pest
@@ -194,7 +199,7 @@ def main() -> None:
     test_metrics = evaluate(model, test_ds)
     print(f"\n{pest} test metrics:", json.dumps(test_metrics, indent=2))
 
-    weights_path = PEST_PARAMS[pest].resnet_weights_path
+    weights_path = UNKNOWN_WEIGHTS_PATH if pest == "UNKNOWN" else PEST_PARAMS[pest].resnet_weights_path
     weights_path.parent.mkdir(parents=True, exist_ok=True)
     model.save(weights_path)
 

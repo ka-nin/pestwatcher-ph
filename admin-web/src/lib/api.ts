@@ -499,10 +499,27 @@ export interface ResnetTestMetrics {
   confusion_matrix: [[number, number], [number, number]]
 }
 
+export interface EtlClassificationMetrics {
+  accuracy: number
+  precision_macro: number
+  recall_macro: number
+  f1_macro: number
+  confusion_matrix: number[][]
+  confusion_matrix_labels: string[]
+  support_per_level: Record<string, number>
+}
+
 export interface RegressionTestMetrics {
   rmse: number
   mae: number
   r2: number
+  // The backend has always sent this (model_insights.py passes each test
+  // metrics file through unfiltered) — it just had no field here to land
+  // in, so TypeScript silently dropped it and nothing on this page could
+  // ever read it. It's the downstream decision-agreement half of RQ1.1
+  // (Low/Medium/High vs. the fixed ETL table), separate from the
+  // continuous rmse/mae/r2 above.
+  etl_classification?: EtlClassificationMetrics
 }
 
 export interface PredictionPointDto {
@@ -571,6 +588,9 @@ export interface ModelInsightsResponse {
   models: ModelStatusItem[]
   resnet: Record<'BPH' | 'RSB', ResnetTestMetrics | null>
   bilstm: Record<'BPH' | 'RSB', BilstmInsights>
+  // Separate bug-vs-no-bug detector (ml/weights/unknown/) — consulted only
+  // when neither tracked pest fires, so it has no per-pest variant.
+  resnetUnknown: ResnetTestMetrics | null
   resnetBphComparison: {
     note: string
     rows: { label: string; kind: 'falseAlarm' | 'recall'; n: number; old: number; new: number }[]
@@ -635,7 +655,7 @@ export async function runSimulationForecast(
 }
 
 export interface SimulationImageResult {
-  status: 'ok' | 'model_not_loaded' | 'no_pest_detected'
+  status: 'ok' | 'model_not_loaded' | 'no_pest_detected' | 'unidentified_pest_detected'
   pest_detected: PestKey | null
   confidence: number | null
   pests_detected: PestKey[]

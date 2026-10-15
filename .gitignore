@@ -7,3 +7,6 @@ dist/
 
 # macOS Finder metadata — never useful in the repo
 .DS_Store
+
+# Local sample images/exports for the thesis document — not source, not needed in git
+/Dataset/

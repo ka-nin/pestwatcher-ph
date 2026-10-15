@@ -39,6 +39,35 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
+/* Mirrors admin-web's .legend-line-boundary swatch — only shown in the
+   expanded map (gated on showControls, same as the satellite/wind toggle)
+   since the embedded Alerts widget is too small to spare the space. */
+.weather-map-boundary-legend {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px) saturate(180%);
+  -webkit-backdrop-filter: blur(10px) saturate(180%);
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+}
+
+.weather-map-boundary-swatch {
+  width: 14px;
+  height: 0;
+  border-top: 2.5px dashed #ffd166;
+  display: inline-block;
+}
+
 .weather-map-controls {
   position: absolute;
   top: 10px;

@@ -48,7 +48,7 @@ function SettingsPage({ accessToken, onSessionExpired }: SettingsPageProps) {
       </div>
 
       <p className="admin-note">
-        These values are transcribed from the thesis's ETL table and intentionally kept out of the
+        These values are transcribed from the published agronomic ETL standards and intentionally kept out of the
         model — the BiLSTM forecasts a continuous value, and this fixed standard buckets it into
         Low/Medium/High. Changing them here isn't supported, since drifting from the cited agronomic
         standard is exactly what the fixed-threshold design is meant to prevent; the source of truth is

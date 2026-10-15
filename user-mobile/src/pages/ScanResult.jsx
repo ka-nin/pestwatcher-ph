@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { X, RotateCcw, Sprout } from 'lucide-react';
+import { X, RotateCcw, Sprout, HelpCircle } from 'lucide-react';
 import RiskBadge from '../components/RiskBadge';
 import { pestGuide, etlThresholds } from '../data/mockData';
 import { PestHeroMedia } from '../data/pestIcons';
@@ -131,15 +131,41 @@ export default function ScanResult() {
     };
   }, [inference, user, growthStage]);
 
+  // Three genuinely different outcomes used to collapse into one "not
+  // ready" screen below, because only `status === 'ok'` was ever handled
+  // specially. A photo of a healthy plant and a photo the model couldn't
+  // load both showed the same technical-sounding message — worse, a photo
+  // that actually had an insect in it (just not BPH/RSB) was indistinguishable
+  // from a blank field, which reads as a false "no pest" to the farmer. Each
+  // status now gets its own tone and copy; only the unhandled/unexpected
+  // case falls back to the generic message.
   if (!inference || inference.status !== 'ok') {
+    const status = inference?.status;
+    const isHealthy = status === 'no_pest_detected';
+    const isOtherPest = status === 'other_pest_detected';
+    const tone = isHealthy ? 'tone-ok' : isOtherPest ? 'tone-warn' : 'tone-neutral';
+    const title = isHealthy
+      ? t('scanResultHealthyTitle')
+      : isOtherPest
+        ? t('scanResultOtherPestTitle')
+        : t('scanResultModelNotReady');
+    const body = isHealthy
+      ? t('scanResultHealthyBody')
+      : isOtherPest
+        ? t('scanResultOtherPestBody')
+        : inference?.message || t('scanResultModelNotReadyBody');
+
     return (
       <div className="guide-detail-screen scan-result-unavailable">
         <button className="guide-detail-close scan-result-unavailable-close" onClick={() => navigate('/home')} aria-label="Close">
           <X size={18} />
         </button>
         <div className="scan-result-unavailable-body">
-          <h1>{t('scanResultModelNotReady')}</h1>
-          <p>{inference?.message || t('scanResultModelNotReadyBody')}</p>
+          <span className={`scan-result-unavailable-icon ${tone}`}>
+            {isHealthy ? <Sprout size={28} /> : isOtherPest ? <HelpCircle size={28} /> : null}
+          </span>
+          <h1>{title}</h1>
+          <p>{body}</p>
           <button className="scan-result-rescan-btn" onClick={() => navigate('/scan')}>
             {t('scanResultRescan')}
           </button>
@@ -148,7 +174,11 @@ export default function ScanResult() {
     );
   }
 
-  const photoDetected = inference.pest_detected && inference.pest_detected !== 'Healthy';
+  // This branch only runs when inference.status === 'ok', which the backend
+  // only ever sends alongside a real BPH/RSB label (see routers/inference.py)
+  // — "no pest" and "other pest, not BPH/RSB" are both separate statuses
+  // handled above, so pest_detected here is never anything but a real hit.
+  const photoDetected = Boolean(inference.pest_detected);
   // A photo can hold both pests; the backend lists every one it found, while
   // pest_detected is only the strongest (which drives the forecast below).
   const detectedPests = inference.pests_detected?.length
