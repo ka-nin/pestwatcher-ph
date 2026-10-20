@@ -80,11 +80,14 @@ class ImageInferenceResponse(BaseModel):
     ResNet50RegressorBank (the panel-requested redesign) — the same
     suggestions a technologist sees when reviewing a submitted report
     (app/routers/reports.py), surfaced here too so the mobile app's
-    immediate scan result can show them. These are UNVERIFIED model outputs,
-    not confirmed field data — they never feed the BiLSTM forecast above
-    (that still only happens after a technologist confirms a report; see
-    app/decision/report_anchor.py's find_lagged_observation()), and the
-    forecast/risk_level in this response is computed independently of them.
+    immediate scan result can show them. These ARE fed into the `forecast`
+    above as a one-off override of the usual verified-reports lookup (see
+    app/routers/inference.py's _build_trajectory) — `forecast_reflects_this_photo`
+    says whether that happened. They are still UNVERIFIED model outputs: this
+    override never writes anything to the database and never changes what
+    any other endpoint (GET /forecast/trajectory, the LGU dashboard, SMS
+    advisories) returns for this municipality — that only happens once a
+    technologist confirms the report this scan produces.
     """
 
     status: Literal["ok", "model_not_loaded", "no_pest_detected", "unidentified_pest_detected"]
@@ -109,6 +112,13 @@ class ImageInferenceResponse(BaseModel):
     estimated_count: float | None = None
     estimated_coverage_pct: float | None = None
     estimated_damage_pct: float | None = None
+    # True when `forecast` above was computed using THIS photo's own
+    # estimated_count/estimated_damage_pct (not a technologist-verified
+    # report) as its lagged-observation input — lets the mobile UI say "this
+    # reflects your photo, not yet confirmed" instead of implying it's the
+    # same official forecast an LGU technologist would see for this
+    # municipality.
+    forecast_reflects_this_photo: bool = False
 
 
 class ExplanationFeature(BaseModel):

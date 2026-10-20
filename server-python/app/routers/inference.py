@@ -55,9 +55,13 @@ async def infer_image(
 
     `municipality`/`growth_stage` are optional so a caller that only wants
     the raw classification (no forecast) can omit them — the response's
-    `forecast` field is simply null in that case. The estimated_* fields are
-    unverified model outputs shown alongside the forecast, not an input to
-    it — see ImageInferenceResponse's own docstring for why.
+    `forecast` field is simply null in that case. The estimated_* fields ARE
+    fed into this specific forecast (as a one-off override of the usual
+    verified-reports lookup — see _build_trajectory's override_lagged_features
+    and ImageInferenceResponse.forecast_reflects_this_photo), so the risk the
+    farmer sees here can react to their own unverified photo. They still
+    never touch the database or any other municipality's forecast; that only
+    happens once a technologist confirms the resulting report.
     """
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
@@ -105,16 +109,33 @@ async def infer_image(
             bph_grid_count=result.grid_count,
         )
 
-    forecast: TrajectoryResponse | None = None
-    if municipality and growth_stage:
-        forecast = _build_trajectory(municipality, result.label, growth_stage, days=13)
-
+    # Computed BEFORE the forecast call (unlike before the panel's fix) so
+    # this photo's own quantitative estimate can actually feed the
+    # trajectory below, instead of the forecast running first with no way
+    # to see a number that doesn't exist yet.
     estimated_count = estimated_coverage_pct = estimated_damage_pct = None
     if result.label == "BPH":
         estimated_count = resnet_regressors.predict("BPH", "count", destination)
         estimated_coverage_pct = resnet_regressors.predict("BPH", "coverage_pct", destination)
     elif result.label == "RSB":
         estimated_damage_pct = resnet_regressors.predict("RSB", "damage_pct", destination)
+
+    # The slot's unit must match the pest's own ETL/BiLSTM target unit —
+    # hoppers/hill for BPH (estimated_count, not coverage_pct, which is a
+    # different quantity: affected area, not density) and % damage for RSB
+    # (estimated_damage_pct already matches). Age 0 / recency 1.0: as far as
+    # this one-off preview is concerned, this estimate is "observed today."
+    photo_lagged_features: tuple[float, float, float] | None = None
+    if result.label == "BPH" and estimated_count is not None:
+        photo_lagged_features = (estimated_count, 0.0, 1.0)
+    elif result.label == "RSB" and estimated_damage_pct is not None:
+        photo_lagged_features = (estimated_damage_pct, 0.0, 1.0)
+
+    forecast: TrajectoryResponse | None = None
+    if municipality and growth_stage:
+        forecast = _build_trajectory(
+            municipality, result.label, growth_stage, days=13, override_lagged_features=photo_lagged_features
+        )
 
     return ImageInferenceResponse(
         status="ok",
@@ -126,6 +147,7 @@ async def infer_image(
         risk_level=result.risk_level,
         message="Prediction successful",
         forecast=forecast,
+        forecast_reflects_this_photo=photo_lagged_features is not None,
         pests_detected=result.pests_detected,
         pest_scores=result.pest_scores,
         grid_used=result.grid_tiles is not None,
@@ -299,7 +321,13 @@ def infer_forecast_live(
     return _live_forecast(municipality, pest, growth_stage)
 
 
-def _build_trajectory(municipality: str, pest: str, growth_stage: GrowthStage, days: int) -> TrajectoryResponse:
+def _build_trajectory(
+    municipality: str,
+    pest: str,
+    growth_stage: GrowthStage,
+    days: int,
+    override_lagged_features: tuple[float, float, float] | None = None,
+) -> TrajectoryResponse:
     """Shared by GET /forecast/trajectory and POST /image (once a pest is
     detected in a photo, its 14-day trajectory is fetched the same way) so
     both run the exact same pipeline.
@@ -310,6 +338,19 @@ def _build_trajectory(municipality: str, pest: str, growth_stage: GrowthStage, d
     ends on or before today. So the whole trajectory can be built from
     already-observed weather; no forecast-weather API is needed, only the
     same past-days fetch /forecast/live uses, just a longer stretch of it.
+
+    `override_lagged_features` lets POST /image feed THIS photo's own
+    just-computed regression estimate (count/damage_pct — see infer_image)
+    into the lagged-observation slot instead of looking one up by
+    municipality. It never touches the database and it never affects
+    GET /forecast/trajectory (which always passes None and keeps using
+    find_lagged_observation's verified-only lookup) — it exists only so the
+    one-off trajectory shown back to the farmer who just took this photo can
+    react to their own unverified estimate, per the panel's ask that the
+    predicted risk actually depend on the photo's count/coverage, not just
+    weather. The number only becomes a real, system-of-record input (and
+    something every other municipality view can see) once a technologist
+    confirms the report it came from.
     """
     coordinates = municipality_coordinates(municipality)
     if coordinates is None:
@@ -332,8 +373,12 @@ def _build_trajectory(municipality: str, pest: str, growth_stage: GrowthStage, d
     # Looked up once per trajectory (not once per point): the lagged
     # observation is relative to `today`, same reference point regardless of
     # which future day each trajectory point targets — see _run_forecast's
-    # docstring for what this represents.
-    lagged_features = find_lagged_observation(municipality, pest, today, growth_stage_bucket)
+    # docstring for what this represents. An override (this photo's own
+    # fresh, unverified estimate) always wins over the verified-reports
+    # lookup when the caller supplies one.
+    lagged_features = override_lagged_features
+    if lagged_features is None:
+        lagged_features = find_lagged_observation(municipality, pest, today, growth_stage_bucket)
 
     points: list[TrajectoryPoint] = []
     for offset in range(days):

@@ -1,30 +1,46 @@
-"""Re-anchors a pest's forecast on the latest LGU-verified farmer report.
+"""Two different uses of the latest LGU-verified farmer report, built on the
+same report-matching logic — kept in one module because both start from
+"find the relevant verified report(s) for this municipality/pest" before
+diverging:
 
-Replaces the old "bump the Low/Medium/High label" rule. The BiLSTM never
-sees pest counts (it is weather-only), so a report can't be fed into it —
-instead, once a report is verified, every number the model produces for that
-municipality + pest is shifted by a fixed gap for the next ANCHOR_DAYS days:
+1. find_lagged_observation() — the LIVE forecast input. A verified report
+   (now including one a technologist confirmed with a CV-suggested
+   count/coverage/damage % in front of them — see app/routers/reports.py's
+   review endpoint) is fed directly into the BiLSTM as a feature, the same
+   way a weather reading is. This is the panel's requested redesign, and the
+   resolution of the old Chapter 1 inconsistency where "Lagged Verified
+   Pest Observation" was listed as a model input the deployed model never
+   actually used.
 
-    gap = verified report value - what the model predicted for the report day
-    shifted forecast = model forecast + gap x weight   (never below 0)
+2. find_anchor() / weight() / shifted() / anchor_from_report() — retained
+   ONLY for GET /api/reports/{report_id}/gap-analysis, a retrospective,
+   read-only comparison. This is the OLD "bump the Low/Medium/High label"
+   replacement: it re-derives what the forecast would have looked like on
+   and after one specific report's date, by shifting the plain weather-only
+   forecast toward that report's verified value:
 
-The weight fades linearly from 1 on the report day to 0 on day ANCHOR_DAYS, so
-the report day equals the report's number, its influence shrinks a little
-each day, and the forecast glides back to the plain weather-driven curve with
-no jump when the window ends. A newer verified report replaces the older one
-and restarts the fade; with no report inside the window the forecast is pure
-weather, unchanged. Note the fade returns to what the weather says, not
-automatically to "Low". The Low/Medium/High label is then derived
-from the shifted number by the normal ETL thresholds
-(app/decision/etl_thresholds.py) — the label itself is never bumped.
+       gap = verified report value - what the model predicted for the report day
+       shifted forecast = model forecast + gap x weight   (never below 0)
 
-Only reports whose pest_code matches are used, so a BPH report never moves
-the RSB forecast (different units, different model).
+   The weight fades linearly from 1 on the report day to 0 on day
+   ANCHOR_DAYS, so the report day equals the report's number, its influence
+   shrinks a little each day, and the shifted curve glides back to the plain
+   weather-driven one with no jump when the window ends. This shifted curve
+   is NEVER what the live forecast endpoints return — it exists only so a
+   technologist can see, after the fact, how far the weather-only forecast
+   drifted from what was actually verified. The Low/Medium/High label on
+   that shifted curve is derived from the normal ETL thresholds
+   (app/decision/etl_thresholds.py) — the label itself is never bumped
+   directly.
+
+Only reports whose pest_code matches are used in either path, so a BPH
+report never affects the RSB forecast or gap analysis (different units,
+different model).
 
 Most farmers can't give an exact count, so a verified report with no number
-still counts: its severity is turned into a value from the same fixed ETL
-bands used for the label (see severity_value). A technician-confirmed number,
-when there is one, always wins.
+still counts in both paths: its severity is turned into a value from the
+same fixed ETL bands used for the label (see severity_value). A
+technician-confirmed number, when there is one, always wins.
 """
 
 from dataclasses import dataclass
