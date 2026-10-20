@@ -29,6 +29,7 @@ from app.preprocessing.features import (
     calculate_vpd,
     calculate_wsi,
 )
+from ml.bilstm.build_sequences import MAX_OBSERVATION_AGE_DAYS
 from ml.config import GROWTH_STAGE_BUCKETS, PEST_PARAMS
 
 GROWTH_STAGES = ["Seedling", "Tillering", "Elongation", "Panicle", "Flowering", "Ripening"]
@@ -75,11 +76,27 @@ class BiLstmOutbreakForecaster:
     def scalers_for(self, pest: str) -> dict:
         return self._scalers[pest]
 
-    def build_model_inputs(self, pest: str, window: list[DailyObservation]) -> tuple[np.ndarray, np.ndarray]:
+    def build_model_inputs(
+        self, pest: str, window: list[DailyObservation], lagged_features: tuple[float, float, float] | None = None
+    ) -> tuple[np.ndarray, np.ndarray]:
         """The feature-engineering half of predict(): window -> scaled
         (X_sequence, X_static), without running the model. Split out so
         ml/explainability/shap_report.py can build the exact same inputs
-        predict() would, without duplicating this logic."""
+        predict() would, without duplicating this logic.
+
+        `lagged_features` is (last_observed_value, days_since_observation,
+        has_recent_observation) from app/decision/report_anchor.py's
+        find_lagged_observation() — appended to the static vector ONLY if
+        the loaded model was trained with them (checked via the scaler's own
+        recorded static_feature_columns, not a separate flag, so a plain
+        engineered-only model and a lagged one are both served correctly
+        from the same call site without the caller needing to know which is
+        on disk). None defaults to the same "no report on file" encoding
+        ml/bilstm/build_sequences.py's build_lagged_features() uses when it
+        finds nothing recent enough, so a caller with no report context
+        (e.g. POST /forecast's raw-observations endpoint) still gets a
+        valid, honestly-"no observation" input rather than an error.
+        """
         params = PEST_PARAMS[pest]
         if len(window) != params.crf_window_days:
             raise ValueError(
@@ -134,17 +151,28 @@ class BiLstmOutbreakForecaster:
         ]
 
         scalers = self._scalers[pest]
+
+        # Self-describing rather than a separate "is this a lagged model"
+        # flag: the scaler already recorded exactly which static columns it
+        # was fit on (ml/bilstm/train.py's joblib dump), so the number of
+        # columns it expects tells us whether to append the lagged triplet.
+        expects_lagged = len(scalers["static_feature_columns"]) == len(static_row) + 3
+        if expects_lagged:
+            static_row = static_row + list(lagged_features or (0.0, float(MAX_OBSERVATION_AGE_DAYS), 0.0))
+
         X_sequence = np.array([sequence_rows], dtype=np.float32)
         n, w, f = X_sequence.shape
         X_sequence_scaled = scalers["sequence_scaler"].transform(X_sequence.reshape(-1, f)).reshape(n, w, f)
         X_static_scaled = scalers["static_scaler"].transform(np.array([static_row], dtype=np.float32))
         return X_sequence_scaled, X_static_scaled
 
-    def predict(self, pest: str, window: list[DailyObservation]) -> Optional[BiLstmPrediction]:
+    def predict(
+        self, pest: str, window: list[DailyObservation], lagged_features: tuple[float, float, float] | None = None
+    ) -> Optional[BiLstmPrediction]:
         if not self.is_loaded(pest):
             return None
 
-        X_sequence_scaled, X_static_scaled = self.build_model_inputs(pest, window)
+        X_sequence_scaled, X_static_scaled = self.build_model_inputs(pest, window, lagged_features)
 
         prediction = self._models[pest].predict(
             {"sequence_input": X_sequence_scaled, "static_input": X_static_scaled},

@@ -68,12 +68,15 @@ export default function ScanResult() {
   const [loadingForecast, setLoadingForecast] = useState(true);
   const [forecastError, setForecastError] = useState('');
 
-  // The photo classification (what the camera saw) and the weather-based
-  // forecast (what the model expects over the next 14 days) are two
-  // genuinely separate signals — this app doesn't have a model that turns
-  // a photo into a pest count, and the BiLSTM forecast never takes a photo
-  // as input (see the ml/resnet vs ml/bilstm pipelines). Both are shown
-  // honestly side by side rather than merged into one fabricated number.
+  // Three genuinely separate signals, shown separately rather than merged:
+  // what the photo itself shows (identity + the AI's own unverified count/
+  // coverage/damage estimate — real model outputs now, see
+  // app/models/resnet_model.py's ResNet50RegressorBank), and the weather-
+  // based forecast (what the model expects over the next 14 days). The
+  // photo's estimate does NOT feed the forecast below — that only happens
+  // once a technologist confirms a submitted report (see
+  // app/decision/report_anchor.py's find_lagged_observation()) — so an
+  // unverified scan can't be gamed into moving the forecast it's shown next to.
   useEffect(() => {
     if (!inference || inference.status !== 'ok' || !user) return;
     let cancelled = false;
@@ -142,7 +145,7 @@ export default function ScanResult() {
   if (!inference || inference.status !== 'ok') {
     const status = inference?.status;
     const isHealthy = status === 'no_pest_detected';
-    const isOtherPest = status === 'other_pest_detected';
+    const isOtherPest = status === 'unidentified_pest_detected';
     const tone = isHealthy ? 'tone-ok' : isOtherPest ? 'tone-warn' : 'tone-neutral';
     const title = isHealthy
       ? t('scanResultHealthyTitle')
@@ -238,6 +241,35 @@ export default function ScanResult() {
             </p>
           )}
         </section>
+
+        {/* Signal 2: the AI's own quantitative read of this same photo —
+            unverified, shown before the weather-based forecast rather than
+            folded into it (see the effect above's comment on why). */}
+        {(inference.estimated_count != null ||
+          inference.estimated_coverage_pct != null ||
+          inference.estimated_damage_pct != null) && (
+          <section className="scan-result-signal">
+            <span className="scan-result-signal-label">{t('scanResultEstimatedExtent')}</span>
+            <div className="scan-result-confidence">
+              {inference.estimated_count != null && (
+                <span className="scan-result-photo-chip">
+                  {t('scanResultEstimatedCount').replace('{count}', Math.round(inference.estimated_count))}
+                </span>
+              )}
+              {inference.estimated_coverage_pct != null && (
+                <span className="scan-result-photo-chip">
+                  {t('scanResultEstimatedCoverage').replace('{pct}', inference.estimated_coverage_pct.toFixed(1))}
+                </span>
+              )}
+              {inference.estimated_damage_pct != null && (
+                <span className="scan-result-photo-chip">
+                  {t('scanResultEstimatedDamage').replace('{pct}', inference.estimated_damage_pct.toFixed(1))}
+                </span>
+              )}
+            </div>
+            <p className="scan-result-summary">{t('scanResultEstimatedDisclaimer')}</p>
+          </section>
+        )}
 
         <h1>{displayName}</h1>
         <p className="guide-detail-fil">

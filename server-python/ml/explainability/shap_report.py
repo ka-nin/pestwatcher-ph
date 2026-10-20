@@ -49,6 +49,9 @@ def _display_name(column: str) -> str:
         "Rainfall": "Rainfall",
         "vpd_daily": "Vapor Pressure Deficit",
         "diurnal_range_daily": "Diurnal Temperature Range",
+        "last_observed_value": "Latest Verified Observation",
+        "days_since_observation": "Days Since Verified Observation",
+        "has_recent_observation": "Has Recent Verified Observation",
     }
     if column in overrides:
         return overrides[column]
@@ -57,11 +60,21 @@ def _display_name(column: str) -> str:
     return column
 
 
+def _sequences_suffix(pest: str) -> str:
+    """Which {pest}_sequences{suffix}.npz to draw the SHAP background sample
+    from — must match whatever's actually deployed (static_feature_columns
+    length is self-describing, same trick app/models/bilstm_model.py uses),
+    since a background sample with the wrong static width would silently
+    mismatch the loaded model's input shape."""
+    n_static = len(bilstm_forecaster.scalers_for(pest)["static_feature_columns"])
+    return "_lagged" if n_static == len(STATIC_FEATURE_COLUMNS) + 3 else ""
+
+
 def _get_explainer(pest: str) -> shap.GradientExplainer:
     if pest in _explainers:
         return _explainers[pest]
 
-    data = np.load(SEQUENCES_DIR / f"{pest.lower()}_sequences.npz", allow_pickle=True)
+    data = np.load(SEQUENCES_DIR / f"{pest.lower()}_sequences{_sequences_suffix(pest)}.npz", allow_pickle=True)
     X_sequence, X_static = data["X_sequence"], data["X_static"]
 
     rng = np.random.RandomState(0)
@@ -107,7 +120,11 @@ def compute_top_attributions(
             value = float(shap_seq[day_index, feature_index])
             attributions.append({"label": f"{day_label} {_display_name(column)}", "value": value})
 
-    for feature_index, column in enumerate(STATIC_FEATURE_COLUMNS):
+    # The scaler's own recorded column list, not the plain-model constant —
+    # correct whether the deployed model is the plain 9-feature one or the
+    # lagged 12-feature one (see _sequences_suffix's docstring).
+    static_columns = bilstm_forecaster.scalers_for(pest)["static_feature_columns"]
+    for feature_index, column in enumerate(static_columns):
         value = float(shap_static[feature_index])
         attributions.append({"label": _display_name(column), "value": value})
 
@@ -121,7 +138,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     bilstm_forecaster.load(args.pest)
-    data = np.load(SEQUENCES_DIR / f"{args.pest.lower()}_sequences.npz", allow_pickle=True)
+    data = np.load(SEQUENCES_DIR / f"{args.pest.lower()}_sequences{_sequences_suffix(args.pest)}.npz", allow_pickle=True)
     X_sequence, X_static = data["X_sequence"], data["X_static"]
 
     scalers = bilstm_forecaster.scalers_for(args.pest)

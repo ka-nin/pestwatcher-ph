@@ -222,3 +222,49 @@ class ResNet50PestClassifier:
 
 
 resnet_classifier = ResNet50PestClassifier()
+
+
+# (pest, target) -> trained file, from ml/resnet/train_regression.py. Separate
+# from ResNet50PestClassifier because these are regressors (one continuous
+# output) answering a different question — "how many / how much" — not the
+# yes/no presence classifiers above; see that script's module docstring for
+# why each needed its own training run (real counts for BPH, synthetic-only
+# for coverage_pct/damage_pct).
+REGRESSION_TARGETS: dict[tuple[str, str], Path] = {
+    ("BPH", "count"): WEIGHTS_DIR / "bph" / "resnet50_bph_count.keras",
+    ("BPH", "coverage_pct"): WEIGHTS_DIR / "bph" / "resnet50_bph_coverage_pct.keras",
+    ("RSB", "damage_pct"): WEIGHTS_DIR / "rsb" / "resnet50_rsb_damage_pct.keras",
+}
+
+
+class ResNet50RegressorBank:
+    """Loads and runs the photo-derived regressors the panel's redesign
+    asked for: BPH hoppers-per-hill count + hectares-affected coverage %,
+    RSB damage %. Each (pest, target) pair is an independent model, loaded
+    only if its weights file exists — a deployment missing one of these
+    still serves pest detection and the other regressors normally, same
+    partial-availability principle as ResNet50PestClassifier.predict()."""
+
+    def __init__(self) -> None:
+        self._models: dict[tuple[str, str], keras.Model] = {}
+
+    def load(self, pest: str, target: str) -> None:
+        self._models[(pest, target)] = keras.models.load_model(REGRESSION_TARGETS[(pest, target)])
+
+    def is_loaded(self, pest: str, target: str) -> bool:
+        return (pest, target) in self._models
+
+    def predict(self, pest: str, target: str, image_path: Path) -> float | None:
+        if not self.is_loaded(pest, target):
+            return None
+
+        from tensorflow.keras.applications import resnet50
+
+        with Image.open(image_path) as opened:
+            img = opened.convert("RGB").resize(IMAGE_SIZE)
+        batch = np.expand_dims(np.array(img, dtype=np.float32), axis=0)
+        prediction = self._models[(pest, target)].predict(resnet50.preprocess_input(batch), verbose=0)
+        return max(0.0, float(prediction.flatten()[0]))  # count/coverage/% can't be negative
+
+
+resnet_regressors = ResNet50RegressorBank()

@@ -7,7 +7,8 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from app.config import get_settings
 from app.data.municipalities import municipality_coordinates
 from app.decision.etl_thresholds import derive_risk_level
-from app.models.resnet_model import resnet_classifier
+from app.decision.report_anchor import find_lagged_observation
+from app.models.resnet_model import resnet_classifier, resnet_regressors
 from app.routers.weather import fetch_recent_daily_weather
 from app.schemas.inference import (
     ExplanationResponse,
@@ -45,14 +46,18 @@ async def infer_image(
     """Receives an optical field photo from the mobile app, identifies which
     tracked pest (if any) is present via `resnet_classifier` (two independent
     binary models — see app/models/resnet_model.py), then — if a pest was
-    detected AND the caller supplied municipality/growth_stage — immediately
-    runs that pest's 14-day BiLSTM forecast (GET /forecast/trajectory's same
-    underlying logic) so the mobile app gets one photo-in, full-picture-out
-    response instead of orchestrating two separate calls.
+    detected — also runs `resnet_regressors` for that pest's quantitative
+    estimate (count + coverage for BPH, damage % for RSB), and, if the
+    caller supplied municipality/growth_stage, the 14-day BiLSTM forecast
+    (GET /forecast/trajectory's same underlying logic) — so the mobile app
+    gets one photo-in, full-picture-out response instead of orchestrating
+    several separate calls.
 
     `municipality`/`growth_stage` are optional so a caller that only wants
     the raw classification (no forecast) can omit them — the response's
-    `forecast` field is simply null in that case.
+    `forecast` field is simply null in that case. The estimated_* fields are
+    unverified model outputs shown alongside the forecast, not an input to
+    it — see ImageInferenceResponse's own docstring for why.
     """
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
@@ -79,9 +84,9 @@ async def infer_image(
         )
 
     if result.label is None:
-        if result.likely_other_pest:
+        if result.unidentified:
             return ImageInferenceResponse(
-                status="other_pest_detected",
+                status="unidentified_pest_detected",
                 message=(
                     "An insect appears to be present, but it did not match our trained BPH/RSB models. "
                     "It may be a different pest — please consult your local agricultural technologist."
@@ -104,9 +109,19 @@ async def infer_image(
     if municipality and growth_stage:
         forecast = _build_trajectory(municipality, result.label, growth_stage, days=13)
 
+    estimated_count = estimated_coverage_pct = estimated_damage_pct = None
+    if result.label == "BPH":
+        estimated_count = resnet_regressors.predict("BPH", "count", destination)
+        estimated_coverage_pct = resnet_regressors.predict("BPH", "coverage_pct", destination)
+    elif result.label == "RSB":
+        estimated_damage_pct = resnet_regressors.predict("RSB", "damage_pct", destination)
+
     return ImageInferenceResponse(
         status="ok",
         pest_detected=result.label,
+        estimated_count=estimated_count,
+        estimated_coverage_pct=estimated_coverage_pct,
+        estimated_damage_pct=estimated_damage_pct,
         confidence=result.confidence,
         risk_level=result.risk_level,
         message="Prediction successful",
@@ -144,19 +159,31 @@ def _window_for_target(
     ]
 
 
-def _run_forecast(pest: str, window: list[DailyObservation]) -> ForecastInferenceResponse:
+def _run_forecast(
+    pest: str, window: list[DailyObservation], municipality: str | None = None
+) -> ForecastInferenceResponse:
     """Shared by both endpoints below: predict, then apply the (separate,
     non-learned) ETL bucketing — see app/decision/etl_thresholds.py.
 
-    Verified farmer reports are never allowed to change what the system
-    shows as today's prediction — this used to shift predicted_value toward
-    the latest verified report (app/decision/report_anchor.py), but that
-    adjustment has been removed: reports are compared against the plain
-    forecast after the fact instead (see GET /gap-analysis) and folded into
-    the next periodic retrain (ml/bilstm/ingest_reports.py), not used to
-    move today's number.
+    A verified report still never DIRECTLY overwrites predicted_value the
+    way the old report-anchor fade did — there is no post-hoc shift here.
+    What changed (the panel's redesign): the model itself now has a lagged-
+    observation INPUT (app/decision/report_anchor.py's
+    find_lagged_observation(), trained via ml/bilstm/build_sequences.py
+    --features lagged), so a recent verified report legitimately influences
+    the forecast by being part of what the model was asked to reason about —
+    the same way a weather input does — rather than by adjusting its output
+    afterward. `municipality` is optional because POST /forecast (raw
+    observations, no municipality in the payload) has no report context to
+    look up; it gets the model's own "no recent observation" default instead
+    of an error.
     """
-    result = bilstm_forecaster.predict(pest, window)
+    growth_stage_bucket = GROWTH_STAGE_BUCKETS[window[-1].growth_stage]
+    lagged_features = None
+    if municipality is not None:
+        lagged_features = find_lagged_observation(municipality, pest, date.today(), growth_stage_bucket)
+
+    result = bilstm_forecaster.predict(pest, window, lagged_features)
 
     if result is None:
         return ForecastInferenceResponse(
@@ -165,8 +192,6 @@ def _run_forecast(pest: str, window: list[DailyObservation]) -> ForecastInferenc
         )
 
     value = result.predicted_value
-
-    growth_stage_bucket = GROWTH_STAGE_BUCKETS[window[-1].growth_stage]
     risk_level = derive_risk_level(pest, growth_stage_bucket, value)
 
     return ForecastInferenceResponse(
@@ -175,8 +200,8 @@ def _run_forecast(pest: str, window: list[DailyObservation]) -> ForecastInferenc
         unit=result.unit,
         risk_level=risk_level,
         message="Forecast successful",
-        adjusted_by_reports=False,
-        verified_report_count=0,
+        adjusted_by_reports=lagged_features is not None and lagged_features[2] == 1.0,
+        verified_report_count=1 if lagged_features is not None and lagged_features[2] == 1.0 else 0,
     )
 
 
@@ -223,9 +248,9 @@ def _live_forecast(municipality: str, pest: str, growth_stage: GrowthStage) -> F
     """Shared by GET /forecast/live and the superadmin cross-municipality
     overview (app/routers/admin.py) so both run the exact same pipeline.
 
-    Verified farmer reports are never applied here — see _run_forecast's
-    docstring. Only the plain weather window the model needs is fetched;
-    the wider report-anchor lookback this used to require is gone.
+    See _run_forecast's docstring for how a verified report now reaches the
+    model (as a lagged-observation input, looked up here by municipality) —
+    only the weather window itself is fetched below.
     """
     coordinates = municipality_coordinates(municipality)
     if coordinates is None:
@@ -249,7 +274,7 @@ def _live_forecast(municipality: str, pest: str, growth_stage: GrowthStage) -> F
         for day in daily_weather[-window_days:]
     ]
 
-    return _run_forecast(pest, window)
+    return _run_forecast(pest, window, municipality)
 
 
 @router.get("/forecast/live", response_model=ForecastInferenceResponse)
@@ -303,9 +328,12 @@ def _build_trajectory(municipality: str, pest: str, growth_stage: GrowthStage, d
     daily_weather = fetch_recent_daily_weather(latitude, longitude, days=fetch_days)
     weather_by_date = {day["date"]: day for day in daily_weather}
 
-    # Verified reports are no longer applied to the trajectory shown to
-    # users — see _run_forecast's docstring. find_anchor/_report_gap are no
-    # longer called here; the plain model output is always what's returned.
+    growth_stage_bucket = GROWTH_STAGE_BUCKETS[growth_stage]
+    # Looked up once per trajectory (not once per point): the lagged
+    # observation is relative to `today`, same reference point regardless of
+    # which future day each trajectory point targets — see _run_forecast's
+    # docstring for what this represents.
+    lagged_features = find_lagged_observation(municipality, pest, today, growth_stage_bucket)
 
     points: list[TrajectoryPoint] = []
     for offset in range(days):
@@ -314,7 +342,7 @@ def _build_trajectory(municipality: str, pest: str, growth_stage: GrowthStage, d
         if window is None:
             continue  # not enough fetched history for this point — skip rather than fail the whole trajectory
 
-        result = bilstm_forecaster.predict(pest, window)
+        result = bilstm_forecaster.predict(pest, window, lagged_features)
         if result is None:
             return TrajectoryResponse(
                 status="model_not_loaded",
@@ -324,14 +352,13 @@ def _build_trajectory(municipality: str, pest: str, growth_stage: GrowthStage, d
 
         value = result.predicted_value
 
-        growth_stage_bucket = GROWTH_STAGE_BUCKETS[growth_stage]
         points.append(
             TrajectoryPoint(
                 date=target_date.isoformat(),
                 predicted_value=value,
                 unit=result.unit,
                 risk_level=derive_risk_level(pest, growth_stage_bucket, value),
-                adjusted_by_reports=False,
+                adjusted_by_reports=lagged_features[2] == 1.0,
             )
         )
 
@@ -400,7 +427,9 @@ def infer_forecast_explain(
 
     from ml.explainability.shap_report import compute_top_attributions
 
-    X_sequence_scaled, X_static_scaled = bilstm_forecaster.build_model_inputs(pest, window)
+    growth_stage_bucket = GROWTH_STAGE_BUCKETS[growth_stage]
+    lagged_features = find_lagged_observation(municipality, pest, date.today(), growth_stage_bucket)
+    X_sequence_scaled, X_static_scaled = bilstm_forecaster.build_model_inputs(pest, window, lagged_features)
     attributions = compute_top_attributions(pest, X_sequence_scaled, X_static_scaled, top_n=top_n)
 
     return ExplanationResponse(status="ok", features=attributions, message="Explanation successful")

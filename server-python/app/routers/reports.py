@@ -14,7 +14,7 @@ from app.decision.pest_matching import derive_pest_code
 from app.decision.report_anchor import anchor_from_report, shifted, weight
 from app.dependencies import require_lgu
 from app.models.bilstm_model import bilstm_forecaster
-from app.models.resnet_model import resnet_classifier
+from app.models.resnet_model import resnet_classifier, resnet_regressors
 from app.rate_limit import RateLimitExceeded, RateLimiter
 from app.routers.inference import _window_for_target
 from app.routers.weather import fetch_daily_weather_range
@@ -102,6 +102,9 @@ async def submit_report(
     photo_path: str | None = None
     ai_pest_detected: str | None = None
     ai_confidence: float | None = None
+    ai_suggested_count: float | None = None
+    ai_suggested_coverage_pct: float | None = None
+    ai_suggested_damage_pct: float | None = None
 
     if file is not None:
         if file.content_type not in ALLOWED_CONTENT_TYPES:
@@ -128,6 +131,17 @@ async def submit_report(
             ai_pest_detected = prediction.label
             ai_confidence = prediction.confidence
 
+            # Suggestions only — shown to the technologist during review,
+            # never written to estimated_value/area_affected directly. Same
+            # trust gate as the pest-identity call above: a human still
+            # confirms or corrects the actual number (see ReportDB's
+            # ai_suggested_* docstring in app/db_models.py).
+            if ai_pest_detected == "BPH":
+                ai_suggested_count = resnet_regressors.predict("BPH", "count", upload_dir / photo_path)
+                ai_suggested_coverage_pct = resnet_regressors.predict("BPH", "coverage_pct", upload_dir / photo_path)
+            elif ai_pest_detected == "RSB":
+                ai_suggested_damage_pct = resnet_regressors.predict("RSB", "damage_pct", upload_dir / photo_path)
+
     record = ReportRecord(
         id=uuid.uuid4().hex,
         submitted_at=datetime.now(timezone.utc).isoformat(),
@@ -147,6 +161,9 @@ async def submit_report(
         photo_path=photo_path,
         ai_pest_detected=ai_pest_detected,
         ai_confidence=ai_confidence,
+        ai_suggested_count=ai_suggested_count,
+        ai_suggested_coverage_pct=ai_suggested_coverage_pct,
+        ai_suggested_damage_pct=ai_suggested_damage_pct,
     )
 
     reports_store.create_report(record)

@@ -62,21 +62,32 @@ class ImageInferenceResponse(BaseModel):
     """Response contract for the ResNet-50 optical field surveillance endpoint.
 
     `status` tells the caller whether the image classification itself ran
-    ("ok"/"model_not_loaded") or whether neither classifier detected a
-    tracked pest — which splits into two real, expected outcomes rather
-    than one: "no_pest_detected" (the photo reads as plain background) and
-    "other_pest_detected" (something's there, just not BPH or RSB — see
-    app/models/resnet_model.py's OTHER_PEST_THRESHOLD for exactly what that
-    claim is based on and its limits). Neither is an error. When a tracked
-    pest IS detected, the endpoint also runs the matching BiLSTM forecast
-    for the caller's municipality/growth_stage (a photo alone has no time
-    dimension to forecast from — see app/models/resnet_model.py's module
-    docstring) — `forecast` carries that 14-day trajectory, and is null
-    whenever there's no confirmed pest or the caller omitted
-    municipality/growth_stage.
+    ("ok"/"model_not_loaded") or whether neither tracked classifier detected
+    a pest — which splits into two real, expected outcomes rather than one:
+    "no_pest_detected" (the photo reads as plain background, confirmed by
+    the trained UNKNOWN bug-vs-no-bug classifier — see
+    app/models/resnet_model.py's ResnetPrediction.unidentified) and
+    "unidentified_pest_detected" (that same classifier found an insect, just
+    not BPH or RSB). Neither is an error. When a tracked pest IS detected,
+    the endpoint also runs the matching BiLSTM forecast for the caller's
+    municipality/growth_stage (a photo alone has no time dimension to
+    forecast from — see app/models/resnet_model.py's module docstring) —
+    `forecast` carries that 14-day trajectory, and is null whenever there's
+    no confirmed pest or the caller omitted municipality/growth_stage.
+
+    `estimated_count`/`estimated_coverage_pct`/`estimated_damage_pct` are the
+    photo-derived quantitative estimates from app/models/resnet_model.py's
+    ResNet50RegressorBank (the panel-requested redesign) — the same
+    suggestions a technologist sees when reviewing a submitted report
+    (app/routers/reports.py), surfaced here too so the mobile app's
+    immediate scan result can show them. These are UNVERIFIED model outputs,
+    not confirmed field data — they never feed the BiLSTM forecast above
+    (that still only happens after a technologist confirms a report; see
+    app/decision/report_anchor.py's find_lagged_observation()), and the
+    forecast/risk_level in this response is computed independently of them.
     """
 
-    status: Literal["ok", "model_not_loaded", "no_pest_detected", "other_pest_detected"]
+    status: Literal["ok", "model_not_loaded", "no_pest_detected", "unidentified_pest_detected"]
     # The single strongest pest (drives the forecast below).
     pest_detected: Literal["BPH", "RSB"] | None = None
     confidence: float | None = None
@@ -89,11 +100,15 @@ class ImageInferenceResponse(BaseModel):
     pest_scores: dict[str, float] = {}
     # Only set when the BPH grid ran (a photo bigger than one insect close-up,
     # see app/preprocessing/tiling.py): tiles scored, and merged hit groups.
-    # The group count is an approximate density hint — NOT an exact insect
-    # count and NOT hoppers/hill, which comes from verified reports.
+    # A legacy density HINT from before ResNet50RegressorBank existed — kept
+    # for the grid-used UI copy, but estimated_count below is the real,
+    # trained estimate now and should be preferred wherever both are shown.
     grid_used: bool = False
     grid_tiles: int | None = None
     bph_grid_count: int | None = None
+    estimated_count: float | None = None
+    estimated_coverage_pct: float | None = None
+    estimated_damage_pct: float | None = None
 
 
 class ExplanationFeature(BaseModel):
