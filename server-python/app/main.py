@@ -13,7 +13,7 @@ from app.data.reports_store import backfill_pest_codes, migrate_from_json_if_emp
 from app.data.superadmins import seed_if_empty as seed_superadmins
 from app.db import init_db
 from app.models.bilstm_model import bilstm_forecaster, raw_baseline_forecaster
-from app.models.resnet_model import resnet_classifier
+from app.models.resnet_model import REGRESSION_TARGETS, resnet_classifier, resnet_regressors
 from app.routers import admin, auth, inference, locations, reports, sms, weather
 from ml.config import PEST_PARAMS
 
@@ -67,6 +67,15 @@ def load_ml_models() -> None:
         resnet_classifier.load("UNKNOWN")
     except (FileNotFoundError, OSError, ValueError):
         print("[startup] ResNet-50 weights for UNKNOWN not found — /api/inference/image will report plain no_pest_detected instead of unidentified_pest_detected")
+
+    # Photo-derived count/coverage/damage % regressors (the panel's redesign)
+    # — best-effort per target, same reasoning as every loader above: a
+    # missing one just means that one suggestion stays null on new reports.
+    for pest, target in REGRESSION_TARGETS:
+        try:
+            resnet_regressors.load(pest, target)
+        except (FileNotFoundError, OSError, ValueError):
+            print(f"[startup] {pest} {target} regressor not found — reports won't get an ai_suggested_{target} value")
 
 
 app.add_middleware(

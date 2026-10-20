@@ -20,3 +20,8 @@ ml/resnet/unidentified/
 ml/resnet/unknown_negatives/
 ml/resnet/datasets/
 ml/weights/*/resnet50_*.keras
+
+# Generated synthetic images (ml/synthetic/generate_coverage_dataset.py) —
+# reproducible from the already-tracked script + the real crops/backgrounds
+# above, same reasoning as ml/resnet/datasets/.
+ml/synthetic/datasets/

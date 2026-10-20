@@ -95,6 +95,15 @@ class ReportDB(Base):
     photo_path: Mapped[str | None] = mapped_column(String, nullable=True)
     ai_pest_detected: Mapped[str | None] = mapped_column(String, nullable=True)
     ai_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # CV-suggested values from the photo (app/models/resnet_model.py's count/
+    # coverage/damage regressors), shown to the technologist as a starting
+    # point during review — NOT auto-applied to estimated_value/area_affected,
+    # same trust-gate principle as ai_pest_detected above: a suggestion, not
+    # a substitute for human confirmation. Only the fields relevant to the
+    # detected pest get set (BPH: count + coverage_pct; RSB: damage_pct).
+    ai_suggested_count: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ai_suggested_coverage_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ai_suggested_damage_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Soft delete (audit trail): a deleted report keeps its row, but is hidden
     # from the forecast, the farmers' feed and the normal review tabs — see
     # app/data/reports_store.py. Added after the table first existed, so

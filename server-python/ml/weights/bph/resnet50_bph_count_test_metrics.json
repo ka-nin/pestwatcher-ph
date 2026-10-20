@@ -1,0 +1,9 @@
+{
+  "rmse": 7.513421535491943,
+  "mae": 2.176790952682495,
+  "r2": 0.5967299750143817,
+  "mean_actual_label": 5.215384483337402,
+  "n_test_images": 65,
+  "trained_with_synthetic": true,
+  "test_set_is_synthetic": false
+}
