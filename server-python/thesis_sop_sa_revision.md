@@ -57,18 +57,21 @@ Only the bullets below change; everything else in the section (the five-layer fr
 
 # Response to the 2026-10-consultation panel feedback (new section, added 2026-10-21)
 
+> **Read this first: the BiLSTM's historical dataset is synthetic.** Confirmed 2026-10-21: `ml/datasets/raw/{weather,pest}_raw.csv` (and so `weather_pest_daily_clean.csv`, all 10,960 rows) come from a synthetic generator, and the weather is synthetic too, not only the pest values. Compared with the real Open-Meteo archive for Arayat over March–April 2023, the CSV's Tmax correlates at −0.23 and its rainfall at 0.05 with what actually happened. Every BiLSTM number in this document (test metrics, the 5-fold comparisons, `seq_only`, the framework comparison, SHAP, the scatter plots) therefore describes **the generator's structure, not real rice-pest behaviour**. See "The synthetic dataset" below before quoting any of them.
+
 Everything above this line predates the panel's consultation and should be read as already in progress when these comments were raised. This section answers the comments directly, point by point, against what the system actually does today — not what it's planned to do.
 
 ## "Baka may algo na kaya nya na isahang compute lang, baseline din" — the panel is right, and it's been tested
 
-This is the panel questioning whether the baseline BiLSTM could already do what the hand-computed features (GDD/CRF/HP/WSI/trends) do, making the "framework" nothing more than extra arithmetic bolted onto an unchanged model. A controlled test now exists for exactly this: `ml/bilstm/compare_seq_only.py`, which trains the BiLSTM on raw daily climate **plus growth stage** (so phenology — SHAP's single strongest predictor, ~45% of attribution — isn't lost along with the engineered math, which would have confounded the two) against the fully engineered model.
+This is the panel questioning whether the baseline BiLSTM could already do what the hand-computed features (GDD/CRF/HP/WSI/trends) do, making the "framework" nothing more than extra arithmetic bolted onto an unchanged model. A controlled test now exists for exactly this: `ml/bilstm/compare_seq_only.py`, which trains the BiLSTM on raw daily climate **plus growth stage** (so phenology — SHAP's single strongest predictor, 42–50% of attribution — isn't lost along with the engineered math, which would have confounded the two) against the fully engineered model.
 
 **Result: no statistically significant difference on any of 7 metrics, for either pest** (`ml/weights/{bph,rsb}/bilstm_{pest}_seq_only_comparison.json`). RSB's seq_only configuration actually scores numerically better on 4 of 7 metrics. This directly confirms the panel's suspicion for the climate math specifically: the BiLSTM does not need the hand-computed aggregates to reach the same forecasting performance, once it has the same raw information.
 
 **This changes what the study's contribution should be claimed as.** Do not defend the engineered formulas as what improves forecasting — the data says they don't, measurably. The defensible claim is narrower and still real:
 1. The engineered features are **interpretable, named, biologically-grounded quantities** (GDD, VPD, WSI are established agrometeorological constructs) that a reader or field agronomist can audit, unlike an opaque internal LSTM representation — an explainability argument, not an accuracy argument.
-2. The actual computational contribution is the **multimodal integration**: BiLSTM forecasting + ResNet-50 identification + the new ResNet-50 regression heads + the verified-observation feedback loop, assembled into one system that the prior BiLSTM-only study did not have — not the formulas inside any one component.
-3. Growth stage, not the engineered climate math, is empirically the dominant driver (SHAP: 41.5%/49.0% of attribution vs. 22.3%/13.1% for all engineered climate indices combined, BPH/RSB respectively) — this is the real finding Q4 should lead with.
+2. The framework as a whole **does** significantly beat the panel's baseline on forecasting error (see the framework comparison section below), and the evidence attributes that gain to **giving the model crop phenology**, not to the formulas and not (yet) to the verified observation. That's the accurate claim for what the framework adds over the previous BiLSTM-only study.
+3. Growth stage, not the engineered climate math, is empirically the dominant driver. SHAP on the deployed model attributes 42.2% (BPH) and 49.5% (RSB) of the model's output to growth stage, against 9.7% and 16.3% for all engineered climate indices combined, and 6.4% and 2.7% for the verified observation. This is the real finding Q4 should lead with.
+4. The system's other real addition is **structural**: it turns a photo into a quantitative, technologist-verified observation that the forecaster can consume. That pipeline exists and runs. Its measured forecasting benefit is not significant yet, for the reason given in the framework comparison section, so present it as a capability built and evaluated, not as an accuracy gain.
 
 ## "Hindi general problem ang pag-identify ng pests... dapat ma-identify, gaano kalawak, at ung risk/damage" — partially already built
 
@@ -86,22 +89,128 @@ Weather is sourced from Open-Meteo (`app/routers/weather.py`), which aggregates 
 
 ## "Computational efficiency — time, memory" — was missing, now measured
 
-No benchmark of this kind existed anywhere in the repository before this section was written. `ml/bilstm/benchmark_efficiency.py` now measures training wall-clock time, per-request inference latency, and peak memory footprint for the baseline (raw), the deployed (engineered), and the seq_only configurations, per pest, each run in its own process so the memory figure isn't carried over between configurations. Single run per configuration (not the 5-fold CV the significance tests use — efficiency doesn't need paired folds the way a significance test does), same architecture, same 60-epoch cap with early stopping, same hardware, one after another.
+No benchmark of this kind existed in the repository before this section was written. `ml/bilstm/benchmark_efficiency.py` trains each configuration once, in its own process, and measures training wall-clock time, single-request inference latency, and peak memory footprint (`/usr/bin/time -l`). It was run twice on the same machine. Numbers below are from the second run (2026-10-21), which added the deployed lagged model.
 
-| Pest | Config | Train time | Epochs | Inference (mean / p95) | Peak memory | R² |
+| Pest | Config | Train time | Epochs | Inference | Peak memory | R² |
 |---|---|---|---|---|---|---|
-| BPH | raw (baseline) | 42.1 s | 28 | 32.3 / 34.8 ms | 405.8 MB | 0.178 |
-| BPH | engineered (deployed) | 34.1 s | 21 | 37.9 / 46.5 ms | 426.4 MB | 0.312 |
-| BPH | seq_only | 31.1 s | 20 | 32.5 ms | 417.1 MB | 0.341 |
-| RSB | raw (baseline) | 31.0 s | 20 | 32.6 ms | 405.4 MB | 0.009 |
-| RSB | engineered (deployed) | 38.9 s | 25 | 35.4 ms | 427.5 MB | 0.178 |
-| RSB | seq_only | 32.7 s | 21 | 45.2 ms | 416.7 MB | 0.196 |
+| BPH | raw (baseline) | 25.0 s | 31 | 17.7 ms | 407.3 MB | 0.180 |
+| BPH | engineered | 32.2 s | 38 | 20.2 ms | 424.5 MB | 0.311 |
+| BPH | **lagged (deployed)** | 21.9 s | 25 | 17.8 ms | 428.0 MB | 0.358 |
+| BPH | seq_only | 14.3 s | 17 | 22.4 ms | 416.6 MB | 0.369 |
+| RSB | raw (baseline) | 20.8 s | 21 | 18.0 ms | 405.1 MB | 0.001 |
+| RSB | engineered | 21.0 s | 25 | 18.0 ms | 425.5 MB | 0.188 |
+| RSB | **lagged (deployed)** | 17.3 s | 21 | 17.5 ms | 426.2 MB | 0.183 |
+| RSB | seq_only | 21.5 s | 27 | 20.0 ms | 417.1 MB | 0.192 |
 
-**Reading this honestly, including the parts that don't flatter the engineered configuration:**
+**Reading this honestly:**
 
-- **Memory cost of the engineered features is small and real**: ~20 MB more than raw for both pests (≈5%), from the 9 extra static features and their Dense(8) branch. Not expensive, but not free either — don't claim "no computational cost."
-- **Training time does not favor engineered in a straight line.** BPH: engineered trains faster than raw (34.1s vs 42.1s) because early stopping triggered sooner — fewer epochs, not a faster epoch. RSB: engineered is the *slowest* of the three (38.9s). Epoch count is driven by when validation loss stops improving, which varies run to run on a model this size; this one comparison is not a stable efficiency ranking across repeated runs, and should be described as such rather than as "engineered is faster."
-- **Inference latency is in the same ballpark for all three** (32–46ms per request, one window at a time, no batching) — the static branch's few extra parameters don't move single-request latency in any direction a user would notice. This is the cleanest efficiency claim available: engineered features cost essentially nothing in serving latency.
-- **seq_only is the most memory- and parameter-efficient of the three on BPH, and ties for cheapest on RSB, while matching or beating engineered on R² for both pests** — consistent with the significance-test result above. If efficiency is weighed alongside accuracy, seq_only is arguably the strongest configuration of the three, not the engineered one. This should be said plainly if asked, not avoided.
+- **Memory is the one stable, reportable cost.** Across both runs, every configuration landed within about 2 MB of its earlier figure. The proposed framework costs about **20 MB (≈5%) more than the baseline**, from its static-feature branch. That's small, real, and the number to quote.
+- **Training time and inference latency are not stable enough to rank configurations.** Between the two runs, BPH engineered went from 21 to 38 epochs, and inference latency for every configuration roughly halved (about 32–45 ms down to 17–22 ms) because the machine was less loaded. Epoch count is set by when early stopping triggers, which varies run to run. Any time differences in this table are within that noise. Don't say any configuration "trains faster."
+- **Serving cost is the same for all of them.** About 20 ms per single forecast request on this laptop, regardless of configuration. The framework adds no meaningful latency.
+- **Answer to the panel:** the proposed framework's added computation is negligible (≈5% memory, no measurable latency), so efficiency isn't an argument against it. It isn't an argument for it either. Its case rests on the accuracy result in the comparison section below.
 
-**What this does NOT establish**: a single run per configuration has run-to-run noise (weight initialization, early-stopping timing) that these numbers don't quantify — this is a defensible first measurement answering "did you check," not a rigorously replicated efficiency study. If more rigor is wanted before the defense, each configuration should be repeated several times and reported as mean ± std; that was out of scope for closing the panel's immediate gap.
+A rigorous efficiency study would repeat each configuration several times and report mean ± standard deviation. The two runs here are enough to show which figures are stable (memory) and which aren't (time).
+
+## "Bakit ResNet-50? Malakas sya pero may mas malakas" — justify it, and say where it could be replaced
+
+Nothing in the repository justified the choice before this. What the code actually does (`ml/resnet/train.py`, `ml/resnet/train_regression.py`): an ImageNet-pretrained ResNet-50 backbone at 224×224, frozen while a small dense head trains, then partially unfrozen for fine-tuning at a 1e-5 learning rate. The same backbone serves the pest classifiers, the unknown-insect detector, and the count/coverage/damage regressors. Training sets are small: roughly 5,200 images for BPH and 6,500 for RSB.
+
+**The defensible reasons:**
+- **Transfer learning on a small dataset.** A few thousand images can't train a deep network from scratch. Starting from ImageNet weights is what makes this workable, and ResNet-50 is among the most widely used, best-documented backbones for exactly this kind of fine-tuning.
+- **One backbone, every visual task.** Classification and regression share the architecture and preprocessing, so the system has one image pipeline to maintain and explain instead of several.
+- **The classification task is already saturated.** BPH 99.0%, RSB 99.5%, unknown-insect 98.7% held-out accuracy. A stronger backbone has almost nothing left to improve on that task.
+
+**Where the panel is right:** ResNet-50 isn't the strongest or most efficient option available. Newer families such as EfficientNet reach higher ImageNet accuracy with far fewer parameters (EfficientNet-B0 has about 5.3M against ResNet-50's 25.6M), which also matters for serving cost. Claiming ResNet-50 was chosen because it's the best would not survive a question.
+
+**Where it could actually matter, and how to test it:** the only task with room left is regression, and only `count` has real ground truth (65 real test images, R² 0.60). Swapping the backbone in `train_regression.py` is a one-line change (`keras.applications.EfficientNetB0` with its matching `preprocess_input`), so a direct comparison on the count target is cheap: same split, same head, same epochs. That needs the image dataset, which lives on Roi's machine and isn't in the repository. Until that comparison is run, the honest statement is: "ResNet-50 was chosen as a well-established transfer-learning backbone; classification is already near ceiling; comparing alternative backbones on the regression targets is identified but not yet done."
+
+## The comparison the panel actually asked for: baseline BiLSTM vs. the proposed framework (added 2026-10-21)
+
+The panel's revised direction (item 4) defines the comparison as a baseline BiLSTM without the feature-engineering framework or image-derived input, against the proposed framework with them. None of the earlier scripts measured that: `compare_features.py` and `compare_seq_only.py` both leave out the image-derived input on both sides. `ml/bilstm/compare_framework.py` trains all three configurations on the same 5 expanding-window folds:
+
+- **raw**: the panel's baseline. Tmax/Tmin/RH/rainfall only.
+- **engineered**: + biologically-informed features and growth stage.
+- **lagged**: + the latest technologist-verified observation and its age. This is the deployed model.
+
+**Mean over 5 folds:**
+
+| Pest | Config | RMSE | MAE | R² | Macro F1 |
+|---|---|---|---|---|---|
+| BPH | raw (baseline) | 8.31 | 4.24 | −0.050 | 0.329 |
+| BPH | engineered | 7.65 | 3.73 | 0.100 | 0.332 |
+| BPH | **lagged (framework)** | 7.71 | 3.73 | 0.084 | 0.357 |
+| RSB | raw (baseline) | 1.390 | 0.917 | −0.045 | 0.320 |
+| RSB | engineered | 1.235 | 0.747 | 0.170 | 0.360 |
+| RSB | **lagged (framework)** | 1.224 | 0.740 | 0.181 | 0.359 |
+
+**Significance, framework vs. baseline (lagged vs raw):**
+
+| Metric | BPH p | RSB p |
+|---|---|---|
+| RMSE | 0.056 | **0.025** ✓ |
+| MAE | **0.048** ✓ | **0.0001** ✓ |
+| R² | **0.048** ✓ | **0.014** ✓ |
+| Accuracy / Precision / Recall / F1 | n.s. | n.s. |
+
+**Significance, what the verified observation adds on its own (lagged vs engineered):** nothing significant on any metric for either pest (every p > 0.5).
+
+**What this lets you say, and what it doesn't:**
+
+1. **The framework does beat the panel's baseline on forecasting error.** That's significant on MAE and R² for both pests, and on RMSE for RSB. The baseline's mean R² is negative for both pests, meaning it does worse than predicting the average, while the framework's is positive. This is the direct answer to "did the additional components improve forecasting performance compared with the baseline": yes, on the continuous forecast.
+2. **Almost all of that gain comes from growth stage plus climate, not from the image-derived observation.** Adding the verified observation on top of the engineered set is statistically indistinguishable from not adding it. Combined with the `seq_only` result (the engineered formulas add nothing once growth stage is present), the improvement over baseline is best attributed to **giving the model crop phenology**, which the baseline lacks.
+3. **No configuration significantly improves risk-level classification.** Precision, recall and F1 are not significant in any comparison. The improvement lives in the continuous forecast and doesn't survive the ETL bucketing.
+4. **Why the verified observation shows nothing yet:** in training it comes from the historical series thinned to a simulated ~14-day reporting cadence (`build_sequences.py`), and an observation that is often a week or two stale carries little beyond what growth stage already tells the model. Its value depends on how often real verified reports arrive, which the live system hasn't yet built up. State this as untested rather than as a failure.
+
+**A limit of the method itself:** with 5 folds, the Wilcoxon signed-rank fallback can never reach p < 0.05. Its smallest possible two-sided p-value with 5 pairs is 0.0625. Every metric that failed Shapiro-Wilk and fell back to Wilcoxon (BPH's classification metrics here, shown as p = 0.5) was therefore untestable at α = 0.05, not "tested and not significant." If a panelist asks, that is the correct answer. The fix is more folds (10 gives Wilcoxon a minimum p of about 0.002), at roughly double the run time.
+
+## What the scatter plots show (`ml/analysis/figures/`, added 2026-10-21)
+
+The panel asked for scatter plots of weather against pest indicators. `ml/analysis/scatter_plots.py` plots each 14-day weather summary against the pest value 14 days later (the lag the model forecasts at), coloured by growth stage, for all 10,825 windows.
+
+- **Weather alone is a weak predictor.** Spearman ρ between any single 14-day weather summary and the pest level 14 days later is at most 0.11 for BPH and 0.03 for RSB (`correlations.csv`). That is consistent with the raw baseline's negative R².
+- **Growth stage separates pest levels strongly.** BPH 14 days ahead has a median of 4 hoppers/hill when the window ends in Tillering and 0 in Ripening. 67% of Ripening days and 72% of Seedling days have zero BPH. RSB damage is highest from Tillering, Panicle and Flowering windows and near zero at Elongation and Ripening.
+- **Read the growth-stage dominance with care.** Seedling and Ripening together account for 59% of all days in the dataset, and both are mostly zero-pest. Part of what the model learns from growth stage may simply be "in-season vs. off-season." That's a legitimate signal, but it isn't the same claim as "phenology drives pest biology," so don't overstate it.
+- **Answered:** the dataset is synthetic (see below), so BPH being lowest at Ripening reflects the generator's rules, not field biology. Don't defend it as an entomological finding.
+
+
+## The synthetic dataset: what it means and what to do (added 2026-10-21)
+
+The panel said directly, "were talking the real data dito... sa testing, papaaexperience ko un sa inyo." This is the study's largest exposure, larger than anything else in this document, and it has to be disclosed rather than discovered.
+
+**What is real and what isn't:**
+
+| Part | Real? |
+|---|---|
+| BiLSTM training/test data (weather + pest, 2019–2024) | **No, synthetic.** The generator script is not in the repository. |
+| Weather the live system forecasts from | Yes. Real Open-Meteo data at inference time. |
+| ResNet-50 classification images | Real photographs (crops). |
+| ResNet-50 count regression | Real annotations; 65 real test images. |
+| ResNet-50 coverage/damage regression | **No, synthetic composites** (see above). |
+| Verified farmer reports | Yes. 19 verified, 15 usable for comparison. |
+
+**What this does to the findings:**
+- **Growth stage "dominating" SHAP may simply be the generator's rule being recovered.** If the generator made pest levels depend mostly on growth stage, SHAP is finding exactly what was put in. That's a valid check that SHAP works, but it says nothing about real pests.
+- **The framework-vs-baseline result is a result about synthetic data.** The method (5-fold CV, paired tests) is sound. The conclusion only extends to real fields if the generator is realistic, and nothing in the repository shows that it is.
+- **A model trained on synthetic weather is run on real weather.** If the generator's weather–pest relationships differ from reality, the live forecasts inherit that mismatch.
+
+**The one real-world test, and its result.** The gap analysis now compares the deployed model with the real verified farmer reports (next section). Across the 15 usable reports, the forecast without a report gave the same risk level as the technologist in **3 of 15 (20%)**. In most of the rest the model said Medium or Low while the field was High. `ml/validity_test.py`'s field check reads INCONCLUSIVE only because it requires at least 10 reports per pest (BPH has 9, RSB 6). That check had never produced a result before 2026-10-21 because the script never loaded the model; it is fixed now.
+
+**What to do:**
+1. **Find the generator and put it in the repository**, with its rules written down: how growth stage, weather and pest values were produced. Without it, nobody can say what the synthetic data does or doesn't represent.
+2. **Disclose it in Chapter 3 and Chapter 5**, plainly: the forecaster was developed and evaluated on synthetic data, and validated against real field reports only on a small set (15), where agreement was low.
+3. **Reframe the BiLSTM results** as evidence that the *pipeline and evaluation method* work end to end, not as evidence about pest biology. The framework-vs-baseline comparison then shows the framework can use phenology information when it exists, which is still a legitimate methods result.
+4. **If time allows, get real historical pest data.** Possible sources: regional crop protection centers (DA-RCPC), PhilRice, and BPI pest surveillance or light-trap records. Real historical weather for the same municipalities and dates can be pulled from the Open-Meteo archive (or PAGASA) immediately. Even one season of real pest data would let the model be checked against reality.
+5. **Keep collecting verified reports.** With 10+ per pest, `validity_test.py` produces a real pass/fail. That is the cheapest real-world evidence available.
+
+## Gap analysis now shows what the live system actually does (changed 2026-10-21)
+
+Until 2026-10-21 the gap analysis drew its "report-based" line with the old fading shift (forecast + gap × weight), a mechanism the live forecast stopped using on 2026-10-20. Because that shift forced the line through the verified value on the report's date, it made every report look as if it corrected the forecast.
+
+It now shows three things, all from the deployed model:
+- **Forecast without this report.** Unchanged. This is the baseline `validity_test.py` compares with the field.
+- **Forecast with this report as input.** The report is fed in as the model's verified-observation input, exactly as the live forecast does once a report is verified.
+- **Verified value.** What the technologist confirmed, drawn as a separate marker, never presented as a model output.
+
+**What it revealed, on the 15 real reports:** feeding the report in changed the forecast's risk level on **zero of 14 days in 11 of 15 cases**, and on at most 3 days in the rest. For example, a verified 40 hoppers/hill (High) against a no-report forecast of 15.4 moved the forecast only to 19.1, still Medium. In the deployed model the verified-observation input is close to inert, which matches its small SHAP share (BPH 6.4%, RSB 2.7%) and the framework comparison's "adds nothing significant." The likely cause is that during training the observation came from a simulated reporting cadence on synthetic data, so the model learned to lean on it very little.
+
+For the defense, this is the honest and complete answer to "does a verified report actually change the forecast?" The system is built so that it can, the input is wired and running, and with the current training it barely does. Retraining once real verified reports accumulate is the stated next step.

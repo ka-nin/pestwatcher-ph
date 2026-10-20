@@ -179,12 +179,11 @@ export async function fetchPestForecastTrajectory(
 }
 
 // ---- Gap Analysis: per-report "Analyze Gap" button on the Farmer Reports
-// tab. For one verified report, shows the 14-day forecast starting on the
-// report's own date two ways — plain weather-only (historical) and what the
-// forecast would look like if this report were allowed to anchor it
-// (report-based) — plus a plain-language implication. Read-only: neither
-// trajectory here is what a farmer/technician sees as a live prediction —
-// see server-python/app/routers/inference.py's _run_forecast docstring.
+// tab. For one verified report, the deployed model's 14-day forecast
+// starting on the report's own date, without any report as input
+// (historical) and with this report as its verified-observation input
+// (report-based, which is what the live forecast does), next to the value
+// the technologist verified. See server-python/app/routers/reports.py.
 
 export interface GapAnalysisDay {
   date: string
@@ -192,7 +191,6 @@ export interface GapAnalysisDay {
   historical_risk_level: RiskLevel | null
   report_based_value: number | null
   report_based_risk_level: RiskLevel | null
-  report_weight: number
 }
 
 export interface GapAnalysisResponse {
@@ -202,6 +200,9 @@ export interface GapAnalysisResponse {
   pest: PestKey
   unit: 'hoppers_per_hill' | 'pct_damage' | null
   days: GapAnalysisDay[]
+  verified_value?: number | null
+  verified_risk_level?: RiskLevel | null
+  report_is_model_input?: boolean
   implication: string
   message: string
 }

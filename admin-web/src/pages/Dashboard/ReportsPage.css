@@ -324,6 +324,28 @@
   border-top-color: #2f6b32;
 }
 
+.gap-modal-legend-swatch-verified {
+  width: 9px;
+  height: 9px;
+  border: none;
+  background: #c2671c;
+  transform: rotate(45deg);
+}
+
+.gap-modal-verified {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #444;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gap-modal-verified strong {
+  font-variant-numeric: tabular-nums;
+  color: #111;
+}
+
 .gap-modal-implication {
   margin-top: 14px;
   padding: 12px 14px;
@@ -371,10 +393,6 @@
   width: 14%;
 }
 
-.gap-modal-table col.gap-modal-col-weight {
-  width: 13%;
-}
-
 .gap-modal-table th {
   position: sticky;
   top: 0;
@@ -409,11 +427,6 @@
 .gap-modal-table-badge {
   font-size: 9.5px;
   padding: 1px 7px;
-}
-
-.gap-modal-table-weight {
-  color: #999;
-  font-variant-numeric: tabular-nums;
 }
 
 .gap-modal-table-gap {

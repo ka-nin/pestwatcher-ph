@@ -11,7 +11,7 @@ from app.data.municipalities import municipality_coordinates
 from app.decision.etl_thresholds import derive_risk_level
 from app.decision.gap_implication import describe_gap
 from app.decision.pest_matching import derive_pest_code
-from app.decision.report_anchor import anchor_from_report, shifted, weight
+from app.decision.report_anchor import anchor_from_report
 from app.dependencies import require_lgu
 from app.models.bilstm_model import bilstm_forecaster
 from app.models.resnet_model import resnet_classifier, resnet_regressors
@@ -203,16 +203,23 @@ def update_report_status(
 @router.get("/{report_id}/gap-analysis", response_model=GapAnalysisResponse)
 def get_report_gap_analysis(report_id: str) -> GapAnalysisResponse:
     """Per-report 'Analyze Gap' button on admin-web's Farmer Reports tab:
-    for ONE verified report, shows the 14-day forecast starting on the
-    report's own date two ways — the plain weather-only model (historical)
-    and what the forecast would look like if this report were allowed to
-    anchor it (report-based, via app/decision/report_anchor.py's fading
-    shift) — plus a plain-language implication (app/decision/gap_implication.py).
+    for ONE verified report, the 14-day forecast starting on the report's
+    own date, from the deployed model, two ways — without any verified
+    report as input (historical) and with THIS report as its verified-
+    observation input (report-based) — alongside the field value the
+    technologist confirmed, plus a plain-language implication
+    (app/decision/gap_implication.py).
 
-    Read-only, same as every other gap-analysis path: neither trajectory
-    here is what a farmer or technician sees as a live prediction (see
-    app/routers/inference.py's _run_forecast docstring for why verified
-    reports no longer shift that).
+    "Report-based" mirrors exactly what the live forecast does once a report
+    is verified (app/routers/inference.py's _run_forecast / _build_trajectory:
+    the observation is looked up once and fed to every point as an input).
+    It replaced a post-hoc fading shift on 2026-10-21, after that shift had
+    already been removed from the live forecast — the gap analysis was
+    otherwise showing a mechanism the system no longer uses.
+
+    The historical line is unchanged by that switch, which keeps
+    ml/validity_test.py's field-validity check (historical day 0 vs. the
+    verified value) meaning what it did. Read-only.
     """
     report = reports_store.get_report(report_id)
     if report is None or report.deleted_at is not None:
@@ -251,15 +258,8 @@ def get_report_gap_analysis(report_id: str) -> GapAnalysisResponse:
     window_days = PEST_PARAMS[pest_code].crf_window_days
     report_date = anchor.anchor_date
 
-    # A full 14-day trajectory, starting on the report's own date — this is
-    # a DISPLAY length, deliberately independent of ANCHOR_DAYS (13), which
-    # is the separate fade-window constant report_anchor.py's weight() uses
-    # internally. The two happen to be close, but conflating them previously
-    # cut this endpoint's trajectory one day short (13 days shown, not 14) —
-    # weight() naturally reaches 0% once a displayed day falls outside its
-    # own fade window, so DISPLAY_DAYS running one day longer than
-    # ANCHOR_DAYS is expected, not a bug: it just means the report-based
-    # line has already fully settled back to the historical one by then.
+    # A full 14-day trajectory, starting on the report's own date, the same
+    # length the live forecast chart shows.
     DISPLAY_DAYS = 14
 
     # The window for the LAST day we'll show (report_date + DISPLAY_DAYS - 1)
@@ -270,24 +270,13 @@ def get_report_gap_analysis(report_id: str) -> GapAnalysisResponse:
     daily_weather = fetch_daily_weather_range(latitude, longitude, fetch_start, fetch_end)
     weather_by_date = {day["date"]: day for day in daily_weather}
 
-    # The "gap" (app/decision/report_anchor.py) is defined relative to the
-    # model's OWN baseline for the report's day specifically — not
-    # recomputed per day, which would be a different quantity. If that
-    # baseline can't be computed (missing weather history that far back),
-    # no day in this trajectory can be report-anchored either.
-    baseline_window = _window_for_target(pest_code, report_date, growth_stage, weather_by_date)
-    baseline_result = bilstm_forecaster.predict(pest_code, baseline_window) if baseline_window is not None else None
-    if baseline_window is not None and baseline_result is None:
-        return GapAnalysisResponse(
-            status="model_not_loaded",
-            report_id=report_id,
-            municipality=report.municipality,
-            pest=pest_code,
-            days=[],
-            implication="",
-            message=f"BiLSTM model for {pest_code} not loaded yet.",
-        )
-    gap = anchor.verified_value - baseline_result.predicted_value if baseline_result is not None else None
+    # The report enters the model the same way the live forecast feeds it:
+    # (value, days since the report, has-report). Every displayed day uses
+    # age 0 — the forecast as it would look right after this report was
+    # verified — matching _build_trajectory, which looks the observation up
+    # once and reuses it for every point rather than re-aging it per day.
+    report_input = (float(anchor.verified_value), 0.0, 1.0)
+    report_is_model_input = bilstm_forecaster.accepts_observation(pest_code)
 
     days: list[GapAnalysisDay] = []
     unit: str | None = None
@@ -295,7 +284,6 @@ def get_report_gap_analysis(report_id: str) -> GapAnalysisResponse:
     for offset in range(DISPLAY_DAYS):
         target_date = report_date + timedelta(days=offset)
         window = _window_for_target(pest_code, target_date, growth_stage, weather_by_date)
-        day_weight = weight(anchor, target_date)
 
         historical_value: float | None = None
         historical_risk_level = None
@@ -303,15 +291,23 @@ def get_report_gap_analysis(report_id: str) -> GapAnalysisResponse:
         report_based_risk_level = None
 
         if window is not None:
-            result = bilstm_forecaster.predict(pest_code, window)
-            if result is not None:
-                unit = result.unit
-                historical_value = result.predicted_value
-                historical_risk_level = derive_risk_level(pest_code, growth_stage_bucket, historical_value)
-
-                if gap is not None:
-                    report_based_value = shifted(historical_value, gap, day_weight)
-                    report_based_risk_level = derive_risk_level(pest_code, growth_stage_bucket, report_based_value)
+            historical = bilstm_forecaster.predict(pest_code, window)
+            if historical is None:
+                return GapAnalysisResponse(
+                    status="model_not_loaded",
+                    report_id=report_id,
+                    municipality=report.municipality,
+                    pest=pest_code,
+                    days=[],
+                    implication="",
+                    message=f"BiLSTM model for {pest_code} not loaded yet.",
+                )
+            with_report = bilstm_forecaster.predict(pest_code, window, report_input)
+            unit = historical.unit
+            historical_value = historical.predicted_value
+            historical_risk_level = derive_risk_level(pest_code, growth_stage_bucket, historical_value)
+            report_based_value = with_report.predicted_value
+            report_based_risk_level = derive_risk_level(pest_code, growth_stage_bucket, report_based_value)
 
         days.append(
             GapAnalysisDay(
@@ -320,11 +316,11 @@ def get_report_gap_analysis(report_id: str) -> GapAnalysisResponse:
                 historical_risk_level=historical_risk_level,
                 report_based_value=report_based_value,
                 report_based_risk_level=report_based_risk_level,
-                report_weight=day_weight,
             )
         )
 
-    implication = describe_gap(days, pest_code)
+    verified_risk_level = derive_risk_level(pest_code, growth_stage_bucket, anchor.verified_value)
+    implication = describe_gap(days, pest_code, verified_risk_level, report_is_model_input)
 
     return GapAnalysisResponse(
         status="ok",
@@ -333,6 +329,9 @@ def get_report_gap_analysis(report_id: str) -> GapAnalysisResponse:
         pest=pest_code,
         unit=unit,
         days=days,
+        verified_value=float(anchor.verified_value),
+        verified_risk_level=verified_risk_level,
+        report_is_model_input=report_is_model_input,
         implication=implication,
         message="Gap analysis successful",
     )

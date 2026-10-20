@@ -224,13 +224,15 @@ function StepArt({ id }: { id: string }) {
     case 'anchor':
       return (
         <svg viewBox="0 0 220 130">
-          <path d="M16 92 L60 88 L104 80 L148 72 L204 62" stroke={GREY} strokeWidth="2" strokeDasharray="5 4" fill="none" />
-          <path className="mi-draw" d="M16 46 L60 56 L104 66 L148 70 L204 62" stroke={GREEN} strokeWidth="2.6" fill="none" />
-          <path d="M16 20 V108" stroke={ORANGE} strokeWidth="1.5" strokeDasharray="3 3" />
-          <circle cx="16" cy="46" r="4" fill={ORANGE} className="mi-pulse" />
-          <text x="24" y="20" fontSize="8.5" fill={ORANGE} fontWeight="700">verified report</text>
-          <text x="110" y="122" textAnchor="middle" fontSize="8.5" fill="#777">shift fades to zero over 13 days</text>
-          <text x="204" y="54" textAnchor="end" fontSize="8" fill="#777">weather only</text>
+          <rect x="14" y="22" width="92" height="30" rx="6" fill="#fdf1e3" stroke={ORANGE} strokeWidth="1.4" />
+          <text x="60" y="41" textAnchor="middle" fontSize="9" fill={ORANGE} fontWeight="700">verified report</text>
+          <rect x="14" y="78" width="92" height="30" rx="6" fill="#eef4ea" stroke={GREEN} strokeWidth="1.4" />
+          <text x="60" y="97" textAnchor="middle" fontSize="9" fill={GREEN} fontWeight="700">weather + stage</text>
+          <path className="mi-draw" d="M106 37 C140 37 140 65 160 65" stroke={ORANGE} strokeWidth="2" fill="none" />
+          <path className="mi-draw" d="M106 93 C140 93 140 65 160 65" stroke={GREEN} strokeWidth="2" fill="none" />
+          <rect x="160" y="50" width="48" height="30" rx="6" fill="#e8f0fa" stroke="#2b5d9a" strokeWidth="1.4" />
+          <text x="184" y="69" textAnchor="middle" fontSize="9" fill="#2b5d9a" fontWeight="700">BiLSTM</text>
+          <text x="110" y="124" textAnchor="middle" fontSize="8.5" fill="#777">an input to the model, not a shift afterwards</text>
         </svg>
       )
     case 'etl':
@@ -1186,7 +1188,7 @@ function macroMetricsFromMatrix(matrix: number[][], labels: string[]) {
 
 /** Both pests' SHAP summaries merged by feature label, ranked by the
  * average of the two normalized shares. Each pest's own `share` column
- * already sums to 1.0 across its 21 features, so the average of two such
+ * already sums to 1.0 across all of its features, so the average of two such
  * columns also sums to 1.0 — no renormalization needed. This is a system-
  * wide explanation (which features matter across the whole deployed
  * system) rather than the per-forecast SHAP on the Climate Drivers page,

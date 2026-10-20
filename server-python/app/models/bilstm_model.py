@@ -29,7 +29,7 @@ from app.preprocessing.features import (
     calculate_vpd,
     calculate_wsi,
 )
-from ml.bilstm.build_sequences import MAX_OBSERVATION_AGE_DAYS
+from ml.bilstm.build_sequences import MAX_OBSERVATION_AGE_DAYS, STATIC_FEATURE_COLUMNS
 from ml.config import GROWTH_STAGE_BUCKETS, PEST_PARAMS
 
 GROWTH_STAGES = ["Seedling", "Tillering", "Elongation", "Panicle", "Flowering", "Ripening"]
@@ -75,6 +75,17 @@ class BiLstmOutbreakForecaster:
 
     def scalers_for(self, pest: str) -> dict:
         return self._scalers[pest]
+
+    def accepts_observation(self, pest: str) -> bool:
+        """Whether the loaded model was trained with the lagged verified-
+        observation inputs (12 static columns instead of 9). Same
+        self-describing check build_model_inputs() uses, exposed so callers
+        like the gap analysis can say honestly whether a report can reach the
+        model at all."""
+        if not self.is_loaded(pest):
+            return False
+        n_static = len(self._scalers[pest]["static_feature_columns"])
+        return n_static == len(STATIC_FEATURE_COLUMNS) + 3
 
     def build_model_inputs(
         self, pest: str, window: list[DailyObservation], lagged_features: tuple[float, float, float] | None = None
