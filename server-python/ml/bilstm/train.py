@@ -33,7 +33,7 @@ from sklearn.preprocessing import StandardScaler
 from tensorflow import keras
 from tensorflow.keras import layers
 
-from ml.bilstm.build_sequences import FEATURE_SET_SUFFIX, sequences_path
+from ml.bilstm.build_sequences import FEATURE_SET_SUFFIX, MAX_OBSERVATION_AGE_DAYS, sequences_path
 from ml.bilstm.etl_metrics import classification_agreement, to_risk_levels
 from ml.config import FORECAST_HORIZON_DAYS, PEST_PARAMS
 
@@ -196,6 +196,34 @@ def evaluate(
     }
 
 
+def hide_observations(X_static: np.ndarray, rows: np.ndarray, fraction: float, seed: int = 0) -> np.ndarray:
+    """Observation dropout for the lagged configuration: on a random
+    `fraction` of `rows`, replace the last three static columns (last
+    observed value, days since, has-report) with the exact "no report on
+    file" encoding build_sequences.py and the live API use. Test rows are
+    never passed in, so the test set keeps its original observations and is
+    scored both ways separately (see evaluate_observation_conditions)."""
+    out = X_static.copy()
+    rng = np.random.default_rng(seed)
+    hidden = rows[rng.random(len(rows)) < fraction]
+    out[hidden, -3:] = [0.0, float(MAX_OBSERVATION_AGE_DAYS), 0.0]
+    return out
+
+
+def evaluate_observation_conditions(
+    model, X_seq_test, X_static_test_raw, static_scaler, y_test, pest, is_reproductive_test, log_target
+) -> dict:
+    """Scores a lagged model twice on the same test windows: with their
+    simulated report, and with every report hidden (the usual live case,
+    since most municipalities have no recent verified report)."""
+    no_report = X_static_test_raw.copy()
+    no_report[:, -3:] = [0.0, float(MAX_OBSERVATION_AGE_DAYS), 0.0]
+    return {
+        "with_report": evaluate(model, X_seq_test, static_scaler.transform(X_static_test_raw), y_test, pest, is_reproductive_test, log_target),
+        "no_report": evaluate(model, X_seq_test, static_scaler.transform(no_report), y_test, pest, is_reproductive_test, log_target),
+    }
+
+
 def scale_static(X_train, X_val, X_test):
     """None when the configuration has no static vector (the raw control)."""
     if X_train.shape[1] == 0:
@@ -211,7 +239,7 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument(
         "--features",
-        choices=["engineered", "raw", "lagged"],
+        choices=["engineered", "raw", "lagged", "lagged_fresh"],
         default="engineered",
         help="Which build_sequences.py configuration to train on. 'raw' is the RQ2 control. "
         "Anything other than 'engineered' is saved under its own suffix so it never "
@@ -237,6 +265,15 @@ def main() -> None:
         "0.5 = square root (gentler, safer when a band has very few samples).",
     )
     parser.add_argument(
+        "--observation-dropout",
+        type=float,
+        default=0.0,
+        help="lagged only: fraction of train/val windows whose verified observation is "
+        "hidden (set to the no-report encoding). The simulated cadence gives ~98%% of "
+        "windows a report, but live most municipalities have none, so without this the "
+        "model barely learns either case. 0.5 = half with, half without.",
+    )
+    parser.add_argument(
         "--tag",
         default="",
         help="Extra suffix for the saved weights/scalers/metrics, for running an experiment "
@@ -251,6 +288,11 @@ def main() -> None:
 
     train_idx, val_idx, test_idx = splits["train"], splits["val"], splits["test"]
     print(f"{pest} ({args.features}): train={len(train_idx)} val={len(val_idx)} test={len(test_idx)}")
+
+    if args.observation_dropout > 0:
+        if args.features not in ("lagged", "lagged_fresh"):
+            raise SystemExit("--observation-dropout only applies to the lagged feature sets")
+        X_static = hide_observations(X_static, np.concatenate([train_idx, val_idx]), args.observation_dropout)
 
     X_seq_train, X_seq_val, X_seq_test, sequence_scaler = scale_sequence(
         X_sequence[train_idx], X_sequence[val_idx], X_sequence[test_idx]
@@ -301,6 +343,11 @@ def main() -> None:
     test_metrics = evaluate(
         model, X_seq_test, X_static_test, y_test, pest, is_reproductive_test, args.log_target
     )
+    if args.features in ("lagged", "lagged_fresh"):
+        test_metrics["observation_conditions"] = evaluate_observation_conditions(
+            model, X_seq_test, X_static[test_idx], static_scaler, y_test, pest, is_reproductive_test, args.log_target
+        )
+        test_metrics["observation_dropout"] = args.observation_dropout
     test_metrics["feature_set"] = args.features
     test_metrics["log_target"] = args.log_target
     test_metrics["balance_bands"] = args.balance_bands
@@ -328,6 +375,11 @@ def main() -> None:
             # --log-target run would silently under-report every forecast and
             # push every ETL band down.
             "log_target": args.log_target,
+            # Which build_sequences.py configuration this was trained on, so
+            # export_insights.py / shap_report.py load the matching sequences
+            # instead of inferring it from the static column count (lagged and
+            # lagged_fresh both have 12 columns but different observations).
+            "feature_set": args.features,
         },
         scalers_path,
     )

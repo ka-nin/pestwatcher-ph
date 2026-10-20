@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react'
-import { fetchPestForecastTrajectory, type GrowthStage, type LguUser, type TrajectoryPoint } from '../../lib/api'
+import {
+  fetchPestForecastTrajectory,
+  type GrowthOutlook,
+  type GrowthStage,
+  type LguUser,
+  type SpreadSummary,
+  type TrajectoryPoint,
+} from '../../lib/api'
 import { ASSUMED_GROWTH_STAGE, etlBandFor, RISK_TONE } from '../../lib/etl'
 import TrajectoryChart, { niceMax } from './TrajectoryChart'
 import './PestForecastPage.css'
@@ -34,12 +41,45 @@ const forecastMeta = [
   },
 ]
 
+function outlookLine(outlook: GrowthOutlook, unitLabel: string, format: (v: number) => string) {
+  const perDay = unitLabel === '%' ? `${Math.abs(outlook.change_per_day).toFixed(2)}%` : Math.abs(outlook.change_per_day).toFixed(1)
+  const parts: string[] = []
+  if (outlook.trend === 'stable') {
+    parts.push('Stable over the next 2 weeks')
+  } else {
+    const verb = outlook.trend === 'rising' ? 'Rising' : 'Falling'
+    const rel = outlook.pct_change_per_day != null ? ` (${outlook.pct_change_per_day > 0 ? '+' : ''}${outlook.pct_change_per_day.toFixed(1)}%/day)` : ''
+    parts.push(`${verb} about ${perDay}${unitLabel === '%' ? '' : ' per hill'} per day${rel}`)
+  }
+  if (outlook.doubling_days != null) parts.push(`doubles in ~${Math.round(outlook.doubling_days)} days`)
+  parts.push(
+    outlook.days_to_high === 0
+      ? 'already at High'
+      : outlook.days_to_high != null
+        ? `reaches High in ~${outlook.days_to_high} days`
+        : 'stays below High',
+  )
+  parts.push(`peak ${format(outlook.peak_value)} on ${formatDayLabel(outlook.peak_date)}`)
+  return parts.join(' · ')
+}
+
+function spreadLine(spread: SpreadSummary) {
+  if (spread.recent_reports === 0 && spread.previous_reports === 0) {
+    return `No verified reports in the last ${spread.window_days * 2} days`
+  }
+  const trend =
+    spread.trend === 'spreading' ? 'spreading' : spread.trend === 'shrinking' ? 'shrinking' : 'about the same'
+  const coverage = spread.mean_photo_coverage_pct != null ? ` · photos show ~${Math.round(spread.mean_photo_coverage_pct)}% of the visible area affected` : ''
+  return `${spread.recent_hectares} ha reported affected in ${spread.recent_reports} verified report${spread.recent_reports === 1 ? '' : 's'} (last ${spread.window_days} days), vs ${spread.previous_hectares} ha before: ${trend}${coverage}`
+}
+
 function formatDayLabel(iso: string) {
   return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
 function PestForecastPage({ user }: PestForecastPageProps) {
   const [trajectories, setTrajectories] = useState<Partial<Record<'bph' | 'rsb', TrajectoryPoint[]>>>({})
+  const [outlooks, setOutlooks] = useState<Partial<Record<'bph' | 'rsb', { outlook: GrowthOutlook | null; spread: SpreadSummary | null }>>>({})
   const [forecastError, setForecastError] = useState('')
   // Day being inspected, per pest: hovering the chart highlights the matching
   // daily-breakdown row and the other way round.
@@ -53,13 +93,16 @@ function PestForecastPage({ user }: PestForecastPageProps) {
     Promise.all(
       forecastMeta.map((meta) =>
         fetchPestForecastTrajectory(user.municipality, meta.pest, ACTIVE_GROWTH_STAGE, TRAJECTORY_DAYS).then(
-          (res) => [meta.key, res.status === 'ok' ? res.points : []] as const,
+          (res) => [meta.key, res] as const,
         ),
       ),
     )
       .then((results) => {
         if (cancelled) return
-        setTrajectories(Object.fromEntries(results))
+        setTrajectories(Object.fromEntries(results.map(([key, res]) => [key, res.status === 'ok' ? res.points : []])))
+        setOutlooks(
+          Object.fromEntries(results.map(([key, res]) => [key, { outlook: res.outlook ?? null, spread: res.spread ?? null }])),
+        )
       })
       .catch(() => {
         if (!cancelled) setForecastError('Unable to load live pest forecast trajectory')
@@ -105,6 +148,22 @@ function PestForecastPage({ user }: PestForecastPageProps) {
                 hoverIndex={hoverIndex[meta.key]}
                 onHover={(index) => setHover(meta.key, index)}
               />
+              {outlooks[meta.key] && (
+                <div className="forecast-outlook">
+                  {outlooks[meta.key]?.outlook && (
+                    <p>
+                      <span className="forecast-outlook-label">How fast</span>
+                      {outlookLine(outlooks[meta.key]!.outlook!, meta.unitLabel, meta.format)}
+                    </p>
+                  )}
+                  {outlooks[meta.key]?.spread && (
+                    <p>
+                      <span className="forecast-outlook-label">How far</span>
+                      {spreadLine(outlooks[meta.key]!.spread!)}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )
         })}

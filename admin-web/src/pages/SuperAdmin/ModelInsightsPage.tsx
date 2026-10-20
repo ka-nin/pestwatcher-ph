@@ -4,6 +4,7 @@ import {
   type FeatureComparisonResponse,
   type ModelInsightsResponse,
   type PredictionPointDto,
+  type ResnetRegressionMetrics,
   type ResnetTestMetrics,
   type ShapFeatureDto,
 } from '../../lib/api'
@@ -602,6 +603,62 @@ function UnknownInsectPanel({ metrics }: { metrics: ResnetTestMetrics | null }) 
   )
 }
 
+/** Held-out results of the photo regressors that turn a detected pest into a
+ * number (hoppers per hill, % coverage, % damage). The test-set badge matters:
+ * only the count target is scored on real photos; coverage and damage are
+ * scored on synthetic composites, so their R² shows the model recovers what
+ * the generator drew, not accuracy on a real field. */
+function RegressionPanel({ metrics }: { metrics?: Record<string, ResnetRegressionMetrics | null> }) {
+  const rows = Object.entries(metrics ?? {}).filter((entry): entry is [string, ResnetRegressionMetrics] => entry[1] != null)
+  if (rows.length === 0) return null
+  return (
+    <section className="panel mi-panel">
+      <div className="panel-head">
+        <div>
+          <div className="panel-title">Quantitative estimates from a photo</div>
+          <div className="panel-subtitle">ResNet-50 regressors · how many, how much is covered, how much is damaged</div>
+        </div>
+      </div>
+      <div className="admin-table-wrap">
+        <table className="admin-table mi-regression-table">
+          <thead>
+            <tr>
+              <th>Estimate</th>
+              <th className="admin-col-center">R²</th>
+              <th className="admin-col-center">RMSE</th>
+              <th className="admin-col-center">MAE</th>
+              <th className="admin-col-center">Average actual</th>
+              <th className="admin-col-center">Test images</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(([label, m]) => (
+              <tr key={label}>
+                <td>{label}</td>
+                <td className="admin-col-center">{m.r2.toFixed(2)}</td>
+                <td className="admin-col-center">{m.rmse.toFixed(1)}</td>
+                <td className="admin-col-center">{m.mae.toFixed(1)}</td>
+                <td className="admin-col-center">{m.mean_actual_label.toFixed(1)}</td>
+                <td className="admin-col-center">
+                  {m.n_test_images}{' '}
+                  <span className={`badge ${m.test_set_is_synthetic ? 'badge-neutral' : 'badge-green'}`}>
+                    {m.test_set_is_synthetic ? 'synthetic' : 'real photos'}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mi-note">
+        Only estimates tested on real photos say how the model does in the field. A synthetic test set shows the
+        model can recover the value an image generator drew, which is a consistency check, not field accuracy. Every
+        estimate is shown to the technologist as a suggestion and counts only after they confirm it.
+      </p>
+    </section>
+  )
+}
+
 function ResnetTab({ data }: { data: ModelInsightsResponse }) {
   const [pest, setPest] = useState<PestCode>('BPH')
   const m = data.resnet[pest]
@@ -718,6 +775,8 @@ function ResnetTab({ data }: { data: ModelInsightsResponse }) {
       </section>
 
       <UnknownInsectPanel metrics={data.resnetUnknown} />
+
+      <RegressionPanel metrics={data.resnetRegression} />
 
       {pest === 'BPH' && (
         <section className="panel mi-panel">

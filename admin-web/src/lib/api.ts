@@ -151,9 +151,36 @@ export interface TrajectoryPoint {
   risk_level: RiskLevel
 }
 
+// How fast the forecast says the pest is changing, read off the trajectory
+// (server-python/app/decision/outlook.py's growth_outlook).
+export interface GrowthOutlook {
+  trend: 'rising' | 'falling' | 'stable'
+  change_per_day: number
+  pct_change_per_day: number | null
+  doubling_days: number | null
+  days_to_high: number | null
+  peak_value: number
+  peak_date: string
+  days_covered: number
+}
+
+// Observed extent from technologist-verified reports, not a forecast
+// (outlook.py's spread_summary).
+export interface SpreadSummary {
+  window_days: number
+  recent_reports: number
+  recent_hectares: number
+  previous_reports: number
+  previous_hectares: number
+  trend: 'spreading' | 'shrinking' | 'steady' | null
+  mean_photo_coverage_pct: number | null
+}
+
 export interface TrajectoryResponse {
   status: 'ok' | 'model_not_loaded'
   points: TrajectoryPoint[]
+  outlook?: GrowthOutlook | null
+  spread?: SpreadSummary | null
   message: string
 }
 
@@ -500,6 +527,16 @@ export interface ResnetTestMetrics {
   confusion_matrix: [[number, number], [number, number]]
 }
 
+export interface ResnetRegressionMetrics {
+  rmse: number
+  mae: number
+  r2: number
+  mean_actual_label: number
+  n_test_images: number
+  trained_with_synthetic: boolean
+  test_set_is_synthetic: boolean
+}
+
 export interface EtlClassificationMetrics {
   accuracy: number
   precision_macro: number
@@ -592,6 +629,7 @@ export interface ModelInsightsResponse {
   // Separate bug-vs-no-bug detector (ml/weights/unknown/) — consulted only
   // when neither tracked pest fires, so it has no per-pest variant.
   resnetUnknown: ResnetTestMetrics | null
+  resnetRegression?: Record<string, ResnetRegressionMetrics | null>
   resnetBphComparison: {
     note: string
     rows: { label: string; kind: 'falseAlarm' | 'recall'; n: number; old: number; new: number }[]

@@ -52,7 +52,9 @@ def main() -> None:
     scalers = bilstm_forecaster.scalers_for(pest)
     seq_cols = list(scalers["sequence_feature_columns"])
     static_cols = list(scalers["static_feature_columns"])
-    feature_set = "lagged" if len(static_cols) == len(STATIC_FEATURE_COLUMNS) + 3 else "engineered"
+    feature_set = scalers.get("feature_set") or (
+        "lagged" if len(static_cols) == len(STATIC_FEATURE_COLUMNS) + 3 else "engineered"
+    )
     log_target = bool(scalers.get("log_target", False))
 
     X_sequence, X_static, y, meta, _, _ = load_dataset(pest, feature_set)

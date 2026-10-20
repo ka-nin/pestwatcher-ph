@@ -51,9 +51,39 @@ class TrajectoryPoint(BaseModel):
     adjusted_by_reports: bool = False
 
 
+class GrowthOutlook(BaseModel):
+    """How fast the forecast says the pest is changing — see
+    app/decision/outlook.py's growth_outlook. Read off the trajectory, so it
+    adds no information beyond the forecast itself."""
+
+    trend: Literal["rising", "falling", "stable"]
+    change_per_day: float
+    pct_change_per_day: float | None = None
+    doubling_days: float | None = None
+    days_to_high: int | None = None
+    peak_value: float
+    peak_date: str
+    days_covered: int
+
+
+class SpreadSummary(BaseModel):
+    """Observed extent from technologist-verified reports — see
+    app/decision/outlook.py's spread_summary. Observed, not forecast."""
+
+    window_days: int
+    recent_reports: int
+    recent_hectares: float
+    previous_reports: int
+    previous_hectares: float
+    trend: Literal["spreading", "shrinking", "steady"] | None = None
+    mean_photo_coverage_pct: float | None = None
+
+
 class TrajectoryResponse(BaseModel):
     status: Literal["ok", "model_not_loaded"]
     points: list[TrajectoryPoint]
+    outlook: GrowthOutlook | None = None
+    spread: SpreadSummary | None = None
     message: str
 
 

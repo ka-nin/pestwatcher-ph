@@ -9,8 +9,11 @@ trains all three configurations on the same folds:
 
   raw         baseline: Tmax/Tmin/RH/rainfall only, no static vector
   engineered  + biologically-informed features and growth stage
-  lagged      + the latest technologist-verified observation and its age
-              (the image-derived input; this is the deployed model)
+  lagged_fresh  + the latest technologist-verified observation and its age
+                (the image-derived input; deployed since 2026-10-21). Half the
+                windows have no report, the rest one aged 0-30 days, matching
+                what the live system sees. The earlier `lagged` run (simulated
+                ~14-day cadence) is kept in *_framework_comparison_lagged.json.
 
 and tests two pairs:
 
@@ -21,10 +24,9 @@ Same method as compare_features.py: 5-fold expanding-window CV with a purge
 gap, paired t-test or Wilcoxon per metric depending on Shapiro-Wilk, alpha
 0.05. Every configuration sees the exact same test block in every fold.
 
-Note on `lagged`: in training, the observation is drawn from the historical
-CSV thinned to a simulated reporting cadence (see build_sequences.py's
-OBSERVATION_GAP_MEAN_DAYS), not from real farmer reports, of which there are
-too few to train on. The result measures what the input is worth at that
+Note on the observation input: in training it is drawn from the historical
+CSV (see build_sequences.py's lagged_fresh), not from real farmer reports, of
+which there are too few to train on. The result measures what the input is worth at that
 simulated cadence, not what the live system currently achieves.
 
 Prerequisites:
@@ -56,8 +58,8 @@ from ml.bilstm.compare_features import (
 from ml.bilstm.train import load_dataset
 from ml.config import FORECAST_HORIZON_DAYS, PEST_PARAMS
 
-CONFIGS = ["raw", "engineered", "lagged"]
-PAIRS = [("lagged", "raw"), ("lagged", "engineered")]
+CONFIGS = ["raw", "engineered", "lagged_fresh"]
+PAIRS = [("lagged_fresh", "raw"), ("lagged_fresh", "engineered")]
 
 
 def relabel(test: dict, proposed: str, baseline: str) -> dict:
@@ -119,12 +121,12 @@ def main() -> None:
     }
     report = {
         "pest": pest,
-        "comparison": "raw (baseline) vs engineered vs lagged (proposed framework, deployed)",
+        "comparison": "raw (baseline) vs engineered vs lagged_fresh (proposed framework, deployed)",
         "n_folds": N_FOLDS,
         "alpha": ALPHA,
         "cross_validation": "expanding-window time-series, purge gap = window_days + horizon_days",
         "epochs": args.epochs,
-        "lagged_observation_source": "historical CSV thinned to a simulated reporting cadence",
+        "lagged_observation_source": "historical CSV: 50% no report, else a report aged 0-30 days",
         "per_fold": per_fold,
         "mean_scores": mean_scores,
         "significance": significance,

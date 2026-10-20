@@ -83,6 +83,15 @@ def build_model_insights() -> dict[str, Any]:
         "models": models,
         "resnet": resnet,
         "bilstm": bilstm,
+        # The photo regressors (count / coverage / damage). Each file records
+        # whether its test set is real or synthetic, which the page shows.
+        "resnetRegression": {
+            "BPH count": _read_json(bph_folder / "resnet50_bph_count_test_metrics.json"),
+            "BPH coverage": _read_json(bph_folder / "resnet50_bph_coverage_pct_test_metrics.json"),
+            "RSB damage": _read_json(
+                PEST_PARAMS["RSB"].bilstm_weights_path.parent / "resnet50_rsb_damage_pct_test_metrics.json"
+            ),
+        },
         "resnetUnknown": _read_json(
             UNKNOWN_WEIGHTS_PATH.parent / "resnet50_unknown_test_metrics.json"
         ),

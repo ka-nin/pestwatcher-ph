@@ -66,7 +66,12 @@ def _sequences_suffix(pest: str) -> str:
     length is self-describing, same trick app/models/bilstm_model.py uses),
     since a background sample with the wrong static width would silently
     mismatch the loaded model's input shape."""
-    n_static = len(bilstm_forecaster.scalers_for(pest)["static_feature_columns"])
+    scalers = bilstm_forecaster.scalers_for(pest)
+    if scalers.get("feature_set"):
+        from ml.bilstm.build_sequences import FEATURE_SET_SUFFIX
+
+        return FEATURE_SET_SUFFIX[scalers["feature_set"]]
+    n_static = len(scalers["static_feature_columns"])
     return "_lagged" if n_static == len(STATIC_FEATURE_COLUMNS) + 3 else ""
 
 
