@@ -46,11 +46,13 @@ the deployed model's inputs.
 
 import argparse
 import json
+import zlib
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+from app.preprocessing import features_vectorized as vf
 from app.preprocessing.features import (
     calculate_crf,
     calculate_diurnal_range,
@@ -92,6 +94,23 @@ SEQUENCE_FEATURE_COLUMNS = [
     *[f"growth_stage_{stage.lower()}" for stage in GROWTH_STAGES],
 ]
 
+# A third control, alongside `raw`: can the BiLSTM learn the hand-computed
+# aggregates (GDD, CRF, HP, WSI, trends) itself from exposure to the raw
+# daily series, if given the SAME information the engineered model gets
+# minus only the engineered math? Unlike `raw`, this keeps growth stage in
+# the sequence (dropping it would confound "can the recurrent core learn
+# the climate aggregation" with "does it also lose phenology", and SHAP
+# attributes ~45% of the engineered model's output to growth stage alone,
+# so losing it would swamp any climate-feature effect). It also drops VPD
+# and diurnal range, since both are themselves engineered quantities, not
+# raw observations. There is still no static branch: every candidate for
+# the static vector (GDD/CRF/HP/WSI/trends) is exactly what this
+# configuration is testing whether the LSTM can reconstruct on its own.
+SEQ_ONLY_FEATURE_COLUMNS = [
+    *RAW_SEQUENCE_FEATURE_COLUMNS,
+    *[f"growth_stage_{stage.lower()}" for stage in GROWTH_STAGES],
+]
+
 STATIC_FEATURE_COLUMNS = [
     "gdd_accum",
     "crf",
@@ -128,6 +147,19 @@ OBSERVATION_GAP_MEAN_DAYS = 14
 # climate alone rather than trusting a months-old count.
 MAX_OBSERVATION_AGE_DAYS = 60
 OBSERVATION_SEED = 20260101
+
+# `lagged_fresh`: instead of the cadence above (which leaves ~98% of windows
+# with a report, typically ~9 days old), each window independently gets no
+# report with probability FRESH_NO_REPORT_PROB, otherwise one whose age is
+# uniform over 0..FRESH_MAX_AGE_DAYS. Live, most municipalities have no
+# recent report and the ones that do can be any age, so the model needs to
+# see both cases, and fresh reports often enough to learn how much a recent
+# count should move a 14-day-ahead forecast. Ages past FRESH_MAX_AGE_DAYS
+# carry almost no information about the target in this dataset (lag-28
+# autocorrelation beyond growth stage is ~0.2 for BPH), so they're folded
+# into "no report".
+FRESH_NO_REPORT_PROB = 0.5
+FRESH_MAX_AGE_DAYS = 30
 
 RSB_TARGET_BY_STAGE_BUCKET = {
     "Vegetative": "RSB_Dead_Hearts_Pct",
@@ -179,15 +211,18 @@ def load_clean_daily() -> pd.DataFrame:
     return df.sort_values(["Municipality", "Date"]).reset_index(drop=True)
 
 
-def build_daily_sequence_row(day: pd.Series, engineered: bool = True) -> list[float]:
+def build_daily_sequence_row(day: pd.Series, feature_set: str = "engineered") -> list[float]:
     raw = [day["Tmax"], day["Tmin"], day["Relative_Humidity"], day["Rainfall"]]
-    if not engineered:
+    if feature_set == "raw":
         return raw
+
+    stage_one_hot = [1.0 if day["Rice_Growth_Stage"] == stage else 0.0 for stage in GROWTH_STAGES]
+    if feature_set == "seq_only":
+        return [*raw, *stage_one_hot]
 
     t_max, t_min, rh = [day["Tmax"]], [day["Tmin"]], [day["Relative_Humidity"]]
     vpd_daily = calculate_vpd(t_max, t_min, rh)
     diurnal_range_daily = calculate_diurnal_range(t_max, t_min)
-    stage_one_hot = [1.0 if day["Rice_Growth_Stage"] == stage else 0.0 for stage in GROWTH_STAGES]
     return [*raw, vpd_daily, diurnal_range_daily, *stage_one_hot]
 
 
@@ -230,12 +265,20 @@ def build_static_features(window: pd.DataFrame, pest: str, is_reproductive: floa
     ]
 
 
+def _stable_seed(municipality: str) -> int:
+    """Per-municipality seed that is the same in every Python process. The
+    built-in hash() of a str is randomised per process (PYTHONHASHSEED), so
+    seeding from it made "every rebuild is identical" untrue: the simulated
+    reporting days changed on each run. crc32 is fixed."""
+    return zlib.crc32(municipality.encode("utf-8"))
+
+
 def simulated_observation_days(municipality: str, n_days: int) -> np.ndarray:
     """Boolean mask over a municipality's rows: True where a verified report is
     pretended to exist. Seeded per municipality so the mask is stable across
     rebuilds — an unstable mask would silently change the training set every
     time sequences were regenerated."""
-    rng = np.random.default_rng(abs(hash(municipality)) % (2**32) ^ OBSERVATION_SEED)
+    rng = np.random.default_rng(_stable_seed(municipality) ^ OBSERVATION_SEED)
     mask = np.zeros(n_days, dtype=bool)
     day = int(rng.geometric(1 / OBSERVATION_GAP_MEAN_DAYS))
     while day < n_days:
@@ -270,6 +313,25 @@ def build_lagged_features(
     return [0.0, float(MAX_OBSERVATION_AGE_DAYS), 0.0]
 
 
+def build_fresh_lagged_features(
+    group: pd.DataFrame, rng: np.random.Generator, window_end_idx: int, pest: str, is_reproductive: float
+) -> list[float]:
+    """`lagged_fresh` counterpart to build_lagged_features: either the "no
+    report on file" encoding, or the stage-matched pest value from a day
+    0..FRESH_MAX_AGE_DAYS before the window ends (never after, so the target
+    can't leak), with its age."""
+    if rng.random() < FRESH_NO_REPORT_PROB:
+        return [0.0, float(MAX_OBSERVATION_AGE_DAYS), 0.0]
+    age = int(rng.integers(0, FRESH_MAX_AGE_DAYS + 1))
+    idx = window_end_idx - age
+    if idx < 0:
+        return [0.0, float(MAX_OBSERVATION_AGE_DAYS), 0.0]
+    value = target_value(group.iloc[idx], pest, is_reproductive)
+    if pd.isna(value):
+        return [0.0, float(MAX_OBSERVATION_AGE_DAYS), 0.0]
+    return [float(value), float(age), 1.0]
+
+
 def target_value(target_row: pd.Series, pest: str, is_reproductive: float) -> float:
     if pest == "BPH":
         return float(target_row["BPH_Hoppers_per_Hill"])
@@ -278,7 +340,7 @@ def target_value(target_row: pd.Series, pest: str, is_reproductive: float) -> fl
 
 
 def build_sequences_for_pest(
-    df: pd.DataFrame, pest: str, engineered: bool = True, lagged: bool = False
+    df: pd.DataFrame, pest: str, feature_set: str = "engineered", lagged: bool = False
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, pd.DataFrame]:
     window_days = PEST_PARAMS[pest].crf_window_days
 
@@ -291,6 +353,7 @@ def build_sequences_for_pest(
         group = group.reset_index(drop=True)
         n = len(group)
         observed = simulated_observation_days(municipality, n) if lagged else None
+        rng = np.random.default_rng(_stable_seed(municipality) ^ OBSERVATION_SEED)
         last_start = n - window_days - FORECAST_HORIZON_DAYS
         for start in range(0, last_start + 1):
             window = group.iloc[start : start + window_days]
@@ -299,13 +362,21 @@ def build_sequences_for_pest(
             is_reproductive = is_reproductive_window(window)
 
             X_seq_rows.append(
-                [build_daily_sequence_row(window.iloc[i], engineered) for i in range(window_days)]
+                [build_daily_sequence_row(window.iloc[i], feature_set) for i in range(window_days)]
             )
-            # Raw configuration: no static vector at all (every static feature
-            # is an engineered one), but the row is still appended as an empty
+            # raw/seq_only: no static vector at all (every static feature is
+            # an engineered one), but the row is still appended as an empty
             # list so X_static keeps shape (num_samples, 0) rather than (0,).
-            static_row = build_static_features(window, pest, is_reproductive) if engineered else []
-            if lagged:
+            static_row = (
+                build_static_features(window, pest, is_reproductive)
+                if feature_set in ("engineered", "lagged", "lagged_fresh")
+                else []
+            )
+            if feature_set == "lagged_fresh":
+                static_row = static_row + build_fresh_lagged_features(
+                    group, rng, start + window_days - 1, pest, is_reproductive
+                )
+            elif lagged:
                 static_row = static_row + build_lagged_features(
                     group, observed, start + window_days - 1, pest, is_reproductive
                 )
@@ -330,7 +401,130 @@ def build_sequences_for_pest(
     return X_sequence, X_static, y, meta
 
 
-FEATURE_SET_SUFFIX = {"engineered": "", "raw": "_raw", "lagged": "_lagged"}
+def build_sequences_for_pest_vectorized(
+    df: pd.DataFrame, pest: str, feature_set: str = "engineered", lagged: bool = False
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, pd.DataFrame]:
+    """Same output as build_sequences_for_pest, computed per municipality in
+    one vectorized pass instead of a Python loop over every window and day
+    (app/preprocessing/features_vectorized.py). Each daily term is computed
+    once and window aggregates come from sliding-window views, so the 13 of
+    14 days consecutive windows share are no longer recomputed.
+
+    Only the report-observation columns of the lagged configurations are
+    still drawn window by window, because they consume a seeded random
+    stream in window order and must match the loop version draw for draw.
+    """
+    params = PEST_PARAMS[pest]
+    window_days = params.crf_window_days
+
+    seq_parts, static_parts, y_parts, meta_parts = [], [], [], []
+    for municipality, group in df.groupby("Municipality"):
+        group = group.reset_index(drop=True)
+        n = len(group)
+        n_windows = n - window_days - FORECAST_HORIZON_DAYS + 1
+        if n_windows <= 0:
+            continue
+
+        tmax = group["Tmax"].to_numpy(dtype=np.float64)
+        tmin = group["Tmin"].to_numpy(dtype=np.float64)
+        rh = group["Relative_Humidity"].to_numpy(dtype=np.float64)
+        rain = group["Rainfall"].to_numpy(dtype=np.float64)
+        stage = group["Rice_Growth_Stage"].to_numpy()
+        stage_one_hot = np.stack([(stage == s).astype(np.float64) for s in GROWTH_STAGES], axis=1)
+
+        columns = [tmax, tmin, rh, rain]
+        if feature_set == "seq_only":
+            daily = np.column_stack(columns + [stage_one_hot])
+        elif feature_set == "raw":
+            daily = np.column_stack(columns)
+        else:
+            daily = np.column_stack(
+                columns + [vf.daily_vpd(tmax, tmin, rh), vf.daily_diurnal_range(tmax, tmin), stage_one_hot]
+            )
+        # (n - window + 1, n_features, window) -> (windows, window, features)
+        windows = np.lib.stride_tricks.sliding_window_view(daily, window_days, axis=0).transpose(0, 2, 1)
+        seq_parts.append(windows[:n_windows])
+
+        ends = np.arange(n_windows) + window_days - 1
+        is_reproductive = (group["growth_stage_bucket"].to_numpy()[ends] == "Reproductive").astype(np.float64)
+
+        if feature_set in ("engineered", "lagged", "lagged_fresh"):
+            static = vf.static_features(
+                tmax, tmin, rh, rain, np.zeros(n - window_days + 1), window_days, params.gdd_base_temp_c, params.hp_rh_threshold_pct
+            )[:n_windows]
+            static[:, 6] = is_reproductive
+            static[:, 7] = is_reproductive * static[:, 1]
+            temp_mean_window = vf.window_mean((tmax + tmin) / 2, window_days)[:n_windows]
+            static[:, 8] = is_reproductive * temp_mean_window
+        else:
+            static = np.zeros((n_windows, 0))
+
+        if lagged:
+            observed = simulated_observation_days(municipality, n) if feature_set == "lagged" else None
+            rng = np.random.default_rng(_stable_seed(municipality) ^ OBSERVATION_SEED)
+            obs = np.array(
+                [
+                    build_fresh_lagged_features(group, rng, int(end), pest, float(rep))
+                    if feature_set == "lagged_fresh"
+                    else build_lagged_features(group, observed, int(end), pest, float(rep))
+                    for end, rep in zip(ends, is_reproductive)
+                ]
+            )
+            static = np.hstack([static, obs])
+        static_parts.append(static)
+
+        targets = ends + FORECAST_HORIZON_DAYS
+        if pest == "BPH":
+            y = group["BPH_Hoppers_per_Hill"].to_numpy()[targets]
+        else:
+            y = np.where(
+                is_reproductive == 1.0,
+                group[RSB_TARGET_BY_STAGE_BUCKET["Reproductive"]].to_numpy()[targets],
+                group[RSB_TARGET_BY_STAGE_BUCKET["Vegetative"]].to_numpy()[targets],
+            )
+        y_parts.append(y)
+
+        dates = group["Date"]
+        meta_parts.append(
+            pd.DataFrame(
+                {
+                    "municipality": municipality,
+                    "window_start_date": dates.iloc[ends - window_days + 1].to_numpy(),
+                    "window_end_date": dates.iloc[ends].to_numpy(),
+                    "target_date": dates.iloc[targets].to_numpy(),
+                    "is_reproductive": is_reproductive.astype(int),
+                }
+            )
+        )
+
+    return (
+        np.concatenate(seq_parts).astype(np.float32),
+        np.concatenate(static_parts).astype(np.float32),
+        np.concatenate(y_parts).astype(np.float32),
+        pd.concat(meta_parts, ignore_index=True),
+    )
+
+
+def verify_against_loop(df: pd.DataFrame, pest: str, feature_set: str, lagged: bool) -> None:
+    """Fails loudly if the vectorized builder ever disagrees with the
+    original per-window loop (build_sequences_for_pest)."""
+    a = build_sequences_for_pest(df, pest, feature_set, lagged)
+    b = build_sequences_for_pest_vectorized(df, pest, feature_set, lagged)
+    for name, x, z in zip(("X_sequence", "X_static", "y"), a[:3], b[:3]):
+        if x.shape != z.shape or not np.allclose(x, z, atol=1e-4, rtol=1e-5):
+            raise SystemExit(f"vectorized {name} differs from the loop version for {pest}/{feature_set}")
+    for col in ("municipality", "window_start_date", "window_end_date", "target_date", "is_reproductive"):
+        if not (a[3][col].astype(str).to_numpy() == b[3][col].astype(str).to_numpy()).all():
+            raise SystemExit(f"vectorized meta column {col} differs for {pest}/{feature_set}")
+
+
+FEATURE_SET_SUFFIX = {
+    "engineered": "",
+    "raw": "_raw",
+    "lagged": "_lagged",
+    "lagged_fresh": "_lagged_fresh",
+    "seq_only": "_seqonly",
+}
 
 
 def sequences_path(pest: str, feature_set: str = "engineered") -> tuple[Path, Path]:
@@ -348,26 +542,36 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--features",
-        choices=["engineered", "raw", "lagged"],
+        choices=["engineered", "raw", "lagged", "lagged_fresh", "seq_only"],
         default="engineered",
         help="engineered = the deployed feature set; raw = the paper's RQ2 control "
         "(Tmax/Tmin/RH/rainfall only); lagged = engineered plus the simulated "
-        "last-verified-observation features",
+        "last-verified-observation features; seq_only = raw climate + growth "
+        "stage in the sequence, no hand-computed aggregates — tests whether "
+        "the LSTM can learn GDD/CRF/HP/WSI/trends itself",
     )
     args = parser.parse_args()
-    engineered = args.features != "raw"
-    lagged = args.features == "lagged"
+    feature_set = args.features
+    lagged = args.features in ("lagged", "lagged_fresh")
 
     df = load_clean_daily()
     SEQUENCES_DIR.mkdir(parents=True, exist_ok=True)
 
-    static_columns = (STATIC_FEATURE_COLUMNS if engineered else []) + (
+    static_columns = (STATIC_FEATURE_COLUMNS if feature_set in ("engineered", "lagged", "lagged_fresh") else []) + (
         LAGGED_FEATURE_COLUMNS if lagged else []
     )
 
+    sequence_columns_by_set = {
+        "engineered": SEQUENCE_FEATURE_COLUMNS,
+        "raw": RAW_SEQUENCE_FEATURE_COLUMNS,
+        "lagged": SEQUENCE_FEATURE_COLUMNS,
+        "lagged_fresh": SEQUENCE_FEATURE_COLUMNS,
+        "seq_only": SEQ_ONLY_FEATURE_COLUMNS,
+    }
+
     summary = {}
     for pest in PEST_PARAMS:
-        X_sequence, X_static, y, meta = build_sequences_for_pest(df, pest, engineered, lagged)
+        X_sequence, X_static, y, meta = build_sequences_for_pest_vectorized(df, pest, feature_set, lagged)
         npz_path, meta_path = sequences_path(pest, args.features)
 
         np.savez(
@@ -375,9 +579,7 @@ def main() -> None:
             X_sequence=X_sequence,
             X_static=X_static,
             y=y,
-            sequence_feature_columns=np.array(
-                SEQUENCE_FEATURE_COLUMNS if engineered else RAW_SEQUENCE_FEATURE_COLUMNS
-            ),
+            sequence_feature_columns=np.array(sequence_columns_by_set[feature_set]),
             static_feature_columns=np.array(static_columns, dtype=object),
         )
 

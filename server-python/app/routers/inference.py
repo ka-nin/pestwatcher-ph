@@ -7,6 +7,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from app.config import get_settings
 from app.data.municipalities import municipality_coordinates
 from app.decision.etl_thresholds import derive_risk_level
+from app.decision.outlook import growth_outlook, spread_summary
 from app.decision.report_anchor import find_lagged_observation
 from app.models.resnet_model import resnet_classifier, resnet_regressors
 from app.routers.weather import fetch_recent_daily_weather
@@ -407,7 +408,13 @@ def _build_trajectory(
             )
         )
 
-    return TrajectoryResponse(status="ok", points=points, message="Trajectory forecast successful")
+    return TrajectoryResponse(
+        status="ok",
+        points=points,
+        outlook=growth_outlook(points, pest),
+        spread=spread_summary(municipality, pest, today),
+        message="Trajectory forecast successful",
+    )
 
 
 @router.get("/forecast/trajectory", response_model=TrajectoryResponse)

@@ -1,37 +1,19 @@
-"""Two different uses of the latest LGU-verified farmer report, built on the
-same report-matching logic — kept in one module because both start from
-"find the relevant verified report(s) for this municipality/pest" before
-diverging:
+"""Finds the LGU-verified farmer report a forecast should take into account.
 
-1. find_lagged_observation() — the LIVE forecast input. A verified report
-   (now including one a technologist confirmed with a CV-suggested
-   count/coverage/damage % in front of them — see app/routers/reports.py's
-   review endpoint) is fed directly into the BiLSTM as a feature, the same
-   way a weather reading is. This is the panel's requested redesign, and the
-   resolution of the old Chapter 1 inconsistency where "Lagged Verified
-   Pest Observation" was listed as a model input the deployed model never
-   actually used.
+The deployed BiLSTM has a verified-observation input (three static
+features: the latest verified value, its age in days, and a has-report
+flag), so a report reaches the forecast as part of what the model reads,
+the same way a weather reading does — not as an adjustment to its output
+afterwards. find_lagged_observation() builds that input for the live
+forecast (app/routers/inference.py); anchor_from_report() resolves one
+specific report for the gap analysis (app/routers/reports.py) and for
+ml/validity_test.py.
 
-2. find_anchor() / weight() / shifted() / anchor_from_report() — retained
-   ONLY for GET /api/reports/{report_id}/gap-analysis, a retrospective,
-   read-only comparison. This is the OLD "bump the Low/Medium/High label"
-   replacement: it re-derives what the forecast would have looked like on
-   and after one specific report's date, by shifting the plain weather-only
-   forecast toward that report's verified value:
-
-       gap = verified report value - what the model predicted for the report day
-       shifted forecast = model forecast + gap x weight   (never below 0)
-
-   The weight fades linearly from 1 on the report day to 0 on day
-   ANCHOR_DAYS, so the report day equals the report's number, its influence
-   shrinks a little each day, and the shifted curve glides back to the plain
-   weather-driven one with no jump when the window ends. This shifted curve
-   is NEVER what the live forecast endpoints return — it exists only so a
-   technologist can see, after the fact, how far the weather-only forecast
-   drifted from what was actually verified. The Low/Medium/High label on
-   that shifted curve is derived from the normal ETL thresholds
-   (app/decision/etl_thresholds.py) — the label itself is never bumped
-   directly.
+History: until 2026-10-20 the model was weather-only and this module
+instead shifted every forecast by the gap between a verified report and
+the model's own prediction, fading over 13 days. That shift was removed
+from the live forecast when the lagged model was deployed, and from the
+gap analysis on 2026-10-21, so its weight()/shifted() helpers are gone.
 
 Only reports whose pest_code matches are used in either path, so a BPH
 report never affects the RSB forecast or gap analysis (different units,
@@ -51,7 +33,8 @@ from app.decision.etl_thresholds import PEST_THRESHOLDS, GrowthStageBucket
 from app.decision.pest_matching import derive_pest_code
 from app.schemas.reports import ReportRecord
 
-# A report's influence fades linearly to zero over this many days.
+# find_anchor()'s default lookback (days). The live forecast passes the
+# model's own trained cutoff instead — see find_lagged_observation().
 ANCHOR_DAYS = 13
 
 
@@ -163,19 +146,6 @@ def find_lagged_observation(
         return 0.0, float(MAX_OBSERVATION_AGE_DAYS), 0.0
     age_days = (today - anchor.anchor_date).days
     return float(anchor.verified_value), float(age_days), 1.0
-
-
-def weight(anchor: ReportAnchor, target_date: date) -> float:
-    """1.0 on the report day, falling evenly to 0.0 at ANCHOR_DAYS; 0.0 for
-    any date before the report or past the window."""
-    days_after = (target_date - anchor.anchor_date).days
-    if days_after < 0 or days_after >= ANCHOR_DAYS:
-        return 0.0
-    return 1.0 - days_after / ANCHOR_DAYS
-
-
-def shifted(predicted_value: float, gap: float, weight_on_day: float) -> float:
-    return max(0.0, predicted_value + gap * weight_on_day)
 
 
 def anchor_from_report(record: ReportRecord, growth_stage_bucket: GrowthStageBucket) -> ReportAnchor | None:

@@ -612,3 +612,18 @@
   font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
+
+.trend-outlook {
+  margin: 8px 2px 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+
+.trend-outlook strong {
+  color: var(--color-text);
+}
+
+.trend-spread {
+  margin-top: 4px;
+}

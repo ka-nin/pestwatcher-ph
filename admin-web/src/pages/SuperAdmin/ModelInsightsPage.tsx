@@ -4,6 +4,7 @@ import {
   type FeatureComparisonResponse,
   type ModelInsightsResponse,
   type PredictionPointDto,
+  type ResnetRegressionMetrics,
   type ResnetTestMetrics,
   type ShapFeatureDto,
 } from '../../lib/api'
@@ -224,13 +225,15 @@ function StepArt({ id }: { id: string }) {
     case 'anchor':
       return (
         <svg viewBox="0 0 220 130">
-          <path d="M16 92 L60 88 L104 80 L148 72 L204 62" stroke={GREY} strokeWidth="2" strokeDasharray="5 4" fill="none" />
-          <path className="mi-draw" d="M16 46 L60 56 L104 66 L148 70 L204 62" stroke={GREEN} strokeWidth="2.6" fill="none" />
-          <path d="M16 20 V108" stroke={ORANGE} strokeWidth="1.5" strokeDasharray="3 3" />
-          <circle cx="16" cy="46" r="4" fill={ORANGE} className="mi-pulse" />
-          <text x="24" y="20" fontSize="8.5" fill={ORANGE} fontWeight="700">verified report</text>
-          <text x="110" y="122" textAnchor="middle" fontSize="8.5" fill="#777">shift fades to zero over 13 days</text>
-          <text x="204" y="54" textAnchor="end" fontSize="8" fill="#777">weather only</text>
+          <rect x="14" y="22" width="92" height="30" rx="6" fill="#fdf1e3" stroke={ORANGE} strokeWidth="1.4" />
+          <text x="60" y="41" textAnchor="middle" fontSize="9" fill={ORANGE} fontWeight="700">verified report</text>
+          <rect x="14" y="78" width="92" height="30" rx="6" fill="#eef4ea" stroke={GREEN} strokeWidth="1.4" />
+          <text x="60" y="97" textAnchor="middle" fontSize="9" fill={GREEN} fontWeight="700">weather + stage</text>
+          <path className="mi-draw" d="M106 37 C140 37 140 65 160 65" stroke={ORANGE} strokeWidth="2" fill="none" />
+          <path className="mi-draw" d="M106 93 C140 93 140 65 160 65" stroke={GREEN} strokeWidth="2" fill="none" />
+          <rect x="160" y="50" width="48" height="30" rx="6" fill="#e8f0fa" stroke="#2b5d9a" strokeWidth="1.4" />
+          <text x="184" y="69" textAnchor="middle" fontSize="9" fill="#2b5d9a" fontWeight="700">BiLSTM</text>
+          <text x="110" y="124" textAnchor="middle" fontSize="8.5" fill="#777">an input to the model, not a shift afterwards</text>
         </svg>
       )
     case 'etl':
@@ -600,6 +603,62 @@ function UnknownInsectPanel({ metrics }: { metrics: ResnetTestMetrics | null }) 
   )
 }
 
+/** Held-out results of the photo regressors that turn a detected pest into a
+ * number (hoppers per hill, % coverage, % damage). The test-set badge matters:
+ * only the count target is scored on real photos; coverage and damage are
+ * scored on synthetic composites, so their R² shows the model recovers what
+ * the generator drew, not accuracy on a real field. */
+function RegressionPanel({ metrics }: { metrics?: Record<string, ResnetRegressionMetrics | null> }) {
+  const rows = Object.entries(metrics ?? {}).filter((entry): entry is [string, ResnetRegressionMetrics] => entry[1] != null)
+  if (rows.length === 0) return null
+  return (
+    <section className="panel mi-panel">
+      <div className="panel-head">
+        <div>
+          <div className="panel-title">Quantitative estimates from a photo</div>
+          <div className="panel-subtitle">ResNet-50 regressors · how many, how much is covered, how much is damaged</div>
+        </div>
+      </div>
+      <div className="admin-table-wrap">
+        <table className="admin-table mi-regression-table">
+          <thead>
+            <tr>
+              <th>Estimate</th>
+              <th className="admin-col-center">R²</th>
+              <th className="admin-col-center">RMSE</th>
+              <th className="admin-col-center">MAE</th>
+              <th className="admin-col-center">Average actual</th>
+              <th className="admin-col-center">Test images</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(([label, m]) => (
+              <tr key={label}>
+                <td>{label}</td>
+                <td className="admin-col-center">{m.r2.toFixed(2)}</td>
+                <td className="admin-col-center">{m.rmse.toFixed(1)}</td>
+                <td className="admin-col-center">{m.mae.toFixed(1)}</td>
+                <td className="admin-col-center">{m.mean_actual_label.toFixed(1)}</td>
+                <td className="admin-col-center">
+                  {m.n_test_images}{' '}
+                  <span className={`badge ${m.test_set_is_synthetic ? 'badge-neutral' : 'badge-green'}`}>
+                    {m.test_set_is_synthetic ? 'synthetic' : 'real photos'}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mi-note">
+        Only estimates tested on real photos say how the model does in the field. A synthetic test set shows the
+        model can recover the value an image generator drew, which is a consistency check, not field accuracy. Every
+        estimate is shown to the technologist as a suggestion and counts only after they confirm it.
+      </p>
+    </section>
+  )
+}
+
 function ResnetTab({ data }: { data: ModelInsightsResponse }) {
   const [pest, setPest] = useState<PestCode>('BPH')
   const m = data.resnet[pest]
@@ -716,6 +775,8 @@ function ResnetTab({ data }: { data: ModelInsightsResponse }) {
       </section>
 
       <UnknownInsectPanel metrics={data.resnetUnknown} />
+
+      <RegressionPanel metrics={data.resnetRegression} />
 
       {pest === 'BPH' && (
         <section className="panel mi-panel">
@@ -1186,7 +1247,7 @@ function macroMetricsFromMatrix(matrix: number[][], labels: string[]) {
 
 /** Both pests' SHAP summaries merged by feature label, ranked by the
  * average of the two normalized shares. Each pest's own `share` column
- * already sums to 1.0 across its 21 features, so the average of two such
+ * already sums to 1.0 across all of its features, so the average of two such
  * columns also sums to 1.0 — no renormalization needed. This is a system-
  * wide explanation (which features matter across the whole deployed
  * system) rather than the per-forecast SHAP on the Climate Drivers page,

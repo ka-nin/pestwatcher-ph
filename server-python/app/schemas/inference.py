@@ -32,11 +32,10 @@ class ForecastInferenceResponse(BaseModel):
     unit: Literal["hoppers_per_hill", "pct_damage"] | None = None
     risk_level: Literal["Low", "Medium", "High"] | None = None
     message: str
-    # True when predicted_value was shifted to start from the latest verified
-    # farmer report — see app/decision/report_anchor.py. Only set on
-    # /forecast/live, which is the only single-value endpoint that knows the
-    # municipality to look reports up by. verified_report_count is how many
-    # matching reports were verified on the report day that drove the shift.
+    # True when a recent verified farmer report was fed to the model as its
+    # verified-observation input (app/decision/report_anchor.py's
+    # find_lagged_observation). Only possible on endpoints that know the
+    # municipality to look reports up by. Not a post-hoc shift of the value.
     adjusted_by_reports: bool = False
     verified_report_count: int = 0
 
@@ -52,9 +51,39 @@ class TrajectoryPoint(BaseModel):
     adjusted_by_reports: bool = False
 
 
+class GrowthOutlook(BaseModel):
+    """How fast the forecast says the pest is changing — see
+    app/decision/outlook.py's growth_outlook. Read off the trajectory, so it
+    adds no information beyond the forecast itself."""
+
+    trend: Literal["rising", "falling", "stable"]
+    change_per_day: float
+    pct_change_per_day: float | None = None
+    doubling_days: float | None = None
+    days_to_high: int | None = None
+    peak_value: float
+    peak_date: str
+    days_covered: int
+
+
+class SpreadSummary(BaseModel):
+    """Observed extent from technologist-verified reports — see
+    app/decision/outlook.py's spread_summary. Observed, not forecast."""
+
+    window_days: int
+    recent_reports: int
+    recent_hectares: float
+    previous_reports: int
+    previous_hectares: float
+    trend: Literal["spreading", "shrinking", "steady"] | None = None
+    mean_photo_coverage_pct: float | None = None
+
+
 class TrajectoryResponse(BaseModel):
     status: Literal["ok", "model_not_loaded"]
     points: list[TrajectoryPoint]
+    outlook: GrowthOutlook | None = None
+    spread: SpreadSummary | None = None
     message: str
 
 
@@ -136,12 +165,18 @@ class ExplanationResponse(BaseModel):
 
 class GapAnalysisDay(BaseModel):
     """One day's side-by-side comparison for
-    GET /api/reports/{report_id}/gap-analysis — what the model predicts with
-    weather alone (historical) vs. what it would predict if this one
-    verified report were allowed to anchor it (report-based). Both values
-    are always the plain model's own forecast; the report-based column is
-    never what actually shows up live (see app/routers/inference.py's
-    _run_forecast docstring — reports no longer shift a live prediction).
+    GET /api/reports/{report_id}/gap-analysis, both from the deployed model:
+
+      historical_*    the forecast with NO verified report as input (the
+                      model's "no observation" encoding). This is the
+                      baseline ml/validity_test.py compares against the field.
+      report_based_*  the forecast with THIS report fed in as the model's
+                      verified-observation input (value, age 0, has-report),
+                      which is what the live forecast does once a report is
+                      verified (app/routers/inference.py's _run_forecast).
+
+    Neither is a post-hoc shift: the old fading report-anchor adjustment was
+    removed from the live forecast on 2026-10-20 and from here on 2026-10-21.
     """
 
     date: str
@@ -149,9 +184,6 @@ class GapAnalysisDay(BaseModel):
     historical_risk_level: Literal["Low", "Medium", "High"] | None = None
     report_based_value: float | None = None
     report_based_risk_level: Literal["Low", "Medium", "High"] | None = None
-    # How much of the report's influence is still active on this day (1.0 on
-    # the report's own date, fading to 0.0 — see app/decision/report_anchor.py).
-    report_weight: float = 0.0
 
 
 class GapAnalysisResponse(BaseModel):
@@ -161,6 +193,17 @@ class GapAnalysisResponse(BaseModel):
     pest: Literal["BPH", "RSB"]
     unit: Literal["hoppers_per_hill", "pct_damage"] | None = None
     days: list[GapAnalysisDay]
+    # What the technologist actually confirmed in the field — the ground
+    # truth both forecast lines are judged against. Kept separate from the
+    # report-based line on purpose: that line is a model output, not the
+    # field value.
+    verified_value: float | None = None
+    verified_risk_level: Literal["Low", "Medium", "High"] | None = None
+    # False when the deployed model has no verified-observation input (a
+    # 9-static-feature model): the two lines are then identical by
+    # construction and the UI says so instead of implying the report had
+    # no effect.
+    report_is_model_input: bool = False
     # Plain-language takeaway — see app/decision/gap_implication.py.
     implication: str
     message: str

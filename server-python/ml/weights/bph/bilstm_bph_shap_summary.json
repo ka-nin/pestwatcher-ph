@@ -3,129 +3,147 @@
   "features": [
     {
       "label": "Growth Stage: Ripening",
-      "value": 1.8023970784095582,
+      "value": 1.8713471700029913,
       "group": "sequence",
-      "share": 0.1970420449868639
+      "share": 0.2090835331397526
     },
     {
       "label": "Growth Stage: Tillering",
-      "value": 0.8732307592490277,
+      "value": 0.8619573599936302,
       "group": "sequence",
-      "share": 0.0954635227769507
-    },
-    {
-      "label": "Relative Humidity",
-      "value": 0.6970120174962479,
-      "group": "sequence",
-      "share": 0.07619889920653353
-    },
-    {
-      "label": "Rainfall",
-      "value": 0.6965166502523668,
-      "group": "sequence",
-      "share": 0.07614474456107662
-    },
-    {
-      "label": "Vapor Pressure Deficit",
-      "value": 0.6328391847171285,
-      "group": "sequence",
-      "share": 0.06918338283954324
-    },
-    {
-      "label": "Min Temperature",
-      "value": 0.47974033564241836,
-      "group": "sequence",
-      "share": 0.05244627719940566
-    },
-    {
-      "label": "Growth Stage: Seedling",
-      "value": 0.4354503779153068,
-      "group": "sequence",
-      "share": 0.04760440081851819
+      "share": 0.09630553492807738
     },
     {
       "label": "Diurnal Temperature Range",
-      "value": 0.41841289017150607,
+      "value": 0.805280370825767,
       "group": "sequence",
-      "share": 0.04574182488189969
+      "share": 0.08997307811146146
     },
     {
-      "label": "Water Stress Index (WSI)",
-      "value": 0.4128631087602116,
-      "group": "static",
-      "share": 0.04513511047273271
-    },
-    {
-      "label": "Reproductive-Stage Target",
-      "value": 0.4124625263735652,
-      "group": "static",
-      "share": 0.04509131791803096
-    },
-    {
-      "label": "Max Temperature",
-      "value": 0.38466013108281916,
+      "label": "Relative Humidity",
+      "value": 0.692324857092827,
       "group": "sequence",
-      "share": 0.04205189841982817
+      "share": 0.07735268448409344
+    },
+    {
+      "label": "Growth Stage: Seedling",
+      "value": 0.5520410822961518,
+      "group": "sequence",
+      "share": 0.06167893471342778
+    },
+    {
+      "label": "Vapor Pressure Deficit",
+      "value": 0.5455494746160638,
+      "group": "sequence",
+      "share": 0.0609536346241302
+    },
+    {
+      "label": "Min Temperature",
+      "value": 0.5187555333964459,
+      "group": "sequence",
+      "share": 0.057959977441359764
     },
     {
       "label": "Growth Stage: Elongation",
-      "value": 0.3227581491551291,
+      "value": 0.49211934899713017,
       "group": "sequence",
-      "share": 0.03528463650297305
+      "share": 0.054983946252255514
     },
     {
-      "label": "Humidity Persistence (HP)",
-      "value": 0.3172044082234303,
-      "group": "static",
-      "share": 0.0346774892302562
+      "label": "Max Temperature",
+      "value": 0.4804361230713577,
+      "group": "sequence",
+      "share": 0.053678592443947154
     },
     {
-      "label": "Reproductive Stage x Rainfall",
-      "value": 0.2841765731728325,
-      "group": "static",
-      "share": 0.031066813071370512
-    },
-    {
-      "label": "GDD Accumulated",
-      "value": 0.2129127704538405,
-      "group": "static",
-      "share": 0.02327609614806008
+      "label": "Rainfall",
+      "value": 0.3589905027048493,
+      "group": "sequence",
+      "share": 0.04010960866712178
     },
     {
       "label": "Growth Stage: Flowering",
-      "value": 0.20135732370595177,
+      "value": 0.2914284961612793,
       "group": "sequence",
-      "share": 0.022012829088201135
-    },
-    {
-      "label": "Temperature Trend",
-      "value": 0.16525137013328883,
-      "group": "static",
-      "share": 0.018065646187507556
+      "share": 0.032560980993659075
     },
     {
       "label": "Growth Stage: Panicle",
-      "value": 0.162904694543613,
+      "value": 0.2548767287649279,
       "group": "sequence",
-      "share": 0.017809102408864453
+      "share": 0.028477092770118305
+    },
+    {
+      "label": "Latest Verified Observation",
+      "value": 0.22210644924392303,
+      "group": "static",
+      "share": 0.024815705971313877
+    },
+    {
+      "label": "Reproductive-Stage Target",
+      "value": 0.19934724010527133,
+      "group": "static",
+      "share": 0.022272844906058818
     },
     {
       "label": "Rainfall Trend",
-      "value": 0.0937777430692222,
+      "value": 0.16423493308053974,
       "group": "static",
-      "share": 0.010251990801559353
+      "share": 0.018349785985138818
+    },
+    {
+      "label": "Has Recent Verified Observation",
+      "value": 0.1295204125965635,
+      "group": "static",
+      "share": 0.014471171310967769
+    },
+    {
+      "label": "Reproductive Stage x Rainfall",
+      "value": 0.09312643875212719,
+      "group": "static",
+      "share": 0.010404913185075327
     },
     {
       "label": "Reproductive Stage x Temperature",
-      "value": 0.07475017495065307,
+      "value": 0.07815469622146339,
       "group": "static",
-      "share": 0.008171854865854193
+      "share": 0.00873213708251768
+    },
+    {
+      "label": "Temperature Trend",
+      "value": 0.07799475436331704,
+      "group": "static",
+      "share": 0.008714266957009048
+    },
+    {
+      "label": "GDD Accumulated",
+      "value": 0.06660974202289556,
+      "group": "static",
+      "share": 0.00744223222014555
+    },
+    {
+      "label": "Humidity Persistence (HP)",
+      "value": 0.0606196552903081,
+      "group": "static",
+      "share": 0.0067729665072201704
+    },
+    {
+      "label": "Water Stress Index (WSI)",
+      "value": 0.05411917656310834,
+      "group": "static",
+      "share": 0.006046675265718171
+    },
+    {
+      "label": "Days Since Verified Observation",
+      "value": 0.04354950695997104,
+      "group": "static",
+      "share": 0.004865737863953077
     },
     {
       "label": "Cumulative Rainfall Factor (CRF)",
-      "value": 0.06659321221911038,
+      "value": 0.035746925856074085,
       "group": "static",
-      "share": 0.007280117613970128
+      "share": 0.003993964175477283
     }
   ]
 }
