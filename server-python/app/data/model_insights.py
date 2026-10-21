@@ -13,9 +13,11 @@ from typing import Any
 
 from app.models.bilstm_model import bilstm_forecaster
 from app.models.resnet_model import (
+    REGRESSION_TARGETS,
     UNKNOWN_PEST_KEY,
     UNKNOWN_WEIGHTS_PATH,
     resnet_classifier,
+    resnet_regressors,
 )
 from app.preprocessing.tiling import MIN_GROUP_TILES, TILE_HIT_THRESHOLD
 from ml.config import PEST_PARAMS
@@ -53,6 +55,20 @@ def build_model_insights() -> dict[str, Any]:
                 "detail": "yes/no pest classifier",
                 "loaded": resnet_classifier.is_loaded(pest),
                 "updated": _modified_date(params.resnet_weights_path),
+            }
+        )
+
+    # Photo regressors. Their weights are git-ignored, so on a machine that
+    # didn't train them the files are simply absent and photo estimates come
+    # back empty with no other sign of why; a card per model makes that visible.
+    for (pest, target), path in REGRESSION_TARGETS.items():
+        models.append(
+            {
+                "name": f"ResNet-50 · {pest}",
+                "detail": {"count": "count estimate", "coverage_pct": "coverage % estimate", "damage_pct": "damage % estimate"}[target]
+                + ("" if path.exists() else " · file missing on this server"),
+                "loaded": resnet_regressors.is_loaded(pest, target),
+                "updated": _modified_date(path),
             }
         )
 

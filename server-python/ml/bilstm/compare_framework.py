@@ -79,6 +79,21 @@ def main() -> None:
     parser.add_argument("--pest", choices=["BPH", "RSB"], required=True)
     parser.add_argument("--epochs", type=int, default=60)
     parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument(
+        "--folds",
+        type=int,
+        default=N_FOLDS,
+        help="Number of expanding-window folds. With 5, the Wilcoxon fallback cannot reach p < 0.05 "
+        "(its minimum two-sided p is 0.0625); 10 removes that floor.",
+    )
+    parser.add_argument(
+        "--band-weight-power",
+        type=float,
+        default=None,
+        help="Train every configuration with inverse-ETL-band sample weights at this power "
+        "(same as train.py --balance-bands), so the comparison uses the deployed training recipe.",
+    )
+    parser.add_argument("--tag", default="", help="Suffix for the output file, e.g. 10fold_bw05.")
     args = parser.parse_args()
     pest = args.pest
 
@@ -91,14 +106,17 @@ def main() -> None:
     is_reproductive = meta["is_reproductive"].to_numpy()
     order = meta["target_date"].sort_values().index.to_numpy()
     purge = PEST_PARAMS[pest].crf_window_days + FORECAST_HORIZON_DAYS
-    folds = expanding_window_folds(order, purge)
+    folds = expanding_window_folds(order, purge, args.folds)
 
     per_fold: dict[str, list[dict[str, float]]] = {config: [] for config in CONFIGS}
     for fold_number, (train_idx, test_idx) in enumerate(folds, start=1):
-        print(f"\n=== {pest} fold {fold_number}/{N_FOLDS}: train={len(train_idx)} test={len(test_idx)}", flush=True)
+        print(f"\n=== {pest} fold {fold_number}/{args.folds}: train={len(train_idx)} test={len(test_idx)}", flush=True)
         for config in CONFIGS:
             X_seq, X_static = data[config][0], data[config][1]
-            scores = run_one(pest, X_seq, X_static, y, is_reproductive, train_idx, test_idx, args.epochs, args.batch_size)
+            scores = run_one(
+                pest, X_seq, X_static, y, is_reproductive, train_idx, test_idx, args.epochs, args.batch_size,
+                args.band_weight_power,
+            )
             per_fold[config].append(scores)
             print(f"  {config:<11}" + "  ".join(f"{m}={scores[m]:.4f}" for m in METRICS), flush=True)
 
@@ -122,7 +140,8 @@ def main() -> None:
     report = {
         "pest": pest,
         "comparison": "raw (baseline) vs engineered vs lagged_fresh (proposed framework, deployed)",
-        "n_folds": N_FOLDS,
+        "n_folds": args.folds,
+        "band_weight_power": args.band_weight_power,
         "alpha": ALPHA,
         "cross_validation": "expanding-window time-series, purge gap = window_days + horizon_days",
         "epochs": args.epochs,
@@ -131,10 +150,11 @@ def main() -> None:
         "mean_scores": mean_scores,
         "significance": significance,
     }
-    out_path = PEST_PARAMS[pest].bilstm_weights_path.parent / f"bilstm_{pest.lower()}_framework_comparison.json"
+    suffix = f"_{args.tag}" if args.tag else ""
+    out_path = PEST_PARAMS[pest].bilstm_weights_path.parent / f"bilstm_{pest.lower()}_framework_comparison{suffix}.json"
     out_path.write_text(json.dumps(report, indent=2))
 
-    print(f"\n=== {pest}: mean over {N_FOLDS} folds ===")
+    print(f"\n=== {pest}: mean over {args.folds} folds ===")
     print(pd.DataFrame(mean_scores).to_string())
     for pair, tests in significance.items():
         print(f"\n--- {pair} ---")

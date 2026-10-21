@@ -200,7 +200,10 @@ function ProvinceMap({ latitude, longitude, label, province, reports = [] }: Pro
     bounds.extend([latitude, longitude])
     pinnableReports.forEach((r) => bounds.extend(r._pos))
     if (boundaryLayer || pinnableReports.length > 0) {
-      map.fitBounds(bounds, { padding: [24, 24], maxZoom: 12 })
+      // Not animated: this runs on every rebuild of the map (data arriving,
+      // tab switches), and an animated zoom still in flight when the map is
+      // removed throws "Cannot read properties of undefined (_leaflet_pos)".
+      map.fitBounds(bounds, { padding: [24, 24], maxZoom: 12, animate: false })
     }
 
     // Farmer-reported sightings with a known location — colored by the
@@ -237,6 +240,11 @@ function ProvinceMap({ latitude, longitude, label, province, reports = [] }: Pro
       })
 
     return () => {
+      // Stop any fly/zoom animation (e.g. a pin click's flyTo) and drop its
+      // listeners first; removing a map mid-animation is what made Leaflet
+      // throw "_leaflet_pos" on fast navigation.
+      map.stop()
+      map.off()
       map.remove()
       mapRef.current = null
     }

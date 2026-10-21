@@ -42,14 +42,24 @@ const forecastMeta = [
 ]
 
 function outlookLine(outlook: GrowthOutlook, unitLabel: string, format: (v: number) => string) {
-  const perDay = unitLabel === '%' ? `${Math.abs(outlook.change_per_day).toFixed(2)}%` : Math.abs(outlook.change_per_day).toFixed(1)
+  // RSB is already a percentage, so its absolute change is in percentage
+  // points; saying "0.04% per day (-2.0%/day)" put two different kinds of
+  // percent side by side. Name the unit, and give the relative rate in words.
+  const amount = Math.abs(outlook.change_per_day)
+  const perDay =
+    unitLabel === '%'
+      ? `${amount.toFixed(2)} points of damage a day`
+      : `${amount.toFixed(1)} hoppers per hill a day`
   const parts: string[] = []
   if (outlook.trend === 'stable') {
-    parts.push('Stable over the next 2 weeks')
+    parts.push('About the same over the next 2 weeks')
   } else {
     const verb = outlook.trend === 'rising' ? 'Rising' : 'Falling'
-    const rel = outlook.pct_change_per_day != null ? ` (${outlook.pct_change_per_day > 0 ? '+' : ''}${outlook.pct_change_per_day.toFixed(1)}%/day)` : ''
-    parts.push(`${verb} about ${perDay}${unitLabel === '%' ? '' : ' per hill'} per day${rel}`)
+    const rel =
+      outlook.pct_change_per_day != null
+        ? `, ${Math.abs(outlook.pct_change_per_day).toFixed(1)}% ${outlook.pct_change_per_day > 0 ? 'more' : 'less'} each day`
+        : ''
+    parts.push(`${verb} about ${perDay}${rel}`)
   }
   if (outlook.doubling_days != null) parts.push(`doubles in ~${Math.round(outlook.doubling_days)} days`)
   parts.push(
@@ -120,7 +130,7 @@ function PestForecastPage({ user }: PestForecastPageProps) {
           <div>
             <div className="panel-title">14-Day Sequential Temporal Forecast (BiLSTM)</div>
             <div className="panel-subtitle">
-              {user.province}-wide forecast · Source: DOST-PAGASA CLSU + BPI-CPMD
+              {user.municipality} forecast · Live weather: Open-Meteo · Model built on DOST-PAGASA CLSU + BPI-CPMD data
             </div>
           </div>
           <span className="badge badge-green">Active Crop Stage: {ACTIVE_GROWTH_STAGE}</span>

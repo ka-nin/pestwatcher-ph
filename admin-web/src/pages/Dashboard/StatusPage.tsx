@@ -466,7 +466,7 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
             <div>
               <div className="panel-title">14-Day Forecasting Heatmap</div>
               <div className="panel-subtitle">
-                {user.municipality} forecast · Source: DOST-PAGASA CLSU + BPI-CPMD
+                {user.municipality} forecast · Live weather: Open-Meteo · Model built on DOST-PAGASA CLSU + BPI-CPMD data
               </div>
             </div>
             <LiveBadge />

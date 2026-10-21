@@ -1,0 +1,121 @@
+{
+  "rmse": 1.5442237868280433,
+  "mae": 1.002294898033142,
+  "r2": -0.0009523630142211914,
+  "etl_classification": {
+    "accuracy": 0.8741390106449592,
+    "precision_macro": 0.33731787523103146,
+    "recall_macro": 0.3351099944666278,
+    "f1_macro": 0.329996410011947,
+    "confusion_matrix": [
+      [
+        1390,
+        48,
+        0
+      ],
+      [
+        149,
+        6,
+        0
+      ],
+      [
+        4,
+        0,
+        0
+      ]
+    ],
+    "confusion_matrix_labels": [
+      "Low",
+      "Medium",
+      "High"
+    ],
+    "support_per_level": {
+      "Low": 1438,
+      "Medium": 155,
+      "High": 4
+    }
+  },
+  "observation_conditions": {
+    "with_report": {
+      "rmse": 1.5442237868280433,
+      "mae": 1.002294898033142,
+      "r2": -0.0009523630142211914,
+      "etl_classification": {
+        "accuracy": 0.8741390106449592,
+        "precision_macro": 0.33731787523103146,
+        "recall_macro": 0.3351099944666278,
+        "f1_macro": 0.329996410011947,
+        "confusion_matrix": [
+          [
+            1390,
+            48,
+            0
+          ],
+          [
+            149,
+            6,
+            0
+          ],
+          [
+            4,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "Low",
+          "Medium",
+          "High"
+        ],
+        "support_per_level": {
+          "Low": 1438,
+          "Medium": 155,
+          "High": 4
+        }
+      }
+    },
+    "no_report": {
+      "rmse": 1.542528306896079,
+      "mae": 0.9878788590431213,
+      "r2": 0.0012444257736206055,
+      "etl_classification": {
+        "accuracy": 0.8791484032561052,
+        "precision_macro": 0.31730866614901587,
+        "recall_macro": 0.3292894850972827,
+        "f1_macro": 0.31877588584554617,
+        "confusion_matrix": [
+          [
+            1402,
+            36,
+            0
+          ],
+          [
+            153,
+            2,
+            0
+          ],
+          [
+            4,
+            0,
+            0
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "Low",
+          "Medium",
+          "High"
+        ],
+        "support_per_level": {
+          "Low": 1438,
+          "Medium": 155,
+          "High": 4
+        }
+      }
+    }
+  },
+  "observation_dropout": 0.0,
+  "feature_set": "lagged_fresh",
+  "log_target": false,
+  "balance_bands": true,
+  "band_weight_power": 0.5
+}
