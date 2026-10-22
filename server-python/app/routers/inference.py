@@ -48,12 +48,19 @@ DAMAGE_RULES = {  # pest -> (min share of cells damaged, min severity in %)
 }
 
 
-def _affected_area_m2(path: Path, has_damage: list[list[bool]], tilt_deg: float) -> tuple[float, float]:
-    """(visible m2, affected m2) for the photo at an assumed camera tilt."""
+def _affected_area_m2(path: Path, cell_values: list[list[float]], has_damage: list[list[bool]], tilt_deg: float) -> tuple[float, float, float]:
+    """(visible m2, damaged m2, spread m2) for the photo at an assumed camera tilt.
+
+    damaged = each cell's ground area x the share of that cell the model says is
+    damaged, i.e. the area the damage actually covers. spread = the ground area
+    of every cell that contains any damage, i.e. how far it extends; counting
+    whole cells as damaged would overstate the area (a cell with 1% damage is
+    not 100% damaged)."""
     areas = ground_area_by_cell(path, len(has_damage), len(has_damage[0]), tilt_deg=tilt_deg)
     visible = sum(sum(r) for r in areas)
-    affected = sum(a for ra, rd in zip(areas, has_damage) for a, d in zip(ra, rd) if d)
-    return visible, affected
+    damaged = sum(a * min(v, 100.0) / 100 for ra, rv in zip(areas, cell_values) for a, v in zip(ra, rv))
+    spread = sum(a for ra, rd in zip(areas, has_damage) for a, d in zip(ra, rd) if d)
+    return visible, damaged, spread
 
 
 def _field_result(
@@ -81,7 +88,7 @@ def _field_result(
         severity_where_present_pct=round(sum(affected) / len(affected), 2) if affected else 0.0,
         field_size_ha=field_size_ha,
         field_size_source=field_size_source if field_size_ha else None,
-        affected_hectares=round(cells_affected_pct / 100 * field_size_ha, 2) if field_size_ha else None,
+        affected_hectares=round(sum(flat) / len(flat) / 100 * field_size_ha, 2) if field_size_ha else None,
         message=(
             "Field assessment complete. Estimated from synthetic-trained models; "
             "a technologist must confirm it before it counts as an observation."
@@ -91,10 +98,12 @@ def _field_result(
 
 
 def _with_photo_area(result: FieldAssessmentResponse, path: Path) -> FieldAssessmentResponse:
-    visible, affected = _affected_area_m2(path, result.cell_has_damage, 35.0)
-    _, affected_low = _affected_area_m2(path, result.cell_has_damage, 45.0)
-    _, affected_high = _affected_area_m2(path, result.cell_has_damage, 30.0)
+    cells = result.cell_values
+    visible, affected, spread = _affected_area_m2(path, cells, result.cell_has_damage, 35.0)
+    _, affected_low, _ = _affected_area_m2(path, cells, result.cell_has_damage, 45.0)
+    _, affected_high, _ = _affected_area_m2(path, cells, result.cell_has_damage, 30.0)
     result.visible_area_m2 = round(visible, 1)
+    result.spread_area_m2 = round(spread, 1)
     result.affected_area_m2 = round(affected, 1)
     result.affected_area_m2_low = round(affected_low, 1)
     result.affected_area_m2_high = round(affected_high, 1)
@@ -219,7 +228,7 @@ async def infer_image(
             message="ResNet-50 model not loaded yet — image saved for later training/inference",
         )
     if result.label is None:
-        return _no_tracked_pest_response(result, destination)
+        return _no_tracked_pest_response(result, destination, municipality, growth_stage)
     return _pest_found_response(result, destination, municipality, growth_stage)
 
 
@@ -241,7 +250,9 @@ def _grid_fields(result) -> dict:
     )
 
 
-def _no_tracked_pest_response(result, photo: Path) -> ImageInferenceResponse:
+def _no_tracked_pest_response(
+    result, photo: Path, municipality: str | None, growth_stage: GrowthStage | None
+) -> ImageInferenceResponse:
     """The classifiers found neither BPH nor RSB. In order: another insect was
     seen (unidentified); the photo shows RSB damage without the insect; nothing."""
     if result.unidentified:
@@ -258,6 +269,14 @@ def _no_tracked_pest_response(result, photo: Path) -> ImageInferenceResponse:
     # in frame scores near zero: check the photo for damage before answering "none".
     assessment = _assess_photo("RSB", photo)
     if assessment is not None and _damage_found(assessment):
+        # The photo's severity stands in for the RSB observation (% damage, the
+        # forecast's own unit), so the trajectory reacts to this photo like a BPH count does.
+        photo_features = (assessment.pct_affected, 0.0, 1.0) if assessment.pct_affected is not None else None
+        forecast = (
+            _build_trajectory(municipality, "RSB", growth_stage, days=13, override_lagged_features=photo_features)
+            if municipality and growth_stage
+            else None
+        )
         return ImageInferenceResponse(
             status="damage_detected",
             pest_detected=assessment.pest,
@@ -267,6 +286,8 @@ def _no_tracked_pest_response(result, photo: Path) -> ImageInferenceResponse:
             ),
             pest_scores=result.pest_scores,
             field_assessment=assessment,
+            forecast=forecast,
+            forecast_reflects_this_photo=forecast is not None and photo_features is not None,
         )
 
     return ImageInferenceResponse(

@@ -179,6 +179,28 @@ export default function ScanResult() {
           <h1>{title}</h1>
           <p>{body}</p>
           {isDamage && <FieldAssessmentCard assessment={inference.field_assessment} t={t} showDisclaimer={false} />}
+          {isDamage && inference.forecast?.points?.length > 0 && (
+            <section>
+              <h2>{t('scanResultTrajectoryTitle')}</h2>
+              <div className="forecast-grid">
+                {inference.forecast.points.map((day) => {
+                  const d = new Date(day.date);
+                  const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+                  return (
+                    <div key={day.date} className={`forecast-day risk-${day.risk_level.toLowerCase()}`}>
+                      <span className="forecast-day-name">{isEn ? weekday : DAY_NAMES_FIL[weekday]}</span>
+                      <span className="forecast-day-date">{d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="forecast-legend">
+                <span><i className="risk-low" /> {t('scanResultLegendLow')}</span>
+                <span><i className="risk-medium" /> {t('scanResultLegendMedium')}</span>
+                <span><i className="risk-high" /> {t('scanResultLegendHigh')}</span>
+              </div>
+            </section>
+          )}
           <button className="scan-result-rescan-btn" onClick={() => navigate('/scan')}>
             {t('scanResultRescan')}
           </button>
