@@ -134,6 +134,16 @@ class FieldAssessmentResponse(BaseModel):
     message: str
 
 
+class PlanthopperBox(BaseModel):
+    """One planthopper found by the box detector, in pixels of the uploaded photo."""
+
+    x0: float
+    y0: float
+    x1: float
+    y1: float
+    score: float
+
+
 class ImageInferenceResponse(BaseModel):
     """Response contract for the ResNet-50 optical field surveillance endpoint.
 
@@ -186,6 +196,12 @@ class ImageInferenceResponse(BaseModel):
     grid_tiles: int | None = None
     bph_grid_count: int | None = None
     estimated_count: float | None = None
+    # Box detector (app/models/planthopper_detector.py): one box per planthopper and the
+    # photo's size, so a client can draw them. When present, estimated_count is the
+    # number of boxes. Null when the detector is not installed.
+    detections: list[PlanthopperBox] | None = None
+    image_width: int | None = None
+    image_height: int | None = None
     estimated_coverage_pct: float | None = None
     estimated_damage_pct: float | None = None
     # Set with status "damage_detected": no insect was found, but the field-level damage model

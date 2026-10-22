@@ -31,3 +31,5 @@ ml/synthetic/datasets/
 # — large raw image dump, not reproducible from code, kept out of git like
 # the other raw datasets above.
 ml/new/
+ml/weights/_backup_*/
+ml/weights/*/*.pt

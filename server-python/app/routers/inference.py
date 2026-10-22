@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import replace
 from typing import Literal
 from datetime import date, timedelta
 from pathlib import Path
@@ -11,7 +12,8 @@ from app.decision.etl_thresholds import derive_risk_level
 from app.decision.outlook import growth_outlook, project_affected_area, spread_summary
 from app.decision.report_anchor import find_lagged_observation
 from app.preprocessing.photo_footprint import ground_area_by_cell, estimate_field_size_ha
-from app.models.resnet_model import resnet_classifier, resnet_regressors
+from app.models.planthopper_detector import planthopper_detector
+from app.models.resnet_model import _risk_level_for_confidence, resnet_classifier, resnet_regressors
 from app.routers.weather import fetch_recent_daily_weather
 from app.schemas.inference import (
     ExplanationResponse,
@@ -227,9 +229,18 @@ async def infer_image(
             status="model_not_loaded",
             message="ResNet-50 model not loaded yet — image saved for later training/inference",
         )
+    # The box detector finds each planthopper itself, so a photo the classifier
+    # missed (many small insects, a leaf close-up) can still be recognised as BPH.
+    detections = planthopper_detector.detect(destination)
+    if result.label is None and planthopper_detector.confident(detections):
+        top = max(d.score for d in detections)
+        result = replace(
+            result, label="BPH", confidence=top, risk_level=_risk_level_for_confidence(top),
+            pests_detected=["BPH"], unidentified=False,
+        )
     if result.label is None:
         return _no_tracked_pest_response(result, destination, municipality, growth_stage)
-    return _pest_found_response(result, destination, municipality, growth_stage)
+    return _pest_found_response(result, destination, municipality, growth_stage, detections)
 
 
 async def _save_upload(file: UploadFile) -> Path:
@@ -248,6 +259,16 @@ def _grid_fields(result) -> dict:
         grid_tiles=result.grid_tiles,
         bph_grid_count=result.grid_count,
     )
+
+
+def _detection_fields(photo: Path, detections: list | None) -> dict:
+    if not detections:
+        return {}
+    from PIL import Image
+
+    with Image.open(photo) as img:
+        width, height = img.size
+    return dict(detections=[d.__dict__ for d in detections], image_width=width, image_height=height)
 
 
 def _no_tracked_pest_response(
@@ -297,8 +318,14 @@ def _no_tracked_pest_response(
     )
 
 
-def _quantity_estimates(pest: str, photo: Path) -> dict[str, float | None]:
-    """The pest's own photo estimate: count + coverage for BPH, damage % for RSB."""
+def _quantity_estimates(pest: str, photo: Path, detections: list | None = None) -> dict[str, float | None]:
+    """The pest's own photo estimate: count + coverage for BPH, damage % for RSB.
+    When the box detector ran and found insects, the count is the number of boxes."""
+    if pest == "BPH" and detections:
+        return {
+            "estimated_count": float(len(detections)),
+            "estimated_coverage_pct": resnet_regressors.predict("BPH", "coverage_pct", photo),
+        }
     if pest == "BPH":
         return {
             "estimated_count": resnet_regressors.predict("BPH", "count", photo),
@@ -317,13 +344,13 @@ def _photo_lagged_features(pest: str, estimates: dict[str, float | None]) -> tup
 
 
 def _pest_found_response(
-    result, photo: Path, municipality: str | None, growth_stage: GrowthStage | None
+    result, photo: Path, municipality: str | None, growth_stage: GrowthStage | None, detections: list | None = None
 ) -> ImageInferenceResponse:
     pest = result.label
     # The estimate is computed BEFORE the forecast so this photo's own number can feed
     # the trajectory below. The photo also gets the field-level severity and spread.
     field_assessment = _assess_photo(pest, photo) if pest in DAMAGE_RULES else None
-    estimates = _quantity_estimates(pest, photo)
+    estimates = _quantity_estimates(pest, photo, detections)
     photo_features = _photo_lagged_features(pest, estimates)
 
     forecast: TrajectoryResponse | None = None
@@ -341,6 +368,7 @@ def _pest_found_response(
         message="Prediction successful",
         forecast=forecast,
         forecast_reflects_this_photo=photo_features is not None,
+        **_detection_fields(photo, detections if pest == "BPH" else None),
         pests_detected=result.pests_detected,
         field_assessment=field_assessment,
         **_grid_fields(result),

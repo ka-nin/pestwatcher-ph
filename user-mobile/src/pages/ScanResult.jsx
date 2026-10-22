@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { X, RotateCcw, Sprout, HelpCircle, AlertTriangle } from 'lucide-react';
 import RiskBadge from '../components/RiskBadge';
 import FieldAssessmentCard from '../components/FieldAssessmentCard';
+import DetectionOverlay from '../components/DetectionOverlay';
 import { pestGuide, etlThresholds } from '../data/mockData';
 import { PestHeroMedia } from '../data/pestIcons';
 import { fetchPestForecast, fetchPestForecastTrajectory } from '../api/client';
@@ -62,6 +63,7 @@ export default function ScanResult() {
   // Real result from the just-completed /api/inference/image call, passed
   // via navigation state from ScanCapture.
   const inference = location.state?.inference;
+  const photo = location.state?.photo;
 
   const [forecast, setForecast] = useState(null);
   const [trajectory, setTrajectory] = useState(null);
@@ -273,6 +275,14 @@ export default function ScanResult() {
             </p>
           )}
         </section>
+
+        <DetectionOverlay
+          photo={photo}
+          detections={inference.detections}
+          width={inference.image_width}
+          height={inference.image_height}
+          t={t}
+        />
 
         {/* Signal 2: the AI's own quantitative read of this same photo —
             unverified, shown before the weather-based forecast rather than
