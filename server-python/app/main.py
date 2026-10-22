@@ -75,7 +75,10 @@ def load_ml_models() -> None:
         try:
             resnet_regressors.load(pest, target)
         except (FileNotFoundError, OSError, ValueError):
-            print(f"[startup] {pest} {target} regressor not found — reports won't get an ai_suggested_{target} value")
+            if target == "field_damage_pct":
+                print(f"[startup] {pest} field-level damage model not installed — POST /field-assessment returns model_not_loaded")
+            else:
+                print(f"[startup] {pest} {target} regressor not found — reports won't get an ai_suggested_{target} value")
 
 
 app.add_middleware(

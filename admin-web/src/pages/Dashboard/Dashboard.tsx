@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import logo from '../../assets/logo.png'
 import { fetchWeatherForecast, type LguUser, type WeatherForecast } from '../../lib/api'
 import StatusPage from './StatusPage'
+import FieldAssessmentPage from './FieldAssessmentPage'
 import PestForecastPage from './PestForecastPage'
 import IpmPage from './IpmPage'
 import ClimateDriversPage from './ClimateDriversPage'
@@ -43,11 +44,12 @@ function deriveClimateMetrics(weather: WeatherForecast) {
   }
 }
 
-type PageKey = 'status' | 'forecast' | 'ipm' | 'climate' | 'reports' | 'sms'
+type PageKey = 'status' | 'forecast' | 'field' | 'ipm' | 'climate' | 'reports' | 'sms'
 
 const navItems: { key: PageKey; label: string }[] = [
   { key: 'status', label: 'Status' },
   { key: 'forecast', label: 'Pest Forecast' },
+  { key: 'field', label: 'Field Assessment' },
   { key: 'ipm', label: 'IPM Recommendation' },
   { key: 'climate', label: 'Climate Drivers' },
   { key: 'reports', label: 'Farmer Reports' },
@@ -62,6 +64,9 @@ const navIcons: Record<PageKey, React.ReactNode> = {
     <>
       <path d="M4 20V10M10 20V4M16 20v-7M22 20V8" strokeLinecap="round" />
     </>
+  ),
+  field: (
+    <path d="M3 7h18M3 12h18M3 17h18M8 3v18M16 3v18" strokeLinecap="round" />
   ),
   ipm: <circle cx="12" cy="12" r="8" />,
   climate: (
@@ -200,6 +205,8 @@ function Dashboard({ user, accessToken, onLogout }: DashboardProps) {
           )}
 
           {activePage === 'forecast' && <PestForecastPage user={user} />}
+
+          {activePage === 'field' && <FieldAssessmentPage />}
 
           {activePage === 'reports' && <ReportsPage user={user} accessToken={accessToken} />}
           {activePage === 'sms' && <SmsPage user={user} accessToken={accessToken} />}

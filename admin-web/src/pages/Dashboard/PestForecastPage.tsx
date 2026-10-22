@@ -211,7 +211,14 @@ function PestForecastPage({ user }: PestForecastPageProps) {
                         style={{ width: `${(p.predicted_value / referenceMax) * 100}%` }}
                       />
                     </div>
-                    <span className="forecast-breakdown-value">{meta.format(p.predicted_value)}</span>
+                    <span className="forecast-breakdown-value">
+                      {meta.format(p.predicted_value)}
+                      {p.projected_affected_ha != null && (
+                        <span className="forecast-breakdown-area" title="Projected affected area, assuming it grows with the forecast">
+                          {' '}· ~{p.projected_affected_ha} ha
+                        </span>
+                      )}
+                    </span>
                   </div>
                 ))}
               </div>

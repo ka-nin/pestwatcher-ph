@@ -149,6 +149,8 @@ export interface TrajectoryPoint {
   predicted_value: number
   unit: 'hoppers_per_hill' | 'pct_damage'
   risk_level: RiskLevel
+  // Projected hectares affected that day (null without a verified area).
+  projected_affected_ha?: number | null
 }
 
 // How fast the forecast says the pest is changing, read off the trajectory
@@ -202,6 +204,42 @@ export async function fetchPestForecastTrajectory(
     throw new Error('Failed to fetch pest forecast trajectory')
   }
 
+  return res.json()
+}
+
+// ---- Field assessment: severity and spread from a whole-field photo
+// (server-python/app/routers/inference.py's POST /field-assessment). An
+// unverified estimate from a model trained on synthetic data.
+export interface FieldAssessment {
+  status: 'ok' | 'model_not_loaded'
+  pest: PestKey | null
+  target: string | null
+  rows: number
+  cols: number
+  // Per-cell share of the cell covered by damage (0 to 100), row-major.
+  cell_values: number[][]
+  // Which cells the model judges to contain damage.
+  cell_has_damage: boolean[][]
+  // Severity: mean over cells.
+  pct_affected: number | null
+  // Spread: share of cells that contain damage.
+  cells_affected_pct: number | null
+  severity_where_present_pct: number | null
+  field_size_ha: number | null
+  // Spread in hectares: cells_affected_pct x field size.
+  affected_hectares: number | null
+  message: string
+}
+
+export async function assessFieldPhoto(file: File, pest: PestKey, fieldSizeHa: number | null): Promise<FieldAssessment> {
+  const body = new FormData()
+  body.append('file', file)
+  body.append('pest', pest)
+  if (fieldSizeHa != null) body.append('field_size_ha', String(fieldSizeHa))
+  const res = await fetch(`${API_BASE_URL}/api/inference/field-assessment`, { method: 'POST', body })
+  if (!res.ok) {
+    throw new Error(res.status === 415 ? 'Use a JPEG, PNG or WebP photo.' : 'Field assessment failed.')
+  }
   return res.json()
 }
 

@@ -123,6 +123,19 @@ export const translations = {
     scanResultHealthyTitle: 'Walang natukoy na peste',
     scanResultHealthyBody:
       'Mukhang malusog ang tanim batay sa larawan — walang nakitang Kayumangging Hanip o Aksip. Ipagpatuloy ang regular na pagmamanman.',
+    scanResultFieldTitle: 'Lawak at Tindi ng Pinsala (Mula sa Larawan)',
+    scanResultFieldGridLabel: 'Aling bahagi ng larawan ang may pinsala',
+    scanResultFieldSeverity: 'tindi ng pinsala',
+    scanResultFieldSpread: 'lawak ng pinsala',
+    scanResultFieldHectares: 'apektadong ektarya',
+    scanResultFieldSize: 'Laki ng bukid (ektarya, opsyonal)',
+    scanResultFieldDisclaimer: 'Tantiya lamang ng AI mula sa larawan. Pakikumpirma sa teknolohista.',
+    scanResultDamageTitleBPH: 'May nakitang posibleng hopperburn',
+    scanResultDamageBodyBPH:
+      'Walang insektong nakita, pero may pinsalang kahawig ng hopperburn sa larawan: humigit-kumulang {severity}% ng larawan ang apektado at {spread}% ng bahagi ang may pinsala. Tantiya lamang ito ng AI. Pakikumpirma sa teknolohista.',
+    scanResultDamageTitle: 'May nakitang posibleng pinsala ng stem borer',
+    scanResultDamageBody:
+      'Walang insektong nakita, pero may pinsalang kahawig ng whitehead sa larawan: humigit-kumulang {severity}% ng larawan ang apektado at {spread}% ng bahagi ang may pinsala. Tantiya lamang ito ng AI. Pakikumpirma sa teknolohista.',
     scanResultOtherPestTitle: 'May nakitang kakaibang insekto',
     scanResultOtherPestBody:
       'May insekto sa larawan, pero hindi ito tumutugma sa Kayumangging Hanip o Aksip na sinanay naming matukoy. Maaaring ibang peste ito — konsultahin ang inyong teknolohistang pang-agrikultura.',
@@ -215,7 +228,7 @@ export const translations = {
     scanChoiceUploadTitle: 'Mag-upload ng Larawan',
     scanChoiceUploadSubtitle: 'Pumili mula sa gallery ng iyong telepono',
     scanCapturedAlt: 'Nakuhang larawan',
-    scanAnalyzingOverlayText: 'Sinusuri ang peste...',
+    scanAnalyzingOverlayText: 'Sinusuri ang larawan...',
     scanInstructionsTitle: 'Magsuri ng peste gamit ang iyong camera',
     scanInstructions: 'I-tapat ang target na peste sa gitna ng scan frame para sa mas tumpak na pag-identify.',
     scanTipClose: 'I-lapit nang husto',
@@ -225,9 +238,9 @@ export const translations = {
     scanShutterScan: 'I-scan ang larawan',
     scanShutterCapture: 'Kunin ang larawan',
     scanAnalyzingBadge: 'PAG-ANALYZE NG AI...',
-    scanAnalyzingHeading: 'Sinusuri ang peste...',
+    scanAnalyzingHeading: 'Sinusuri ang larawan...',
     scanAnalyzingBody:
-      'Ang aming AI ay kasalukuyang kinikilala ang peste sa iyong kinuha na larawan para sa tumpak na pag-identify.',
+      'Sinusuri ng aming AI ang iyong larawan para sa peste, at kung gaano kalala at kalawak ang pinsala.',
     scanAnalyzingServerStatus: 'May matatag na koneksyon · Tinatayang oras: 5s',
     scanAnalyzingCancel: 'Kanselahin ang Pag-scan',
     gallerySelectedSuffix: 'Larawan ang napili',
@@ -369,6 +382,19 @@ export const translations = {
     scanResultHealthyTitle: 'No pest detected',
     scanResultHealthyBody:
       'This photo looks healthy — no Brown Planthopper or Rice Stem Borer was found. Keep up your regular monitoring.',
+    scanResultFieldTitle: 'Damage Severity and Spread (From Photo)',
+    scanResultFieldGridLabel: 'Which parts of the photo show damage',
+    scanResultFieldSeverity: 'severity',
+    scanResultFieldSpread: 'spread',
+    scanResultFieldHectares: 'affected area',
+    scanResultFieldSize: 'Field size (hectares, optional)',
+    scanResultFieldDisclaimer: 'An AI estimate from the photo only. Please have a technologist confirm it.',
+    scanResultDamageTitleBPH: 'Possible hopperburn found',
+    scanResultDamageBodyBPH:
+      'No insect was seen, but the photo shows damage that looks like hopperburn: about {severity}% of the photo is affected and {spread}% of the area shows damage. This is an AI estimate only. Please have a technologist confirm it.',
+    scanResultDamageTitle: 'Possible stem borer damage found',
+    scanResultDamageBody:
+      'No insect was seen, but the photo shows damage that looks like whiteheads: about {severity}% of the photo is affected and {spread}% of the area shows damage. This is an AI estimate only. Please have a technologist confirm it.',
     scanResultOtherPestTitle: 'An unrecognized insect was found',
     scanResultOtherPestBody:
       'An insect appears in this photo, but it did not match the Brown Planthopper or Rice Stem Borer models we trained. It may be a different pest — please consult your local agricultural technologist.',
@@ -461,7 +487,7 @@ export const translations = {
     scanChoiceUploadTitle: 'Upload a Photo',
     scanChoiceUploadSubtitle: "Choose from your phone's gallery",
     scanCapturedAlt: 'Captured photo',
-    scanAnalyzingOverlayText: 'Analyzing the pest...',
+    scanAnalyzingOverlayText: 'Analyzing the image...',
     scanInstructionsTitle: 'Scan for pests using your camera',
     scanInstructions: 'Center the target pest in the scan frame for a more accurate identification.',
     scanTipClose: 'Get close enough',
@@ -471,9 +497,9 @@ export const translations = {
     scanShutterScan: 'Scan photo',
     scanShutterCapture: 'Capture photo',
     scanAnalyzingBadge: 'AI ANALYZING...',
-    scanAnalyzingHeading: 'Analyzing the pest...',
+    scanAnalyzingHeading: 'Analyzing the image...',
     scanAnalyzingBody:
-      'Our AI is currently identifying the pest in your captured photo for an accurate diagnosis.',
+      'Our AI is checking your photo for pests, and for how severe and how widespread any damage is.',
     scanAnalyzingServerStatus: 'Connection stable · Estimated time: 5s',
     scanAnalyzingCancel: 'Cancel Scan',
     gallerySelectedSuffix: 'photo(s) selected',

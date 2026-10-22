@@ -1,0 +1,33 @@
+{
+  "pest": "RSB",
+  "backbone": "efficientnetb0",
+  "input_size": 160,
+  "train_seconds": 2577.3,
+  "parameters": 4131620,
+  "test_set_is_synthetic": true,
+  "cell": {
+    "rmse": 1.3578721172123744,
+    "mae": 0.6962960874642882,
+    "r2": 0.8112533346666132,
+    "n": 1008
+  },
+  "image_severity": {
+    "rmse": 0.5876664241609373,
+    "mae": 0.373116738148891,
+    "r2": 0.9018256292433915,
+    "n": 112
+  },
+  "image_severity_baseline_mae_predict_mean": 1.5648641581632652,
+  "image_spread_pct_of_cells": {
+    "rmse": 21.024257426904136,
+    "mae": 15.376984126984127,
+    "r2": 0.6982673483509914,
+    "n": 112
+  },
+  "cell_has_damage": {
+    "threshold": 0.05,
+    "label_min_pct": 0.2,
+    "precision": 0.8621621621621621,
+    "recall": 0.7104677060133631
+  }
+}
