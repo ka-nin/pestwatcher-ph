@@ -25,3 +25,9 @@ ml/weights/*/resnet50_*.keras
 # reproducible from the already-tracked script + the real crops/backgrounds
 # above, same reasoning as ml/resnet/datasets/.
 ml/synthetic/datasets/
+
+# Roboflow-exported rice growth-stage photo set used as source material for
+# ml/synthetic/generate_hopperburn_procedural.py / generate_hopperburn_dataset.py
+# — large raw image dump, not reproducible from code, kept out of git like
+# the other raw datasets above.
+ml/new/
