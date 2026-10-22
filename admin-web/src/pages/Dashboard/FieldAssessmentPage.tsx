@@ -12,6 +12,10 @@ function cellColour(value: number, hasDamage: boolean) {
   return `rgba(214, 69, 65, ${strength * 0.55})`
 }
 
+// BPH has no field-level damage model installed yet (only RSB's is trained),
+// so it is left out of the picker rather than offering a choice that always
+// comes back model_not_loaded. Add it back once
+// ml/weights/bph/resnet50_bph_field_damage_pct.keras exists.
 function FieldAssessmentPage() {
   const [pest, setPest] = useState<PestKey>('RSB')
   const [file, setFile] = useState<File | null>(null)
@@ -69,7 +73,6 @@ function FieldAssessmentPage() {
             <label htmlFor="fa-pest">Pest</label>
             <select id="fa-pest" value={pest} onChange={(e) => setPest(e.target.value as PestKey)}>
               <option value="RSB">Rice Stem Borer (whiteheads)</option>
-              <option value="BPH">Brown Planthopper (hopperburn)</option>
             </select>
           </div>
           <div className="fa-field">

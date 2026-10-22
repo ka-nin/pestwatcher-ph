@@ -65,7 +65,12 @@ def build_model_insights() -> dict[str, Any]:
         models.append(
             {
                 "name": f"ResNet-50 · {pest}",
-                "detail": {"count": "count estimate", "coverage_pct": "coverage % estimate", "damage_pct": "damage % estimate"}[target]
+                "detail": {
+                    "count": "count estimate",
+                    "coverage_pct": "coverage % estimate",
+                    "damage_pct": "damage % estimate",
+                    "field_damage_pct": "field-level damage % estimate",
+                }[target]
                 + ("" if path.exists() else " · file missing on this server"),
                 "loaded": resnet_regressors.is_loaded(pest, target),
                 "updated": _modified_date(path),
