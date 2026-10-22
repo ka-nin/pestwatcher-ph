@@ -12,6 +12,7 @@ from app.data.municipalities import municipality_coordinates
 from app.decision.etl_thresholds import derive_risk_level
 from app.decision.outlook import growth_outlook, project_affected_area, spread_summary
 from app.decision.report_anchor import find_lagged_observation
+from app.preprocessing.tiling import TILE_HIT_THRESHOLD
 from app.preprocessing.photo_footprint import ground_area_by_cell, estimate_field_size_ha
 from app.models.resnet_model import resnet_classifier, resnet_regressors
 from app.routers.weather import fetch_recent_daily_weather
@@ -90,7 +91,7 @@ def _field_result(
         severity_where_present_pct=round(sum(affected) / len(affected), 2) if affected else 0.0,
         field_size_ha=field_size_ha,
         field_size_source=field_size_source if field_size_ha else None,
-        affected_hectares=round(sum(flat) / len(flat) / 100 * field_size_ha, 2) if field_size_ha else None,
+        affected_hectares=round(sum(flat) / len(flat) / 100 * field_size_ha, 4) if field_size_ha else None,
         message=(
             "Field assessment complete. Estimated from synthetic-trained models; "
             "a technologist must confirm it before it counts as an observation."
@@ -274,21 +275,17 @@ def _grid_fields(result) -> dict:
 def _no_tracked_pest_response(
     result, photo: Path, municipality: str | None, growth_stage: GrowthStage | None, field_size_ha: float | None = None
 ) -> ImageInferenceResponse:
-    """The classifiers found neither BPH nor RSB. In order: another insect was
-    seen (unidentified); the photo shows RSB damage without the insect; nothing."""
-    if result.unidentified:
-        return ImageInferenceResponse(
-            status="unidentified_pest_detected",
-            message=(
-                "An insect appears to be present, but it did not match our trained BPH/RSB models. "
-                "It may be a different pest — please consult your local agricultural technologist."
-            ),
-            **_grid_fields(result),
-        )
-
+    """The classifiers found neither BPH nor RSB. In order: the photo shows RSB damage
+    (checked first: on 100 real stem-borer photos the unknown-insect detector fired on 64%
+    of whitehead photos and 24% of healthy ones, so it cannot outrank the damage check);
+    another insect was seen (unidentified); nothing."""
     # The classifiers look for the insect, so a photo of whiteheads with no insect
     # in frame scores near zero: check the photo for damage before answering "none".
-    assessment = _assess_photo("RSB", photo, field_size_ha)
+    # But not when the BPH classifier already saw something insect-like: a tile that fired
+    # strongly means planthoppers are the likelier reading, and the damage model (trained
+    # on synthetic whiteheads) must not relabel such a photo as stem borer.
+    bph_signal = result.pest_scores.get("BPH", 0.0) >= TILE_HIT_THRESHOLD
+    assessment = None if bph_signal else _assess_photo("RSB", photo, field_size_ha)
     if assessment is not None and _damage_found(assessment):
         # The photo's severity stands in for the RSB observation (% damage, the
         # forecast's own unit), so the trajectory reacts to this photo like a BPH count does.
@@ -311,9 +308,23 @@ def _no_tracked_pest_response(
             forecast_reflects_this_photo=forecast is not None and photo_features is not None,
         )
 
+    if result.unidentified:
+        return ImageInferenceResponse(
+            status="unidentified_pest_detected",
+            message=(
+                "An insect appears to be present, but it did not match our trained BPH/RSB models. "
+                "It may be a different pest — please consult your local agricultural technologist."
+            ),
+            **_grid_fields(result),
+        )
+
     return ImageInferenceResponse(
         status="no_pest_detected",
-        message="No tracked pest (BPH/RSB) was detected in this photo with sufficient confidence.",
+        message=(
+            "Possible planthoppers were seen but not clearly enough to confirm. Try a closer, sharper photo."
+            if bph_signal
+            else "No tracked pest (BPH/RSB) was detected in this photo with sufficient confidence."
+        ),
         **_grid_fields(result),
     )
 

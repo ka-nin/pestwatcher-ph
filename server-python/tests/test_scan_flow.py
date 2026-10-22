@@ -81,7 +81,7 @@ def test_entered_field_size_overrides_and_scales_hectares(client, stub):
     stub(None, DAMAGED)
     fa = _scan(client, field_size_ha="2").json()["field_assessment"]
     assert fa["field_size_source"] == "entered"
-    assert fa["affected_hectares"] == round(fa["pct_affected"] / 100 * 2, 2)
+    assert fa["affected_hectares"] == round(fa["pct_affected"] / 100 * 2, 4)
 
 
 def test_fake_image_is_rejected_with_422(client):
@@ -132,3 +132,14 @@ def test_report_photo_with_only_damage_is_attributed_to_rsb(client, stub, monkey
     assert record.ai_pest_detected == "RSB"
     assert record.ai_suggested_damage_pct and record.ai_suggested_damage_pct > 0
     assert record.estimated_value is None
+
+
+def test_damage_outranks_the_unknown_insect_detector(client, monkeypatch, stub):
+    """The unknown-insect detector fires on plant photos, so damage is checked first."""
+    stub(None, DAMAGED)
+    unidentified = _classifier(None)
+    unidentified.unidentified = True
+    monkeypatch.setattr(inf.resnet_classifier, "predict", lambda path: unidentified)
+    assert _scan(client).json()["status"] == "damage_detected"
+    monkeypatch.setattr(inf.resnet_regressors, "predict_grid", lambda *a, **k: [[0.0] * 3] * 3)
+    assert _scan(client).json()["status"] == "unidentified_pest_detected"

@@ -82,9 +82,27 @@ The panel wants the CV component to go beyond species identification to quantita
 
 **What must be disclosed, not defended:** only the `count` target has real ground truth (`ml/resnet/bph/_annotations.csv`). `coverage_pct` and `damage_pct` are trained **entirely on synthetic composites** — real pest crops pasted onto real backgrounds at known positions for coverage, and painted tint patches *approximating* dead-heart/white-ear symptoms for RSB damage, because no real damaged-plant photographs exist anywhere in the dataset (`ml/synthetic/generate_coverage_dataset.py`). The val/test splits for those two targets are synthetic too. If asked how this generalizes to a real field photo, the honest answer is: unverified — this is a controlled proof-of-concept for the regression approach, not a validated real-world estimator, and that limitation should be stated in Chapter 5, not discovered by a panelist.
 
-## "Field photo, not close-up; drone imagery; hectares" — not addressed, scope this as future work
+## "Field photo, not close-up; drone imagery; hectares" — partly addressed (updated 2026-10-23)
 
-The entire CV pipeline (classification and the new regression heads) is trained on close, farmer-submitted crops of individual insects, not whole-field or drone imagery. Reaching what the panel describes needs new data collection (drone or wide-field photography), new annotation at field scale, and likely a different CV approach (tiling + aggregation or true object detection) — not a retrain of what exists. **Recommendation: state this explicitly as acknowledged future work in Chapter 5** rather than attempting a redesign before the defense. Trying to partially address it risks a worse outcome than naming it plainly as out of scope.
+**What was built.** A field-level damage model for RSB (ResNet-50 on a 3×3 grid of cells, `ml/resnet/train_field_damage.py`) reports severity (share of the photo covered by damage) and spread (share of cells with damage). The scan flow is: the BPH classifier counts planthoppers and feeds the forecast; if no pest is found, the photo is checked for stem-borer damage, and a flagged photo is reported as an RSB case with severity, spread and a 13-day trajectory. The pest type is filled in automatically from the photo in the scan, the admin Field Assessment page and the report form. BPH has no field-level model because no field-level BPH dataset exists.
+
+**How well it works on real photos (2026-10-23).** The model was trained on synthetic damage painted onto real healthy photos, so it was tested on the public "Symptom-Labeled Image Dataset of Rice Plants for Stem Borer Infestation Classification" (Mendeley, CC BY 4.0; real, expert-labelled phone photos from Bangladesh), 100 random photos per class:
+
+| Class | Flagged as RSB damage |
+|---|---|
+| White Head | 89% |
+| Dead Heart | 99% |
+| Healthy | 12% (false alarm) |
+
+This supports using it as a damage *screen* on real photos. It does **not** validate the severity percentage, the spread or any area: the dataset has class labels, not measured damage percentages. These photos are extreme close-ups of one to three stalks, not whole fields. Disclose this as a limit.
+
+**Hectares: what a photo can and cannot give.** A photo has no scale of its own. Two sources of scale are supported:
+- **Drone photos** that record their height (XMP `RelativeAltitude`) and lens: the ground footprint is computed from the lens field of view, assuming a straight-down shot. Photos without this metadata, or taken at an angle, are not given an area.
+- **A field size entered by the user** (hectares or m²): affected area = severity × field size, which assumes the photo is representative of the field.
+
+An earlier version estimated a ground-level photo's area from an assumed camera height (1.5 m) and tilt (35°). It reported about 4 m² affected for a close-up that covers a few centimetres, so it was removed from the screens. Plant spacing (about 20 × 20 cm per hill) could give scale for wide photos but not for close-ups, and was not built because there are no wide field photos to test it on. A close-up's area is not the field's area, so hectares for close-ups can only come from the entered field size.
+
+**Recommendation for Chapter 5.** State that field-level assessment is an experimental extension: RSB only, trained on synthetic damage, screened on a public real dataset, with severity and area unvalidated until photos with technologist-measured damage and known area are collected (`ml/resnet/evaluate_real_photos.py` is ready for that).
 
 ## "PAGASA... real data" — already using real data, different source
 
