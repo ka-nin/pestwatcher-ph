@@ -129,6 +129,7 @@ export const translations = {
     scanResultFieldSpread: 'lawak ng pinsala',
     scanResultFieldHectares: 'apektadong ektarya',
     scanResultFieldSize: 'Laki ng bukid (ektarya, opsyonal)',
+    scanResultFieldSizeAuto: 'Awtomatikong nakuha sa litrato: {ha} ektarya. Maglagay ng halaga para palitan.',
     scanResultFieldDisclaimer: 'Tantiya lamang ng AI mula sa larawan. Pakikumpirma sa teknolohista.',
     scanResultDamageTitleBPH: 'May nakitang posibleng hopperburn',
     scanResultDamageBodyBPH:
@@ -388,6 +389,7 @@ export const translations = {
     scanResultFieldSpread: 'spread',
     scanResultFieldHectares: 'affected area',
     scanResultFieldSize: 'Field size (hectares, optional)',
+    scanResultFieldSizeAuto: 'Detected from the photo: {ha} ha. Enter a value to override.',
     scanResultFieldDisclaimer: 'An AI estimate from the photo only. Please have a technologist confirm it.',
     scanResultDamageTitleBPH: 'Possible hopperburn found',
     scanResultDamageBodyBPH:

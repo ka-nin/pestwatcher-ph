@@ -114,6 +114,9 @@ class FieldAssessmentResponse(BaseModel):
     # SEVERITY WHERE PRESENT: mean value over only the cells that contain damage.
     severity_where_present_pct: float | None = None
     field_size_ha: float | None = None
+    # Where field_size_ha came from: typed by the user, or worked out from the
+    # photo's drone metadata (height + lens). None when neither is available.
+    field_size_source: Literal["entered", "photo_metadata"] | None = None
     # SPREAD IN HECTARES: cells_affected_pct x field_size_ha / 100. Only with a field size.
     affected_hectares: float | None = None
     message: str

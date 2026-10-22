@@ -226,6 +226,8 @@ export interface FieldAssessment {
   cells_affected_pct: number | null
   severity_where_present_pct: number | null
   field_size_ha: number | null
+  // 'photo_metadata' = read from the photo's drone height + lens; 'entered' = typed by the user.
+  field_size_source: 'entered' | 'photo_metadata' | null
   // Spread in hectares: cells_affected_pct x field size.
   affected_hectares: number | null
   message: string

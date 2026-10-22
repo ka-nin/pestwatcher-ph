@@ -9,8 +9,12 @@ function FieldAssessmentCard({ assessment, t }) {
   const [fieldSize, setFieldSize] = useState('');
   if (!assessment || assessment.status !== 'ok') return null;
 
-  const size = Number(fieldSize);
-  const hasSize = fieldSize.trim() !== '' && Number.isFinite(size) && size > 0;
+  // The server reads the size from the photo's drone metadata when it can; a typed value overrides it.
+  const detectedSize = assessment.field_size_ha;
+  const typed = Number(fieldSize);
+  const hasTyped = fieldSize.trim() !== '' && Number.isFinite(typed) && typed > 0;
+  const size = hasTyped ? typed : detectedSize;
+  const hasSize = Number.isFinite(size) && size > 0;
   const hectares = hasSize ? ((assessment.cells_affected_pct / 100) * size).toFixed(2) : null;
 
   return (
@@ -54,11 +58,12 @@ function FieldAssessmentCard({ assessment, t }) {
           inputMode="decimal"
           min="0"
           step="0.1"
-          placeholder="1.5"
+          placeholder={detectedSize ? String(detectedSize) : '1.5'}
           value={fieldSize}
           onChange={(e) => setFieldSize(e.target.value)}
         />
       </label>
+      {!hasTyped && detectedSize ? <p className="scan-result-summary">{t('scanResultFieldSizeAuto').replace('{ha}', detectedSize)}</p> : null}
       <p className="scan-result-summary">{t('scanResultFieldDisclaimer')}</p>
     </section>
   );
