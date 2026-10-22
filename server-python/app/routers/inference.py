@@ -10,7 +10,7 @@ from app.data.municipalities import municipality_coordinates
 from app.decision.etl_thresholds import derive_risk_level
 from app.decision.outlook import growth_outlook, project_affected_area, spread_summary
 from app.decision.report_anchor import find_lagged_observation
-from app.preprocessing.photo_footprint import estimate_field_size_ha
+from app.preprocessing.photo_footprint import ground_area_by_cell, estimate_field_size_ha
 from app.models.resnet_model import resnet_classifier, resnet_regressors
 from app.routers.weather import fetch_recent_daily_weather
 from app.schemas.inference import (
@@ -48,6 +48,14 @@ DAMAGE_RULES = {  # pest -> (min share of cells damaged, min severity in %)
 }
 
 
+def _affected_area_m2(path: Path, has_damage: list[list[bool]], tilt_deg: float) -> tuple[float, float]:
+    """(visible m2, affected m2) for the photo at an assumed camera tilt."""
+    areas = ground_area_by_cell(path, len(has_damage), len(has_damage[0]), tilt_deg=tilt_deg)
+    visible = sum(sum(r) for r in areas)
+    affected = sum(a for ra, rd in zip(areas, has_damage) for a, d in zip(ra, rd) if d)
+    return visible, affected
+
+
 def _field_result(
     pest: str,
     target: str,
@@ -82,6 +90,17 @@ def _field_result(
 
 
 
+def _with_photo_area(result: FieldAssessmentResponse, path: Path) -> FieldAssessmentResponse:
+    visible, affected = _affected_area_m2(path, result.cell_has_damage, 35.0)
+    _, affected_low = _affected_area_m2(path, result.cell_has_damage, 45.0)
+    _, affected_high = _affected_area_m2(path, result.cell_has_damage, 30.0)
+    result.visible_area_m2 = round(visible, 1)
+    result.affected_area_m2 = round(affected, 1)
+    result.affected_area_m2_low = round(affected_low, 1)
+    result.affected_area_m2_high = round(affected_high, 1)
+    return result
+
+
 def _damage_found(result: FieldAssessmentResponse) -> bool:
     if result.status != "ok" or result.pest not in DAMAGE_RULES:
         return False
@@ -94,7 +113,7 @@ def _assess_photo(pest: str, path: Path) -> FieldAssessmentResponse | None:
     if cells is None:
         return None
     detected = estimate_field_size_ha(path)
-    return _field_result(pest, "field_damage_pct", cells, detected, "photo_metadata")
+    return _with_photo_area(_field_result(pest, "field_damage_pct", cells, detected, "photo_metadata"), path)
 
 
 @router.post("/field-assessment", response_model=FieldAssessmentResponse)
@@ -133,6 +152,13 @@ async def assess_field(
     try:
         cells = resnet_regressors.predict_grid(pest, target, destination)
         detected_ha = estimate_field_size_ha(destination) if field_size_ha is None else None
+        if cells is not None:
+            result = (
+                _field_result(pest, target, cells, field_size_ha, "entered")
+                if field_size_ha is not None
+                else _field_result(pest, target, cells, detected_ha, "photo_metadata")
+            )
+            result = _with_photo_area(result, destination)
     finally:
         destination.unlink(missing_ok=True)  # an assessment keeps nothing
 
@@ -145,9 +171,7 @@ async def assess_field(
             ),
         )
 
-    if field_size_ha is not None:
-        return _field_result(pest, target, cells, field_size_ha, "entered")
-    return _field_result(pest, target, cells, detected_ha, "photo_metadata")
+    return result
 
 
 @router.post("/image", response_model=ImageInferenceResponse)

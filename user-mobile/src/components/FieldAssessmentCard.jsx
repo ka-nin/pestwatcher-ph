@@ -46,7 +46,13 @@ function FieldAssessmentCard({ assessment, t }) {
             <small>{t('scanResultFieldSpread')}</small>
           </div>
           <div>
-            <strong>{hectares != null ? `${hectares} ha` : '-'}</strong>
+            <strong>
+              {hectares != null
+                ? `${hectares} ha`
+                : assessment.affected_area_m2 != null
+                  ? `~${Math.round(assessment.affected_area_m2)} m²`
+                  : '-'}
+            </strong>
             <small>{t('scanResultFieldHectares')}</small>
           </div>
         </div>
@@ -64,6 +70,14 @@ function FieldAssessmentCard({ assessment, t }) {
         />
       </label>
       {!hasTyped && detectedSize ? <p className="scan-result-summary">{t('scanResultFieldSizeAuto').replace('{ha}', detectedSize)}</p> : null}
+      {!hasSize && assessment.affected_area_m2 != null ? (
+        <p className="scan-result-summary">
+          {t('scanResultFieldAreaFromPhoto')
+            .replace('{visible}', Math.round(assessment.visible_area_m2))
+            .replace('{low}', Math.round(assessment.affected_area_m2_low))
+            .replace('{high}', Math.round(assessment.affected_area_m2_high))}
+        </p>
+      ) : null}
       <p className="scan-result-summary">{t('scanResultFieldDisclaimer')}</p>
     </section>
   );

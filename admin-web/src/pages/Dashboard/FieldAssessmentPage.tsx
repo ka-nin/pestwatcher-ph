@@ -146,8 +146,8 @@ function FieldAssessmentPage() {
             </div>
             <div className="fa-metric">
               <div className="fa-metric-label">Affected area</div>
-              <div className="fa-metric-value">{result!.affected_hectares != null ? `${result!.affected_hectares} ha` : 'n/a'}</div>
-              <div className="fa-metric-note">{result!.affected_hectares != null ? `of ${result!.field_size_ha} ha${result!.field_size_source === 'photo_metadata' ? ' (detected from photo)' : ''}` : 'no drone height in photo; enter the field size'}</div>
+              <div className="fa-metric-value">{result!.affected_hectares != null ? `${result!.affected_hectares} ha` : result!.affected_area_m2 != null ? `~${Math.round(result!.affected_area_m2)} m²` : 'n/a'}</div>
+              <div className="fa-metric-note">{result!.affected_hectares != null ? `of ${result!.field_size_ha} ha${result!.field_size_source === 'photo_metadata' ? ' (detected from photo)' : ''}` : result!.affected_area_m2 != null ? `of ~${Math.round(result!.visible_area_m2 ?? 0)} m² seen in the photo (range ${Math.round(result!.affected_area_m2_low ?? 0)} to ${Math.round(result!.affected_area_m2_high ?? 0)} m², assumes 1.5 m camera height)` : 'enter the field size'}</div>
             </div>
             <div className="fa-metric">
               <div className="fa-metric-label">Where present</div>

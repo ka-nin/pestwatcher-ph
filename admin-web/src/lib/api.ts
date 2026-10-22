@@ -230,6 +230,11 @@ export interface FieldAssessment {
   field_size_source: 'entered' | 'photo_metadata' | null
   // Spread in hectares: cells_affected_pct x field size.
   affected_hectares: number | null
+  // Area from the photo's own geometry (lens + assumed camera height 1.5 m, tilt 35 deg); low/high = tilt 45 / 30 deg.
+  visible_area_m2: number | null
+  affected_area_m2: number | null
+  affected_area_m2_low: number | null
+  affected_area_m2_high: number | null
   message: string
 }
 

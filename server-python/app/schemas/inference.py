@@ -119,6 +119,15 @@ class FieldAssessmentResponse(BaseModel):
     field_size_source: Literal["entered", "photo_metadata"] | None = None
     # SPREAD IN HECTARES: cells_affected_pct x field_size_ha / 100. Only with a field size.
     affected_hectares: float | None = None
+    # AREA FROM THE PHOTO ITSELF (ground-level photos, no field size needed):
+    # square metres of ground visible in the photo and of the damaged cells,
+    # worked out from the lens field of view and an ASSUMED camera height and
+    # tilt (app/preprocessing/photo_footprint.py). Low/high bracket tilts of
+    # 45 and 30 degrees. This is the area in the photo, not the whole field.
+    visible_area_m2: float | None = None
+    affected_area_m2: float | None = None
+    affected_area_m2_low: float | None = None
+    affected_area_m2_high: float | None = None
     message: str
 
 
