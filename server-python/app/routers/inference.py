@@ -243,7 +243,12 @@ async def infer_image(
     # The box detector finds each planthopper itself, so a photo the classifier
     # missed (many small insects, a leaf close-up) can still be recognised as BPH.
     detections = planthopper_detector.detect(destination)
-    if result.label is None and planthopper_detector.confident(detections):
+    if result.label is None and (
+        planthopper_detector.confident(detections)
+        or planthopper_detector.second_opinion(
+            detections, result.pest_scores.get("BPH", 0.0), tiled=result.grid_tiles is not None
+        )
+    ):
         top = max(d.score for d in detections)
         result = replace(
             result, label="BPH", confidence=top, risk_level=_risk_level_for_confidence(top),

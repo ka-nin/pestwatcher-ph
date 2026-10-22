@@ -143,3 +143,28 @@ def test_damage_outranks_the_unknown_insect_detector(client, monkeypatch, stub):
     assert _scan(client).json()["status"] == "damage_detected"
     monkeypatch.setattr(inf.resnet_regressors, "predict_grid", lambda *a, **k: [[0.0] * 3] * 3)
     assert _scan(client).json()["status"] == "unidentified_pest_detected"
+
+
+def test_detector_second_opinion_only_for_small_photos():
+    from app.models.planthopper_detector import Detection, PlanthopperDetector
+
+    box = lambda score: [Detection(0, 0, 10, 10, score)]
+    second = PlanthopperDetector.second_opinion
+    assert second(box(0.65), 0.2, tiled=False)  # near-miss classifier + clear box
+    assert not second(box(0.65), 0.05, tiled=False)  # classifier far from a hit
+    assert not second(box(0.5), 0.2, tiled=False)  # box not clear enough
+    assert not second(box(0.95), 0.9, tiled=True)  # tiled photo: classifier score means something else
+    assert not second(None, 0.9, tiled=False) and not second([], 0.9, tiled=False)
+
+
+def test_small_photo_near_miss_becomes_bph_with_a_clear_box(client, monkeypatch, stub):
+    from app.models.planthopper_detector import Detection
+
+    stub(None, None)
+    near_miss = _classifier(None)
+    near_miss.pest_scores = {"BPH": 0.3, "RSB": 0.0}
+    monkeypatch.setattr(inf.resnet_classifier, "predict", lambda path: near_miss)
+    monkeypatch.setattr(inf.planthopper_detector, "detect", lambda path: [Detection(1, 1, 9, 9, 0.7)])
+    body = _scan(client).json()
+    assert body["status"] == "ok" and body["pest_detected"] == "BPH"
+    assert body["estimated_count"] == 1.0  # one box

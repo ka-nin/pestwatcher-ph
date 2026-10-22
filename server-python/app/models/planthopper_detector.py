@@ -23,6 +23,14 @@ SCORE_THRESHOLD = 0.4
 # Deliberately cautious.
 FLAG_SCORE = 0.7
 FLAG_MIN_BOXES = 3
+# Second opinion for a small whole photo (one insect close-up, scored in a single pass): the
+# classifier is below its own 0.5 cutoff but not far from it, and the detector has a clear box.
+# On the Paddy Field Pest raw set (260 BPH photos, 2,297 photos of other pests) this lifts the
+# planthopper recall from 53.5% to 61.2% for 3 false BPH calls in 2,297 photos. The cutoffs were
+# chosen on that same set, so treat the gain as an estimate. Not used on tiled (large) photos,
+# where the classifier score is the best of hundreds of tiles and means something else.
+SECOND_OPINION_CLASSIFIER_MIN = 0.1
+SECOND_OPINION_BOX_MIN = 0.6
 
 
 @dataclass(frozen=True)
@@ -53,6 +61,13 @@ class PlanthopperDetector:
     def confident(detections: list["Detection"] | None) -> bool:
         """Whether the boxes alone are enough to call the photo BPH."""
         return sum(d.score >= FLAG_SCORE for d in detections or []) >= FLAG_MIN_BOXES
+
+    @staticmethod
+    def second_opinion(detections: list["Detection"] | None, classifier_score: float, tiled: bool) -> bool:
+        """Whether a near-miss classifier score plus a clear box is enough to call a small photo BPH."""
+        if tiled or not detections:
+            return False
+        return classifier_score >= SECOND_OPINION_CLASSIFIER_MIN and max(d.score for d in detections) >= SECOND_OPINION_BOX_MIN
 
     def is_loaded(self) -> bool:
         return self._model is not None
