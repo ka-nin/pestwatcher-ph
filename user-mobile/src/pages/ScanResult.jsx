@@ -62,6 +62,7 @@ export default function ScanResult() {
   // Real result from the just-completed /api/inference/image call, passed
   // via navigation state from ScanCapture.
   const inference = location.state?.inference;
+  const photo = location.state?.photo;
 
   const [forecast, setForecast] = useState(null);
   const [trajectory, setTrajectory] = useState(null);
@@ -200,6 +201,11 @@ export default function ScanResult() {
                 <span><i className="risk-high" /> {t('scanResultLegendHigh')}</span>
               </div>
             </section>
+          )}
+          {isDamage && photo && (
+            <button className="scan-result-rescan-btn" onClick={() => navigate('/report', { state: { photo } })}>
+              {t('scanResultReportThis')}
+            </button>
           )}
           <button className="scan-result-rescan-btn" onClick={() => navigate('/scan')}>
             {t('scanResultRescan')}

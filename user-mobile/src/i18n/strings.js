@@ -131,6 +131,7 @@ export const translations = {
     scanResultFieldSize: 'Laki ng bukid (ektarya, opsyonal)',
     scanResultFieldAreaFromPhoto:
       'Humigit-kumulang {visible} m² ng lupa ang nakikita; ang apektado ay nasa {low} hanggang {high} m². Depende sa taas at anggulo ng kamera.',
+    scanResultReportThis: 'I-ulat ito sa technician',
     scanResultFieldSizeAuto: 'Awtomatikong nakuha sa litrato: {ha} ektarya. Maglagay ng halaga para palitan.',
     scanResultFieldDisclaimer: 'Tantiya lamang ng AI mula sa larawan. Pakikumpirma sa teknolohista.',
     scanResultDamageTitle: 'May nakitang posibleng pinsala ng stem borer',
@@ -173,6 +174,7 @@ export const translations = {
     reportClassifying: 'Sinusuri ang larawan…',
     reportClassifiedAs: 'Natukoy bilang',
     reportClassifiedEditable: 'maaari mong palitan sa ibaba.',
+    reportClassifiedFromDamage: 'batay sa pinsala sa bukid',
     reportClassifyNone: 'Walang natukoy na peste sa larawan — pakipili nalang sa ibaba.',
     reportClassifyUnidentified: 'May nakitang insekto sa larawan, ngunit hindi ito BPH o RSB — pakipili nalang sa ibaba.',
     reportSectionPest: 'Peste at Antas ng Panganib',
@@ -390,6 +392,7 @@ export const translations = {
     scanResultFieldSize: 'Field size (hectares, optional)',
     scanResultFieldAreaFromPhoto:
       'About {visible} m² of ground is visible; the damaged part is roughly {low} to {high} m². Depends on camera height and tilt.',
+    scanResultReportThis: 'Report this to the technician',
     scanResultFieldSizeAuto: 'Detected from the photo: {ha} ha. Enter a value to override.',
     scanResultFieldDisclaimer: 'An AI estimate from the photo only. Please have a technologist confirm it.',
     scanResultDamageTitle: 'Possible stem borer damage found',
@@ -432,6 +435,7 @@ export const translations = {
     reportClassifying: 'Classifying photo…',
     reportClassifiedAs: 'Detected as',
     reportClassifiedEditable: 'you can change this below.',
+    reportClassifiedFromDamage: 'from the damage in the field',
     reportClassifyNone: 'No pest detected in the photo — please select manually below.',
     reportClassifyUnidentified: 'An insect was detected in the photo, but it isn\'t BPH or RSB — please select manually below.',
     reportSectionPest: 'Pest & Severity',

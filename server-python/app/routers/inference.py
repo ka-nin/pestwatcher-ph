@@ -3,6 +3,8 @@ from typing import Literal
 from datetime import date, timedelta
 from pathlib import Path
 
+from PIL import Image
+
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from app.config import get_settings
@@ -117,12 +119,15 @@ def _damage_found(result: FieldAssessmentResponse) -> bool:
     return (result.cells_affected_pct or 0) >= min_cells and (result.pct_affected or 0) >= min_severity
 
 
-def _assess_photo(pest: str, path: Path) -> FieldAssessmentResponse | None:
+def _assess_photo(pest: str, path: Path, field_size_ha: float | None = None) -> FieldAssessmentResponse | None:
     cells = resnet_regressors.predict_grid(pest, "field_damage_pct", path)
     if cells is None:
         return None
-    detected = estimate_field_size_ha(path)
-    return _with_photo_area(_field_result(pest, "field_damage_pct", cells, detected, "photo_metadata"), path)
+    if field_size_ha is not None:
+        result = _field_result(pest, "field_damage_pct", cells, field_size_ha, "entered")
+    else:
+        result = _field_result(pest, "field_damage_pct", cells, estimate_field_size_ha(path), "photo_metadata")
+    return _with_photo_area(result, path)
 
 
 @router.post("/field-assessment", response_model=FieldAssessmentResponse)
@@ -158,6 +163,7 @@ async def assess_field(
     upload_dir.mkdir(parents=True, exist_ok=True)
     destination = upload_dir / f"field_{uuid.uuid4().hex}{Path(file.filename or 'photo.jpg').suffix or '.jpg'}"
     destination.write_bytes(await file.read())
+    _require_valid_image(destination)
     try:
         cells = resnet_regressors.predict_grid(pest, target, destination)
         detected_ha = estimate_field_size_ha(destination) if field_size_ha is None else None
@@ -192,6 +198,9 @@ async def infer_image(
     growth_stage: GrowthStage | None = Form(
         None, description="Current rice growth stage — needed for the forecast's ETL bucketing."
     ),
+    field_size_ha: float | None = Form(
+        None, gt=0, le=1000, description="Optional field size; otherwise the area is estimated from the photo."
+    ),
 ) -> ImageInferenceResponse:
     """Receives an optical field photo from the mobile app, identifies which
     tracked pest (if any) is present via `resnet_classifier` (two independent
@@ -220,6 +229,7 @@ async def infer_image(
         )
 
     destination = await _save_upload(file)
+    _require_valid_image(destination)
     result = resnet_classifier.predict(destination)
 
     if result is None:
@@ -228,8 +238,19 @@ async def infer_image(
             message="ResNet-50 model not loaded yet — image saved for later training/inference",
         )
     if result.label is None:
-        return _no_tracked_pest_response(result, destination, municipality, growth_stage)
-    return _pest_found_response(result, destination, municipality, growth_stage)
+        return _no_tracked_pest_response(result, destination, municipality, growth_stage, field_size_ha)
+    return _pest_found_response(result, destination, municipality, growth_stage, field_size_ha)
+
+
+def _require_valid_image(path: Path) -> None:
+    """The content type comes from the client and can lie: reject a file PIL cannot
+    decode with a clear 422 instead of letting the models fail with a 500."""
+    try:
+        with Image.open(path) as img:
+            img.verify()
+    except Exception:
+        path.unlink(missing_ok=True)
+        raise HTTPException(status_code=422, detail="The uploaded file is not a readable image.")
 
 
 async def _save_upload(file: UploadFile) -> Path:
@@ -251,7 +272,7 @@ def _grid_fields(result) -> dict:
 
 
 def _no_tracked_pest_response(
-    result, photo: Path, municipality: str | None, growth_stage: GrowthStage | None
+    result, photo: Path, municipality: str | None, growth_stage: GrowthStage | None, field_size_ha: float | None = None
 ) -> ImageInferenceResponse:
     """The classifiers found neither BPH nor RSB. In order: another insect was
     seen (unidentified); the photo shows RSB damage without the insect; nothing."""
@@ -267,7 +288,7 @@ def _no_tracked_pest_response(
 
     # The classifiers look for the insect, so a photo of whiteheads with no insect
     # in frame scores near zero: check the photo for damage before answering "none".
-    assessment = _assess_photo("RSB", photo)
+    assessment = _assess_photo("RSB", photo, field_size_ha)
     if assessment is not None and _damage_found(assessment):
         # The photo's severity stands in for the RSB observation (% damage, the
         # forecast's own unit), so the trajectory reacts to this photo like a BPH count does.
@@ -317,12 +338,12 @@ def _photo_lagged_features(pest: str, estimates: dict[str, float | None]) -> tup
 
 
 def _pest_found_response(
-    result, photo: Path, municipality: str | None, growth_stage: GrowthStage | None
+    result, photo: Path, municipality: str | None, growth_stage: GrowthStage | None, field_size_ha: float | None = None
 ) -> ImageInferenceResponse:
     pest = result.label
     # The estimate is computed BEFORE the forecast so this photo's own number can feed
     # the trajectory below. The photo also gets the field-level severity and spread.
-    field_assessment = _assess_photo(pest, photo) if pest in DAMAGE_RULES else None
+    field_assessment = _assess_photo(pest, photo, field_size_ha) if pest in DAMAGE_RULES else None
     estimates = _quantity_estimates(pest, photo)
     photo_features = _photo_lagged_features(pest, estimates)
 

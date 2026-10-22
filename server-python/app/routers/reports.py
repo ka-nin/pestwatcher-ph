@@ -16,7 +16,7 @@ from app.dependencies import require_lgu
 from app.models.bilstm_model import bilstm_forecaster
 from app.models.resnet_model import resnet_classifier, resnet_regressors
 from app.rate_limit import RateLimitExceeded, RateLimiter
-from app.routers.inference import _window_for_target
+from app.routers.inference import _assess_photo, _damage_found, _window_for_target
 from app.routers.weather import fetch_daily_weather_range
 from app.security import TokenPayload
 from app.schemas.inference import GapAnalysisDay, GapAnalysisResponse
@@ -141,6 +141,14 @@ async def submit_report(
                 ai_suggested_coverage_pct = resnet_regressors.predict("BPH", "coverage_pct", upload_dir / photo_path)
             elif ai_pest_detected == "RSB":
                 ai_suggested_damage_pct = resnet_regressors.predict("RSB", "damage_pct", upload_dir / photo_path)
+            elif not prediction.unidentified:
+                # No insect in frame: a field photo can still show stem-borer damage
+                # (same rule as the scan), which is how RSB is measured. The severity
+                # is the suggestion; the technologist still confirms the pest and number.
+                damage = _assess_photo("RSB", upload_dir / photo_path)
+                if damage is not None and _damage_found(damage):
+                    ai_pest_detected = "RSB"
+                    ai_suggested_damage_pct = damage.pct_affected
 
     record = ReportRecord(
         id=uuid.uuid4().hex,
