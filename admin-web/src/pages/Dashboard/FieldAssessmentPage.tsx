@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { assessFieldPhoto, type FieldAssessment, type PestKey } from '../../lib/api'
+import { useEffect, useMemo, useState } from 'react'
+import { scanFieldPhoto, type FieldAssessment, type PhotoScan } from '../../lib/api'
 import './FieldAssessmentPage.css'
 
 // A cell at or above this share is drawn at full strength; the scale is capped
@@ -12,59 +12,62 @@ function cellColour(value: number, hasDamage: boolean) {
   return `rgba(214, 69, 65, ${strength * 0.55})`
 }
 
-function areaValue(r: FieldAssessment) {
-  if (r.affected_hectares != null) return `${r.affected_hectares} ha`
-  if (r.affected_area_m2 != null) return `~${Math.round(r.affected_area_m2)} m²`
-  return 'n/a'
+type SizeUnit = 'ha' | 'm2'
+const M2_PER_HA = 10_000
+
+// Area is shown in the unit the field size was entered in. The photo alone has no scale
+// (a close-up and a wide shot look alike), so there is no area without a field size.
+function formatArea(ha: number, unit: SizeUnit) {
+  if (unit === 'm2') {
+    const m2 = ha * M2_PER_HA
+    return `${(m2 < 10 ? Number(m2.toFixed(1)) : Math.round(m2)).toLocaleString()} m²`
+  }
+  return `${Number(ha.toFixed(4))} ha`
 }
 
-function areaNote(r: FieldAssessment) {
-  if (r.affected_hectares != null) {
-    return `of ${r.field_size_ha} ha${r.field_size_source === 'photo_metadata' ? ' (from drone data)' : ''}`
+function areaValue(r: FieldAssessment, unit: SizeUnit) {
+  return r.affected_hectares != null ? formatArea(r.affected_hectares, unit) : 'n/a'
+}
+
+function areaNote(r: FieldAssessment, unit: SizeUnit) {
+  if (r.affected_hectares != null && r.field_size_ha != null) {
+    return `of ${formatArea(r.field_size_ha, unit)}${r.field_size_source === 'photo_metadata' ? ' (from drone data)' : ''}`
   }
-  if (r.affected_area_m2 != null) {
-    return `Between ${Math.round(r.affected_area_m2_low ?? 0)} and ${Math.round(r.affected_area_m2_high ?? 0)} m² of the ~${Math.round(r.visible_area_m2 ?? 0)} m² seen in the photo`
-  }
-  return 'Enter the field size'
+  return 'Enter the field size to get the affected area'
 }
 
 function FieldAssessmentPage() {
-  const [pest, setPest] = useState<PestKey>('RSB')
   const [file, setFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [fieldSize, setFieldSize] = useState('')
-  const [result, setResult] = useState<FieldAssessment | null>(null)
+  const [unit, setUnit] = useState<SizeUnit>('ha')
+  const [scan, setScan] = useState<PhotoScan | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => {
-    if (!file) {
-      setPreviewUrl(null)
-      return
-    }
-    const url = URL.createObjectURL(file)
-    setPreviewUrl(url)
-    return () => URL.revokeObjectURL(url)
-  }, [file])
+  const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
 
-  const sizeNumber = fieldSize.trim() === '' ? null : Number(fieldSize)
-  const sizeInvalid = sizeNumber != null && (!Number.isFinite(sizeNumber) || sizeNumber <= 0)
+  const typed = fieldSize.trim() === '' ? null : Number(fieldSize)
+  const sizeInvalid = typed != null && (!Number.isFinite(typed) || typed <= 0)
+  const sizeNumber = typed == null ? null : unit === 'm2' ? typed / M2_PER_HA : typed
 
   async function run() {
     if (!file || sizeInvalid) return
     setBusy(true)
     setError('')
-    setResult(null)
+    setScan(null)
     try {
-      setResult(await assessFieldPhoto(file, pest, sizeNumber))
+      setScan(await scanFieldPhoto(file, sizeNumber))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Field assessment failed.')
+      setError(e instanceof Error ? e.message : 'Photo scan failed.')
     } finally {
       setBusy(false)
     }
   }
 
+  const result: FieldAssessment | null = scan?.field_assessment ?? null
   const ok = result?.status === 'ok'
+  const pestName = scan?.pest_detected === 'BPH' ? 'Brown Planthopper (BPH)' : scan?.pest_detected === 'RSB' ? 'Rice Stem Borer (RSB)' : null
   return (
     <>
       <section className="panel forecast-summary-panel">
@@ -72,7 +75,7 @@ function FieldAssessmentPage() {
           <div>
             <div className="panel-title">Field Assessment</div>
             <div className="panel-subtitle">
-              Upload a whole-field photo to estimate how severe the damage is and how widely it is spread
+              Upload a photo: the pest is identified automatically, then counted (planthoppers) or assessed for damage (stem borer)
             </div>
           </div>
           <span className="badge badge-yellow">Estimate · not verified</span>
@@ -82,12 +85,6 @@ function FieldAssessmentPage() {
       <div className="fa-grid">
         <section className="panel fa-panel">
           <div className="fa-field">
-            <label htmlFor="fa-pest">Pest</label>
-            <select id="fa-pest" value={pest} onChange={(e) => setPest(e.target.value as PestKey)}>
-              <option value="RSB">Rice Stem Borer (whiteheads)</option>
-            </select>
-          </div>
-          <div className="fa-field">
             <label htmlFor="fa-photo">Field photo</label>
             <input
               id="fa-photo"
@@ -95,27 +92,33 @@ function FieldAssessmentPage() {
               accept="image/jpeg,image/png,image/webp"
               onChange={(e) => {
                 setFile(e.target.files?.[0] ?? null)
-                setResult(null)
+                setScan(null)
                 setError('')
               }}
             />
           </div>
           <div className="fa-field">
-            <label htmlFor="fa-size">Field size in hectares (optional)</label>
-            <input
-              id="fa-size"
-              type="number"
-              min="0"
-              step="0.1"
-              placeholder="e.g. 1.5"
-              value={fieldSize}
-              onChange={(e) => setFieldSize(e.target.value)}
-            />
-            <span className="fa-hint">Leave blank to estimate the area from the photo itself.</span>
+            <label htmlFor="fa-size">Field size (optional)</label>
+            <div className="fa-size-row">
+              <input
+                id="fa-size"
+                type="number"
+                min="0"
+                step="any"
+                placeholder={unit === 'ha' ? 'e.g. 1.5' : 'e.g. 5000'}
+                value={fieldSize}
+                onChange={(e) => setFieldSize(e.target.value)}
+              />
+              <select aria-label="Field size unit" value={unit} onChange={(e) => setUnit(e.target.value as SizeUnit)}>
+                <option value="ha">hectares</option>
+                <option value="m2">m²</option>
+              </select>
+            </div>
+            <span className="fa-hint">Needed for the affected area: a photo has no scale of its own, except drone photos that record their height.</span>
             {sizeInvalid && <span className="fa-error">Enter a size above 0.</span>}
           </div>
           <button className="fa-run" disabled={!file || busy || sizeInvalid} onClick={run}>
-            {busy ? 'Assessing…' : 'Assess photo'}
+            {busy ? 'Scanning…' : 'Scan photo'}
           </button>
           {error && <p className="fa-error">{error}</p>}
         </section>
@@ -143,9 +146,30 @@ function FieldAssessmentPage() {
         </section>
       </div>
 
-      {result && !ok && (
+      {scan && (
         <section className="panel fa-panel">
-          <p className="fa-error">{result.message}</p>
+          <div className="fa-metric-label">Detected automatically</div>
+          <div className="fa-metric-value">{pestName ?? 'No tracked pest'}</div>
+          <p className="fa-caveat">{scan.message}</p>
+          {scan.pest_detected === 'BPH' && (
+            <div className="fa-metrics">
+              <div className="fa-metric">
+                <div className="fa-metric-label">Estimated count</div>
+                <div className="fa-metric-value">{scan.estimated_count?.toFixed(1) ?? 'n/a'}</div>
+                <div className="fa-metric-note">hoppers per hill (AI estimate)</div>
+              </div>
+              <div className="fa-metric">
+                <div className="fa-metric-label">Coverage</div>
+                <div className="fa-metric-value">{scan.estimated_coverage_pct?.toFixed(0) ?? 'n/a'}%</div>
+                <div className="fa-metric-note">of the photo affected</div>
+              </div>
+              <div className="fa-metric">
+                <div className="fa-metric-label">Risk</div>
+                <div className="fa-metric-value">{scan.risk_level ?? 'n/a'}</div>
+                <div className="fa-metric-note">from detection confidence</div>
+              </div>
+            </div>
+          )}
         </section>
       )}
 
@@ -160,12 +184,12 @@ function FieldAssessmentPage() {
             <div className="fa-metric">
               <div className="fa-metric-label">Spread</div>
               <div className="fa-metric-value">{result!.cells_affected_pct?.toFixed(0)}%</div>
-              <div className="fa-metric-note">of the field area shows damage</div>
+              <div className="fa-metric-note">of the photo's grid cells show damage</div>
             </div>
             <div className="fa-metric">
               <div className="fa-metric-label">Affected area</div>
-              <div className="fa-metric-value">{areaValue(result!)}</div>
-              <div className="fa-metric-note">{areaNote(result!)}</div>
+              <div className="fa-metric-value">{areaValue(result!, unit)}</div>
+              <div className="fa-metric-note">{areaNote(result!, unit)}</div>
             </div>
             <div className="fa-metric">
               <div className="fa-metric-label">Where present</div>

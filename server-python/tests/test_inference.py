@@ -51,7 +51,7 @@ def test_field_assessment_returns_a_consistent_result(client):
         assert len(cells) == body["rows"] * body["cols"]
         assert all(v >= 0 for v in cells)
         assert 0 <= body["cells_affected_pct"] <= 100
-        assert body["affected_hectares"] == round(body["cells_affected_pct"] / 100 * 2, 2)
+        assert body["affected_hectares"] == round(body["pct_affected"] / 100 * 2, 4)
         assert len(body["cell_has_damage"]) == body["rows"]
 
 

@@ -203,6 +203,11 @@ export default function ScanResult() {
               </div>
             </section>
           )}
+          {isDamage && photo && (
+            <button className="scan-result-rescan-btn" onClick={() => navigate('/report', { state: { photo } })}>
+              {t('scanResultReportThis')}
+            </button>
+          )}
           <button className="scan-result-rescan-btn" onClick={() => navigate('/scan')}>
             {t('scanResultRescan')}
           </button>

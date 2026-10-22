@@ -250,6 +250,30 @@ export async function assessFieldPhoto(file: File, pest: PestKey, fieldSizeHa: n
   return res.json()
 }
 
+// ---- Automatic scan: the pest is identified from the photo (POST /api/inference/image).
+// BPH found -> count + coverage; no insect but stem-borer damage -> RSB with
+// severity and spread (field_assessment); otherwise nothing detected.
+export interface PhotoScan {
+  status: 'ok' | 'model_not_loaded' | 'no_pest_detected' | 'unidentified_pest_detected' | 'damage_detected'
+  pest_detected: PestKey | null
+  confidence: number | null
+  risk_level: string | null
+  message: string
+  estimated_count: number | null
+  estimated_coverage_pct: number | null
+  estimated_damage_pct: number | null
+  field_assessment: FieldAssessment | null
+}
+
+export async function scanFieldPhoto(file: File, fieldSizeHa: number | null): Promise<PhotoScan> {
+  const body = new FormData()
+  body.append('file', file)
+  if (fieldSizeHa != null) body.append('field_size_ha', String(fieldSizeHa))
+  const res = await fetch(`${API_BASE_URL}/api/inference/image`, { method: 'POST', body })
+  if (!res.ok) throw new Error(res.status === 415 ? 'Use a JPEG, PNG or WebP photo.' : 'Photo scan failed.')
+  return res.json()
+}
+
 // ---- Gap Analysis: per-report "Analyze Gap" button on the Farmer Reports
 // tab. For one verified report, the deployed model's 14-day forecast
 // starting on the report's own date, without any report as input

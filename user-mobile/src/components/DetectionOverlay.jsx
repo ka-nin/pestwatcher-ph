@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import './DetectionOverlay.css';
 
 // The scanned photo with a box on every planthopper the detector found
@@ -5,7 +6,19 @@ import './DetectionOverlay.css';
 // the uploaded photo, so the SVG uses the photo's own size as its viewBox and
 // scales with the image.
 function DetectionOverlay({ photo, detections, width, height, t }) {
-  if (!photo || !detections?.length || !width || !height) return null;
+  // The scan passes the photo as a file/blob; a plain URL string also works.
+  const [url, setUrl] = useState(typeof photo === 'string' ? photo : null);
+  useEffect(() => {
+    if (!photo || typeof photo === 'string') {
+      setUrl(photo || null);
+      return undefined;
+    }
+    const made = URL.createObjectURL(photo);
+    setUrl(made);
+    return () => URL.revokeObjectURL(made);
+  }, [photo]);
+
+  if (!url || !detections?.length || !width || !height) return null;
   const stroke = Math.max(2, Math.round(Math.max(width, height) / 220));
   return (
     <section className="scan-result-signal detection-overlay">
@@ -13,7 +26,7 @@ function DetectionOverlay({ photo, detections, width, height, t }) {
         {t('scanResultDetectionTitle').replace('{count}', detections.length)}
       </span>
       <div className="detection-overlay-frame">
-        <img src={photo} alt={t('scanCapturedAlt')} />
+        <img src={url} alt={t('scanCapturedAlt')} />
         <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
           {detections.map((d, i) => (
             <rect

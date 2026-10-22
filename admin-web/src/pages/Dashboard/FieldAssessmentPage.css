@@ -29,6 +29,22 @@
   font: inherit;
 }
 
+.fa-size-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.fa-size-row input[type='number'] {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.fa-size-row select {
+  flex: 0 0 96px;
+  min-width: 0;
+}
+
 .fa-run {
   width: 100%;
   padding: 10px 12px;

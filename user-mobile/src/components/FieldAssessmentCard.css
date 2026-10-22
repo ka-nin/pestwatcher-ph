@@ -69,6 +69,14 @@
   opacity: 0.7;
 }
 
+.field-assessment-size select {
+  padding: 6px 4px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+}
+
 .field-assessment-size input {
   width: 76px;
   padding: 6px 8px;
