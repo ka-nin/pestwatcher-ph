@@ -69,7 +69,6 @@ function FieldAssessmentPage() {
             <label htmlFor="fa-pest">Pest</label>
             <select id="fa-pest" value={pest} onChange={(e) => setPest(e.target.value as PestKey)}>
               <option value="RSB">Rice Stem Borer (whiteheads)</option>
-              <option value="BPH">Brown Planthopper (hopperburn)</option>
             </select>
           </div>
           <div className="fa-field">

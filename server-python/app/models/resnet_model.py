@@ -235,8 +235,7 @@ REGRESSION_TARGETS: dict[tuple[str, str], Path] = {
     ("BPH", "coverage_pct"): WEIGHTS_DIR / "bph" / "resnet50_bph_coverage_pct.keras",
     ("RSB", "damage_pct"): WEIGHTS_DIR / "rsb" / "resnet50_rsb_damage_pct.keras",
     # Field-level damage: trained on whole-field photos (ml/resnet/train_field_damage.py),
-    # unlike the patch-level models above. Optional: absent until trained.
-    ("BPH", "field_damage_pct"): WEIGHTS_DIR / "bph" / "resnet50_bph_field_damage_pct.keras",
+    # unlike the patch-level models above. RSB only; there is no BPH field model.
     ("RSB", "field_damage_pct"): WEIGHTS_DIR / "rsb" / "resnet50_rsb_field_damage_pct.keras",
 }
 

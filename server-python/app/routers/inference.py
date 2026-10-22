@@ -44,8 +44,7 @@ ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 # the photo: tuned on held-out synthetic photos so healthy fields are not flagged
 # (see ml/weights/rsb/field_damage_rsb_*_synthetic_test_metrics.json).
 DAMAGE_RULES = {  # pest -> (min share of cells damaged, min severity in %)
-    "RSB": (33.0, 0.4),
-    "BPH": (33.0, 3.0),
+    "RSB": (33.0, 0.8),
 }
 
 
@@ -101,7 +100,7 @@ def _assess_photo(pest: str, path: Path) -> FieldAssessmentResponse | None:
 @router.post("/field-assessment", response_model=FieldAssessmentResponse)
 async def assess_field(
     file: UploadFile = File(...),
-    pest: Literal["BPH", "RSB"] = Form(...),
+    pest: Literal["RSB"] = Form(...),
     field_size_ha: float | None = Form(None, gt=0, le=1000),
 ) -> FieldAssessmentResponse:
     """Severity and extent from a whole-field photo (panel concern: field
@@ -219,13 +218,13 @@ async def infer_image(
                 bph_grid_count=result.grid_count,
             )
         # No insect, but the photo may show the DAMAGE: the classifiers look for the
-        # insect, so a photo of whiteheads or hopperburn with no insect in frame scores
+        # insect, so a photo of whiteheads with no insect in frame scores
         # near zero. If a field-level damage model is installed, check the photo for
         # damage before answering "none".
-        found = [a for a in (_assess_photo(p, destination) for p in ("RSB", "BPH")) if a is not None and _damage_found(a)]
+        found = [a for a in (_assess_photo(p, destination) for p in ("RSB",)) if a is not None and _damage_found(a)]
         if found:
             assessment = max(found, key=lambda a: a.pct_affected or 0)
-            symptom = "whiteheads (stem borer)" if assessment.pest == "RSB" else "hopperburn (brown planthopper)"
+            symptom = "whiteheads (stem borer)"
             return ImageInferenceResponse(
                 status="damage_detected",
                 pest_detected=assessment.pest,

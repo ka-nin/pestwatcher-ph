@@ -16,13 +16,9 @@ photos). The synthetic test split shows the model learned its generator; only
 REAL photos with a technologist's measured damage mean anything about the
 field (ml/resnet/evaluate_real_photos.py).
 
---backbone makes "why ResNet-50" a like-for-like comparison: same data, head,
-schedule and splits.
-
 Run from server-python/ (needs SSL_CERT_FILE set to certifi's bundle on a
 python.org Python so ImageNet weights can download):
-    .venv/bin/python -m ml.resnet.train_field_damage --pest RSB --backbone efficientnetb0
-    .venv/bin/python -m ml.resnet.train_field_damage --pest RSB --backbone resnet50 --no-save
+    .venv/bin/python -m ml.resnet.train_field_damage --pest RSB
 """
 
 import argparse
@@ -36,20 +32,18 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-from tensorflow.keras.applications import efficientnet, resnet50
+from tensorflow.keras.applications import resnet50
 
 from ml.config import WEIGHTS_DIR
 
 DATASETS = Path(__file__).resolve().parent.parent / "synthetic" / "datasets"
-PEST_DATASETS = {"RSB": DATASETS / "rsb_whitehead_sim", "BPH": DATASETS / "bph_hopperburn_sim"}
+PEST_DATASETS = {"RSB": DATASETS / "rsb_whitehead_sim"}
 DATA_DIR = PEST_DATASETS["RSB"]
 BATCH_SIZE = 32
 CELL_AFFECTED_MIN_PCT = 0.2  # a cell "has damage" when at least this share of it is covered
 
 BACKBONES = {
     "resnet50": (lambda size: resnet50.ResNet50(include_top=False, weights="imagenet", input_shape=(size, size, 3), pooling="avg"), resnet50.preprocess_input, 143),
-    # EfficientNet rescales inside the model: its keras preprocess_input is the identity.
-    "efficientnetb0": (lambda size: efficientnet.EfficientNetB0(include_top=False, weights="imagenet", input_shape=(size, size, 3), pooling="avg"), efficientnet.preprocess_input, 200),
 }
 
 
@@ -116,7 +110,7 @@ def best_threshold(y: np.ndarray, p: np.ndarray) -> float:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pest", choices=["BPH", "RSB"], required=True)
+    ap.add_argument("--pest", choices=["RSB"], required=True)
     ap.add_argument("--backbone", choices=list(BACKBONES), default="resnet50")
     ap.add_argument("--input-size", type=int, default=160)
     ap.add_argument("--head-epochs", type=int, default=12)

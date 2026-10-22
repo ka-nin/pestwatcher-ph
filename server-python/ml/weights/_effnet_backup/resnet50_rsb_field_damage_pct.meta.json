@@ -1,7 +1,0 @@
-{
-  "backbone": "efficientnetb0",
-  "input_size": 160,
-  "grid": 3,
-  "cell_has_damage_threshold": 0.05,
-  "cell_label_min_pct": 0.2
-}
