@@ -12,6 +12,22 @@ function cellColour(value: number, hasDamage: boolean) {
   return `rgba(214, 69, 65, ${strength * 0.55})`
 }
 
+function areaValue(r: FieldAssessment) {
+  if (r.affected_hectares != null) return `${r.affected_hectares} ha`
+  if (r.affected_area_m2 != null) return `~${Math.round(r.affected_area_m2)} m²`
+  return 'n/a'
+}
+
+function areaNote(r: FieldAssessment) {
+  if (r.affected_hectares != null) {
+    return `of ${r.field_size_ha} ha${r.field_size_source === 'photo_metadata' ? ' (from drone data)' : ''}`
+  }
+  if (r.affected_area_m2 != null) {
+    return `Between ${Math.round(r.affected_area_m2_low ?? 0)} and ${Math.round(r.affected_area_m2_high ?? 0)} m² of the ~${Math.round(r.visible_area_m2 ?? 0)} m² seen in the photo`
+  }
+  return 'Enter the field size'
+}
+
 function FieldAssessmentPage() {
   const [pest, setPest] = useState<PestKey>('RSB')
   const [file, setFile] = useState<File | null>(null)
@@ -85,7 +101,7 @@ function FieldAssessmentPage() {
             />
           </div>
           <div className="fa-field">
-            <label htmlFor="fa-size">Field size in hectares (optional, read from drone photos automatically)</label>
+            <label htmlFor="fa-size">Field size in hectares (optional)</label>
             <input
               id="fa-size"
               type="number"
@@ -95,6 +111,7 @@ function FieldAssessmentPage() {
               value={fieldSize}
               onChange={(e) => setFieldSize(e.target.value)}
             />
+            <span className="fa-hint">Leave blank to estimate the area from the photo itself.</span>
             {sizeInvalid && <span className="fa-error">Enter a size above 0.</span>}
           </div>
           <button className="fa-run" disabled={!file || busy || sizeInvalid} onClick={run}>
@@ -104,7 +121,7 @@ function FieldAssessmentPage() {
         </section>
 
         <section className="panel fa-panel">
-          {!previewUrl && <p className="stat-card-loading">Choose a photo to begin.</p>}
+          {!previewUrl && <div className="fa-empty">Choose a field photo to begin.</div>}
           {previewUrl && (
             <div className="fa-photo-wrap">
               <img src={previewUrl} alt="Field photo" className="fa-photo" />
@@ -115,13 +132,14 @@ function FieldAssessmentPage() {
                 >
                   {result!.cell_values.flat().map((v, i) => (
                     <div key={i} className="fa-cell" style={{ background: cellColour(v, result!.cell_has_damage.flat()[i]) }} title={`${v.toFixed(2)}% of this cell`}>
-                      <span>{v.toFixed(1)}%</span>
+                      {result!.cell_has_damage.flat()[i] && <span>{v.toFixed(1)}%</span>}
                     </div>
                   ))}
                 </div>
               )}
             </div>
           )}
+          {previewUrl && ok && <p className="fa-legend"><i /> Cells the model judges to contain damage</p>}
         </section>
       </div>
 
@@ -146,8 +164,8 @@ function FieldAssessmentPage() {
             </div>
             <div className="fa-metric">
               <div className="fa-metric-label">Affected area</div>
-              <div className="fa-metric-value">{result!.affected_hectares != null ? `${result!.affected_hectares} ha` : result!.affected_area_m2 != null ? `~${Math.round(result!.affected_area_m2)} m²` : 'n/a'}</div>
-              <div className="fa-metric-note">{result!.affected_hectares != null ? `of ${result!.field_size_ha} ha${result!.field_size_source === 'photo_metadata' ? ' (detected from photo)' : ''}` : result!.affected_area_m2 != null ? `of ~${Math.round(result!.visible_area_m2 ?? 0)} m² seen in the photo (range ${Math.round(result!.affected_area_m2_low ?? 0)} to ${Math.round(result!.affected_area_m2_high ?? 0)} m², assumes 1.5 m camera height)` : 'enter the field size'}</div>
+              <div className="fa-metric-value">{areaValue(result!)}</div>
+              <div className="fa-metric-note">{areaNote(result!)}</div>
             </div>
             <div className="fa-metric">
               <div className="fa-metric-label">Where present</div>
@@ -156,8 +174,8 @@ function FieldAssessmentPage() {
             </div>
           </div>
           <p className="fa-caveat">
-            {result!.message} Severity is the share of the photo covered by whiteheads, a stand-in for the percentage of
-            white ears. Highlighted cells are the ones the model judges to contain damage.
+            Estimate from a model trained on synthetic images; a technologist must confirm it. Severity is the share of
+            the photo covered by whiteheads, a stand-in for the percentage of white ears.
           </p>
         </section>
       )}
