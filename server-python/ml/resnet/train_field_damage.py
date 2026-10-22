@@ -40,7 +40,9 @@ from tensorflow.keras.applications import efficientnet, resnet50
 
 from ml.config import WEIGHTS_DIR
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "synthetic" / "datasets" / "rsb_whitehead_sim"
+DATASETS = Path(__file__).resolve().parent.parent / "synthetic" / "datasets"
+PEST_DATASETS = {"RSB": DATASETS / "rsb_whitehead_sim", "BPH": DATASETS / "bph_hopperburn_sim"}
+DATA_DIR = PEST_DATASETS["RSB"]
 BATCH_SIZE = 32
 CELL_AFFECTED_MIN_PCT = 0.2  # a cell "has damage" when at least this share of it is covered
 
@@ -115,17 +117,16 @@ def best_threshold(y: np.ndarray, p: np.ndarray) -> float:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--pest", choices=["BPH", "RSB"], required=True)
-    ap.add_argument("--backbone", choices=list(BACKBONES), default="efficientnetb0")
+    ap.add_argument("--backbone", choices=list(BACKBONES), default="resnet50")
     ap.add_argument("--input-size", type=int, default=160)
     ap.add_argument("--head-epochs", type=int, default=12)
     ap.add_argument("--fine-tune-epochs", type=int, default=20)
-    ap.add_argument("--data-dir", type=Path, default=None)
+    ap.add_argument("--data-dir", type=Path, default=None, help="default: the pest's own dataset under ml/synthetic/datasets")
     ap.add_argument("--no-save", action="store_true", help="evaluate only; do not install the model")
     args = ap.parse_args()
 
     global DATA_DIR
-    if args.data_dir:
-        DATA_DIR = args.data_dir
+    DATA_DIR = args.data_dir or PEST_DATASETS[args.pest]
     size = args.input_size
     _, preprocess, unfreeze_from = BACKBONES[args.backbone]
     splits = {s: read_split(args.pest, s) for s in ("train", "val", "test")}

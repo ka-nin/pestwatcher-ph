@@ -36,7 +36,7 @@ import tensorflow as tf
 from sklearn.metrics import classification_report, confusion_matrix
 from tensorflow import keras
 from tensorflow.keras import layers
-from tensorflow.keras.applications import resnet50
+from tensorflow.keras.applications import efficientnet, resnet50
 
 from ml.config import PEST_PARAMS, WEIGHTS_DIR
 
@@ -53,6 +53,17 @@ BATCH_SIZE = 32
 HEAD_EPOCHS = 15
 FINE_TUNE_EPOCHS = 20
 FINE_TUNE_UNFREEZE_FROM = 143  # ResNet-50 has 175 layers; unfreezes roughly the last block
+
+# Backbone options so the panel's "why ResNet-50" can be answered like for like on the real
+# detector data: python -m ml.resnet.train --pest BPH --backbone efficientnetb0
+# A non-default backbone NEVER overwrites the deployed weights: it writes only a metrics file,
+# resnet50_{pest}_vs_{backbone}_test_metrics.json. EfficientNet rescales inside the model, so its
+# keras preprocess_input is the identity.
+BACKBONES = {
+    "resnet50": (lambda: resnet50.ResNet50(include_top=False, weights="imagenet", input_shape=(*IMAGE_SIZE, 3), pooling="avg"), resnet50.preprocess_input, 143),
+    "efficientnetb0": (lambda: efficientnet.EfficientNetB0(include_top=False, weights="imagenet", input_shape=(*IMAGE_SIZE, 3), pooling="avg"), efficientnet.preprocess_input, 200),
+}
+PREPROCESS = [resnet50.preprocess_input]  # set in main() from --backbone
 
 
 def load_datasets(pest_dir: Path) -> tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset, dict[int, float]]:
@@ -99,7 +110,7 @@ def load_datasets(pest_dir: Path) -> tuple[tf.data.Dataset, tf.data.Dataset, tf.
     def preprocess(images, labels, training: bool) -> tuple[tf.Tensor, tf.Tensor]:
         if training:
             images = augmentation(images)
-        images = resnet50.preprocess_input(images)
+        images = PREPROCESS[0](images)
         return images, labels
 
     train_ds = train_ds.map(lambda x, y: preprocess(x, y, training=True)).prefetch(tf.data.AUTOTUNE)
@@ -109,10 +120,10 @@ def load_datasets(pest_dir: Path) -> tuple[tf.data.Dataset, tf.data.Dataset, tf.
     return train_ds, val_ds, test_ds, class_weight
 
 
-def build_model() -> tuple[keras.Model, keras.Model]:
+def build_model(backbone_name: str = "resnet50") -> tuple[keras.Model, keras.Model]:
     """Returns (model, backbone) — the caller needs the backbone separately
     to toggle its trainable layers between phase 1 and phase 2."""
-    backbone = resnet50.ResNet50(include_top=False, weights="imagenet", input_shape=(*IMAGE_SIZE, 3), pooling="avg")
+    backbone = BACKBONES[backbone_name][0]()
     backbone.trainable = False
 
     inputs = keras.Input(shape=(*IMAGE_SIZE, 3))
@@ -147,7 +158,11 @@ def evaluate(model: keras.Model, test_ds: tf.data.Dataset) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pest", choices=["BPH", "RSB", "UNKNOWN"], required=True)
+    parser.add_argument("--backbone", choices=list(BACKBONES), default="resnet50")
     args = parser.parse_args()
+
+    global FINE_TUNE_UNFREEZE_FROM
+    _, PREPROCESS[0], FINE_TUNE_UNFREEZE_FROM = BACKBONES[args.backbone]
 
     pest = args.pest
     pest_dir = PROCESSED_DIR / pest.lower()
@@ -157,7 +172,7 @@ def main() -> None:
     train_ds, val_ds, test_ds, class_weight = load_datasets(pest_dir)
     print(f"{pest}: class weights = {class_weight}")
 
-    model, backbone = build_model()
+    model, backbone = build_model(args.backbone)
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate=1e-3),
         loss="binary_crossentropy",
@@ -201,6 +216,13 @@ def main() -> None:
 
     weights_path = UNKNOWN_WEIGHTS_PATH if pest == "UNKNOWN" else PEST_PARAMS[pest].resnet_weights_path
     weights_path.parent.mkdir(parents=True, exist_ok=True)
+    if args.backbone != "resnet50":
+        # A comparison run: keep the deployed ResNet-50 weights untouched.
+        test_metrics.update(backbone=args.backbone, parameters=int(model.count_params()))
+        out = weights_path.parent / f"resnet50_{pest.lower()}_vs_{args.backbone}_test_metrics.json"
+        out.write_text(json.dumps(test_metrics, indent=2))
+        print(f"Comparison run: saved metrics only to {out}")
+        return
     model.save(weights_path)
 
     metrics_path = weights_path.parent / f"resnet50_{pest.lower()}_test_metrics.json"

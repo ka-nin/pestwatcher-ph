@@ -130,6 +130,9 @@ export const translations = {
     scanResultFieldHectares: 'apektadong ektarya',
     scanResultFieldSize: 'Laki ng bukid (ektarya, opsyonal)',
     scanResultFieldDisclaimer: 'Tantiya lamang ng AI mula sa larawan. Pakikumpirma sa teknolohista.',
+    scanResultDamageTitleBPH: 'May nakitang posibleng hopperburn',
+    scanResultDamageBodyBPH:
+      'Walang insektong nakita, pero may pinsalang kahawig ng hopperburn sa larawan: humigit-kumulang {severity}% ng larawan ang apektado at {spread}% ng bahagi ang may pinsala. Tantiya lamang ito ng AI. Pakikumpirma sa teknolohista.',
     scanResultDamageTitle: 'May nakitang posibleng pinsala ng stem borer',
     scanResultDamageBody:
       'Walang insektong nakita, pero may pinsalang kahawig ng whitehead sa larawan: humigit-kumulang {severity}% ng larawan ang apektado at {spread}% ng bahagi ang may pinsala. Tantiya lamang ito ng AI. Pakikumpirma sa teknolohista.',
@@ -386,6 +389,9 @@ export const translations = {
     scanResultFieldHectares: 'affected area',
     scanResultFieldSize: 'Field size (hectares, optional)',
     scanResultFieldDisclaimer: 'An AI estimate from the photo only. Please have a technologist confirm it.',
+    scanResultDamageTitleBPH: 'Possible hopperburn found',
+    scanResultDamageBodyBPH:
+      'No insect was seen, but the photo shows damage that looks like hopperburn: about {severity}% of the photo is affected and {spread}% of the area shows damage. This is an AI estimate only. Please have a technologist confirm it.',
     scanResultDamageTitle: 'Possible stem borer damage found',
     scanResultDamageBody:
       'No insect was seen, but the photo shows damage that looks like whiteheads: about {severity}% of the photo is affected and {spread}% of the area shows damage. This is an AI estimate only. Please have a technologist confirm it.',

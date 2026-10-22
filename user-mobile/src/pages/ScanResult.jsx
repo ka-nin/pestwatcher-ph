@@ -153,14 +153,14 @@ export default function ScanResult() {
     const title = isHealthy
       ? t('scanResultHealthyTitle')
       : isDamage
-        ? t('scanResultDamageTitle')
+        ? t(inference.pest_detected === 'BPH' ? 'scanResultDamageTitleBPH' : 'scanResultDamageTitle')
         : isOtherPest
           ? t('scanResultOtherPestTitle')
           : t('scanResultModelNotReady');
     const body = isHealthy
       ? t('scanResultHealthyBody')
       : isDamage
-        ? t('scanResultDamageBody')
+        ? t(inference.pest_detected === 'BPH' ? 'scanResultDamageBodyBPH' : 'scanResultDamageBody')
             .replace('{severity}', inference.field_assessment.pct_affected.toFixed(1))
             .replace('{spread}', Math.round(inference.field_assessment.cells_affected_pct))
         : isOtherPest
