@@ -1,0 +1,67 @@
+import { useState } from 'react';
+import './FieldAssessmentCard.css';
+
+// How much damage the photo shows (severity) and how widely it is spread, from
+// the field-level damage model (server-python/app/routers/inference.py's
+// field_assessment). A 3x3 grid shows which parts of the photo have damage;
+// with the farmer's field size, the affected hectares are worked out here.
+function FieldAssessmentCard({ assessment, t }) {
+  const [fieldSize, setFieldSize] = useState('');
+  if (!assessment || assessment.status !== 'ok') return null;
+
+  const size = Number(fieldSize);
+  const hasSize = fieldSize.trim() !== '' && Number.isFinite(size) && size > 0;
+  const hectares = hasSize ? ((assessment.cells_affected_pct / 100) * size).toFixed(2) : null;
+
+  return (
+    <section className="scan-result-signal field-assessment-card">
+      <span className="scan-result-signal-label">{t('scanResultFieldTitle')}</span>
+      <div className="field-assessment-body">
+        <div
+          className="field-assessment-grid"
+          style={{ gridTemplateColumns: `repeat(${assessment.cols}, 1fr)` }}
+          aria-label={t('scanResultFieldGridLabel')}
+        >
+          {assessment.cell_values.flat().map((v, i) => (
+            <div
+              key={i}
+              className={`field-assessment-cell${assessment.cell_has_damage.flat()[i] ? ' is-damaged' : ''}`}
+              style={assessment.cell_has_damage.flat()[i] ? { opacity: Math.min(1, 0.45 + v / 6) } : undefined}
+            >
+              {v.toFixed(1)}%
+            </div>
+          ))}
+        </div>
+        <div className="field-assessment-metrics">
+          <div>
+            <strong>{assessment.pct_affected.toFixed(1)}%</strong>
+            <small>{t('scanResultFieldSeverity')}</small>
+          </div>
+          <div>
+            <strong>{Math.round(assessment.cells_affected_pct)}%</strong>
+            <small>{t('scanResultFieldSpread')}</small>
+          </div>
+          <div>
+            <strong>{hectares != null ? `${hectares} ha` : '-'}</strong>
+            <small>{t('scanResultFieldHectares')}</small>
+          </div>
+        </div>
+      </div>
+      <label className="field-assessment-size">
+        <span>{t('scanResultFieldSize')}</span>
+        <input
+          type="number"
+          inputMode="decimal"
+          min="0"
+          step="0.1"
+          placeholder="1.5"
+          value={fieldSize}
+          onChange={(e) => setFieldSize(e.target.value)}
+        />
+      </label>
+      <p className="scan-result-summary">{t('scanResultFieldDisclaimer')}</p>
+    </section>
+  );
+}
+
+export default FieldAssessmentCard;

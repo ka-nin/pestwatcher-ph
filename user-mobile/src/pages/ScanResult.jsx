@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { X, RotateCcw, Sprout, HelpCircle, AlertTriangle } from 'lucide-react';
 import RiskBadge from '../components/RiskBadge';
+import FieldAssessmentCard from '../components/FieldAssessmentCard';
 import { pestGuide, etlThresholds } from '../data/mockData';
 import { PestHeroMedia } from '../data/pestIcons';
 import { fetchPestForecast, fetchPestForecastTrajectory } from '../api/client';
@@ -177,6 +178,7 @@ export default function ScanResult() {
           </span>
           <h1>{title}</h1>
           <p>{body}</p>
+          {isDamage && <FieldAssessmentCard assessment={inference.field_assessment} t={t} />}
           <button className="scan-result-rescan-btn" onClick={() => navigate('/scan')}>
             {t('scanResultRescan')}
           </button>
@@ -278,6 +280,8 @@ export default function ScanResult() {
             <p className="scan-result-summary">{t('scanResultEstimatedDisclaimer')}</p>
           </section>
         )}
+
+        <FieldAssessmentCard assessment={inference.field_assessment} t={t} />
 
         <h1>{displayName}</h1>
         <p className="guide-detail-fil">

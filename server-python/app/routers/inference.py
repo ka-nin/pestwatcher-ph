@@ -229,6 +229,15 @@ async def infer_image(
     # this photo's own quantitative estimate can actually feed the
     # trajectory below, instead of the forecast running first with no way
     # to see a number that doesn't exist yet.
+    # Stem borer photos also get the field-level severity and spread, so the scan
+    # reports how much damage the photo shows as well as which pest it is. The
+    # field model is RSB-only, so BPH-only photos have none.
+    field_assessment = None
+    if "RSB" in (result.pests_detected or [result.label]):
+        cells = resnet_regressors.predict_grid("RSB", "field_damage_pct", destination)
+        if cells is not None:
+            field_assessment = _field_result("RSB", "field_damage_pct", cells, None)
+
     estimated_count = estimated_coverage_pct = estimated_damage_pct = None
     if result.label == "BPH":
         estimated_count = resnet_regressors.predict("BPH", "count", destination)
@@ -265,6 +274,7 @@ async def infer_image(
         forecast=forecast,
         forecast_reflects_this_photo=photo_lagged_features is not None,
         pests_detected=result.pests_detected,
+        field_assessment=field_assessment,
         pest_scores=result.pest_scores,
         grid_used=result.grid_tiles is not None,
         grid_tiles=result.grid_tiles,

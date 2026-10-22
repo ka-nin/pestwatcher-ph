@@ -123,6 +123,13 @@ export const translations = {
     scanResultHealthyTitle: 'Walang natukoy na peste',
     scanResultHealthyBody:
       'Mukhang malusog ang tanim batay sa larawan — walang nakitang Kayumangging Hanip o Aksip. Ipagpatuloy ang regular na pagmamanman.',
+    scanResultFieldTitle: 'Lawak at Tindi ng Pinsala (Mula sa Larawan)',
+    scanResultFieldGridLabel: 'Aling bahagi ng larawan ang may pinsala',
+    scanResultFieldSeverity: 'tindi ng pinsala',
+    scanResultFieldSpread: 'lawak ng pinsala',
+    scanResultFieldHectares: 'apektadong ektarya',
+    scanResultFieldSize: 'Laki ng bukid (ektarya, opsyonal)',
+    scanResultFieldDisclaimer: 'Tantiya lamang ng AI mula sa larawan. Pakikumpirma sa teknolohista.',
     scanResultDamageTitle: 'May nakitang posibleng pinsala ng stem borer',
     scanResultDamageBody:
       'Walang insektong nakita, pero may pinsalang kahawig ng whitehead sa larawan: humigit-kumulang {severity}% ng larawan ang apektado at {spread}% ng bahagi ang may pinsala. Tantiya lamang ito ng AI. Pakikumpirma sa teknolohista.',
@@ -372,6 +379,13 @@ export const translations = {
     scanResultHealthyTitle: 'No pest detected',
     scanResultHealthyBody:
       'This photo looks healthy — no Brown Planthopper or Rice Stem Borer was found. Keep up your regular monitoring.',
+    scanResultFieldTitle: 'Damage Severity and Spread (From Photo)',
+    scanResultFieldGridLabel: 'Which parts of the photo show damage',
+    scanResultFieldSeverity: 'severity',
+    scanResultFieldSpread: 'spread',
+    scanResultFieldHectares: 'affected area',
+    scanResultFieldSize: 'Field size (hectares, optional)',
+    scanResultFieldDisclaimer: 'An AI estimate from the photo only. Please have a technologist confirm it.',
     scanResultDamageTitle: 'Possible stem borer damage found',
     scanResultDamageBody:
       'No insect was seen, but the photo shows damage that looks like whiteheads: about {severity}% of the photo is affected and {spread}% of the area shows damage. This is an AI estimate only. Please have a technologist confirm it.',
