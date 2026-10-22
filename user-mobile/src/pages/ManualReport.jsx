@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Camera, Edit3, MapPin, Calendar, Lock, X, AlertTriangle } from 'lucide-react';
 import ScreenHeader from '../components/ScreenHeader';
 import { pestTypeOptions, severityOptions, growthStageOptions, growthStageLabels, growthStageDescriptions, etlThresholds } from '../data/mockData';
@@ -169,8 +169,11 @@ export default function ManualReport() {
 
   const handlePickPhoto =() => fileInputRef.current?.click();
 
-  const handlePhotoChange = (e) => {
-    const file = e.target.files?.[0];
+  const handlePhotoChange = (e) => attachPhoto(e.target.files?.[0]);
+
+  // Also used when a scan result hands its photo over ("Report this"), so the
+  // pest type is filled in from the same classification as a freshly picked photo.
+  const attachPhoto = (file) => {
     if (!file) return;
     setPhotoFile(file);
     setPhotoPreviewUrl(URL.createObjectURL(file));
@@ -186,6 +189,10 @@ export default function ManualReport() {
         if (result.status === 'ok' && PEST_TYPE_BY_CODE[result.pest_detected]) {
           setPestType(PEST_TYPE_BY_CODE[result.pest_detected]);
           setClassifyResult({ label: result.pest_detected, confidence: result.confidence });
+        } else if (result.status === 'damage_detected' && PEST_TYPE_BY_CODE[result.pest_detected]) {
+          // No insect in frame, but the field photo shows stem-borer damage.
+          setPestType(PEST_TYPE_BY_CODE[result.pest_detected]);
+          setClassifyResult({ label: result.pest_detected, confidence: null });
         } else if (result.status === 'unidentified_pest_detected') {
           setClassifyResult('unidentified');
         } else {
@@ -195,6 +202,16 @@ export default function ManualReport() {
       .catch(() => setClassifyResult('error'))
       .finally(() => setClassifying(false));
   };
+
+  const handedOverPhoto = useLocation().state?.photo;
+  const handedOverRef = useRef(false);
+  useEffect(() => {
+    if (!handedOverPhoto || handedOverRef.current) return;
+    handedOverRef.current = true;
+    attachPhoto(new File([handedOverPhoto], 'scan.jpg', { type: handedOverPhoto.type || 'image/jpeg' }));
+    // attachPhoto only sets state and starts one request; run once for the handed-over photo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handedOverPhoto]);
 
   const handleRemovePhoto = () => {
     setPhotoFile(null);
@@ -286,7 +303,7 @@ export default function ManualReport() {
       {classifying && <p className="report-classify-note">{t('reportClassifying')}</p>}
       {!classifying && classifyResult && classifyResult !== 'none' && classifyResult !== 'error' && (
         <p className="report-classify-note report-classify-note-ok">
-          {t('reportClassifiedAs')} {pestTypeOptions.find((o) => derivePestCode(o.value) === classifyResult.label)?.[language]} ({Math.round(classifyResult.confidence * 100)}%) — {t('reportClassifiedEditable')}
+          {t('reportClassifiedAs')} {pestTypeOptions.find((o) => derivePestCode(o.value) === classifyResult.label)?.[language]} ({classifyResult.confidence != null ? `${Math.round(classifyResult.confidence * 100)}%` : t('reportClassifiedFromDamage')}) — {t('reportClassifiedEditable')}
         </p>
       )}
       {!classifying && classifyResult === 'none' && (

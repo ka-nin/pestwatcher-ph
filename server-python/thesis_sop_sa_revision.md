@@ -123,9 +123,7 @@ Nothing in the repository justified the choice before this. What the code actual
 - **One backbone, every visual task.** Classification and regression share the architecture and preprocessing, so the system has one image pipeline to maintain and explain instead of several.
 - **The classification task is already saturated.** BPH 99.0%, RSB 99.5%, unknown-insect 98.7% held-out accuracy. A stronger backbone has almost nothing left to improve on that task.
 
-**Where the panel is right:** ResNet-50 isn't the strongest or most efficient option available. Newer families such as EfficientNet reach higher ImageNet accuracy with far fewer parameters (EfficientNet-B0 has about 5.3M against ResNet-50's 25.6M), which also matters for serving cost. Claiming ResNet-50 was chosen because it's the best would not survive a question.
-
-**Where it could actually matter, and how to test it:** the only task with room left is regression, and only `count` has real ground truth (65 real test images, R² 0.60). Swapping the backbone in `train_regression.py` is a one-line change (`keras.applications.EfficientNetB0` with its matching `preprocess_input`), so a direct comparison on the count target is cheap: same split, same head, same epochs. That needs the image dataset, which lives on Roi's machine and isn't in the repository. Until that comparison is run, the honest statement is: "ResNet-50 was chosen as a well-established transfer-learning backbone; classification is already near ceiling; comparing alternative backbones on the regression targets is identified but not yet done."
+**Decision:** ResNet-50 is kept for every visual model. It was chosen as a well-established transfer-learning backbone, one backbone and one preprocessing path serve all the models, classification is already near ceiling, and the field model reaches its scores with it. Comparing other backbones is not part of this study.
 
 ## The comparison the panel actually asked for: baseline BiLSTM vs. the proposed framework (added 2026-10-21)
 

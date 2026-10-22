@@ -83,7 +83,7 @@ export default function ScanCapture() {
           ? await submitImageInference(blob, user?.municipality, growthStage)
           : null;
         if (cancelled) return;
-        navigate('/scan/result', { state: { inference: result } });
+        navigate('/scan/result', { state: { inference: result, photo: blob } });
       } catch (err) {
         if (cancelled) return;
         setScanError(err.message || t('scanErrorUpload'));

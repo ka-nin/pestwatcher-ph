@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { assessFieldPhoto, type FieldAssessment, type PestKey } from '../../lib/api'
+import { useEffect, useMemo, useState } from 'react'
+import { scanFieldPhoto, type FieldAssessment, type PhotoScan } from '../../lib/api'
 import './FieldAssessmentPage.css'
 
 // A cell at or above this share is drawn at full strength; the scale is capped
@@ -12,28 +12,31 @@ function cellColour(value: number, hasDamage: boolean) {
   return `rgba(214, 69, 65, ${strength * 0.55})`
 }
 
-// BPH has no field-level damage model installed yet (only RSB's is trained),
-// so it is left out of the picker rather than offering a choice that always
-// comes back model_not_loaded. Add it back once
-// ml/weights/bph/resnet50_bph_field_damage_pct.keras exists.
+function areaValue(r: FieldAssessment) {
+  if (r.affected_hectares != null) return `${r.affected_hectares} ha`
+  if (r.affected_area_m2 != null) return `~${Math.round(r.affected_area_m2)} m²`
+  return 'n/a'
+}
+
+function areaNote(r: FieldAssessment) {
+  if (r.affected_hectares != null) {
+    return `of ${r.field_size_ha} ha${r.field_size_source === 'photo_metadata' ? ' (from drone data)' : ''}`
+  }
+  if (r.affected_area_m2 != null) {
+    return `Between ${Math.round(r.affected_area_m2_low ?? 0)} and ${Math.round(r.affected_area_m2_high ?? 0)} m² of the ~${Math.round(r.visible_area_m2 ?? 0)} m² seen in the photo`
+  }
+  return 'Enter the field size'
+}
+
 function FieldAssessmentPage() {
-  const [pest, setPest] = useState<PestKey>('RSB')
   const [file, setFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [fieldSize, setFieldSize] = useState('')
-  const [result, setResult] = useState<FieldAssessment | null>(null)
+  const [scan, setScan] = useState<PhotoScan | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => {
-    if (!file) {
-      setPreviewUrl(null)
-      return
-    }
-    const url = URL.createObjectURL(file)
-    setPreviewUrl(url)
-    return () => URL.revokeObjectURL(url)
-  }, [file])
+  const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
 
   const sizeNumber = fieldSize.trim() === '' ? null : Number(fieldSize)
   const sizeInvalid = sizeNumber != null && (!Number.isFinite(sizeNumber) || sizeNumber <= 0)
@@ -42,17 +45,19 @@ function FieldAssessmentPage() {
     if (!file || sizeInvalid) return
     setBusy(true)
     setError('')
-    setResult(null)
+    setScan(null)
     try {
-      setResult(await assessFieldPhoto(file, pest, sizeNumber))
+      setScan(await scanFieldPhoto(file, sizeNumber))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Field assessment failed.')
+      setError(e instanceof Error ? e.message : 'Photo scan failed.')
     } finally {
       setBusy(false)
     }
   }
 
+  const result: FieldAssessment | null = scan?.field_assessment ?? null
   const ok = result?.status === 'ok'
+  const pestName = scan?.pest_detected === 'BPH' ? 'Brown Planthopper (BPH)' : scan?.pest_detected === 'RSB' ? 'Rice Stem Borer (RSB)' : null
   return (
     <>
       <section className="panel forecast-summary-panel">
@@ -60,7 +65,7 @@ function FieldAssessmentPage() {
           <div>
             <div className="panel-title">Field Assessment</div>
             <div className="panel-subtitle">
-              Upload a whole-field photo to estimate how severe the damage is and how widely it is spread
+              Upload a photo: the pest is identified automatically, then counted (planthoppers) or assessed for damage (stem borer)
             </div>
           </div>
           <span className="badge badge-yellow">Estimate · not verified</span>
@@ -70,12 +75,6 @@ function FieldAssessmentPage() {
       <div className="fa-grid">
         <section className="panel fa-panel">
           <div className="fa-field">
-            <label htmlFor="fa-pest">Pest</label>
-            <select id="fa-pest" value={pest} onChange={(e) => setPest(e.target.value as PestKey)}>
-              <option value="RSB">Rice Stem Borer (whiteheads)</option>
-            </select>
-          </div>
-          <div className="fa-field">
             <label htmlFor="fa-photo">Field photo</label>
             <input
               id="fa-photo"
@@ -83,7 +82,7 @@ function FieldAssessmentPage() {
               accept="image/jpeg,image/png,image/webp"
               onChange={(e) => {
                 setFile(e.target.files?.[0] ?? null)
-                setResult(null)
+                setScan(null)
                 setError('')
               }}
             />
@@ -99,16 +98,17 @@ function FieldAssessmentPage() {
               value={fieldSize}
               onChange={(e) => setFieldSize(e.target.value)}
             />
+            <span className="fa-hint">Leave blank to estimate the area from the photo itself.</span>
             {sizeInvalid && <span className="fa-error">Enter a size above 0.</span>}
           </div>
           <button className="fa-run" disabled={!file || busy || sizeInvalid} onClick={run}>
-            {busy ? 'Assessing…' : 'Assess photo'}
+            {busy ? 'Scanning…' : 'Scan photo'}
           </button>
           {error && <p className="fa-error">{error}</p>}
         </section>
 
         <section className="panel fa-panel">
-          {!previewUrl && <p className="stat-card-loading">Choose a photo to begin.</p>}
+          {!previewUrl && <div className="fa-empty">Choose a field photo to begin.</div>}
           {previewUrl && (
             <div className="fa-photo-wrap">
               <img src={previewUrl} alt="Field photo" className="fa-photo" />
@@ -119,19 +119,41 @@ function FieldAssessmentPage() {
                 >
                   {result!.cell_values.flat().map((v, i) => (
                     <div key={i} className="fa-cell" style={{ background: cellColour(v, result!.cell_has_damage.flat()[i]) }} title={`${v.toFixed(2)}% of this cell`}>
-                      <span>{v.toFixed(1)}%</span>
+                      {result!.cell_has_damage.flat()[i] && <span>{v.toFixed(1)}%</span>}
                     </div>
                   ))}
                 </div>
               )}
             </div>
           )}
+          {previewUrl && ok && <p className="fa-legend"><i /> Cells the model judges to contain damage</p>}
         </section>
       </div>
 
-      {result && !ok && (
+      {scan && (
         <section className="panel fa-panel">
-          <p className="fa-error">{result.message}</p>
+          <div className="fa-metric-label">Detected automatically</div>
+          <div className="fa-metric-value">{pestName ?? 'No tracked pest'}</div>
+          <p className="fa-caveat">{scan.message}</p>
+          {scan.pest_detected === 'BPH' && (
+            <div className="fa-metrics">
+              <div className="fa-metric">
+                <div className="fa-metric-label">Estimated count</div>
+                <div className="fa-metric-value">{scan.estimated_count?.toFixed(1) ?? 'n/a'}</div>
+                <div className="fa-metric-note">hoppers per hill (AI estimate)</div>
+              </div>
+              <div className="fa-metric">
+                <div className="fa-metric-label">Coverage</div>
+                <div className="fa-metric-value">{scan.estimated_coverage_pct?.toFixed(0) ?? 'n/a'}%</div>
+                <div className="fa-metric-note">of the photo affected</div>
+              </div>
+              <div className="fa-metric">
+                <div className="fa-metric-label">Risk</div>
+                <div className="fa-metric-value">{scan.risk_level ?? 'n/a'}</div>
+                <div className="fa-metric-note">from detection confidence</div>
+              </div>
+            </div>
+          )}
         </section>
       )}
 
@@ -150,8 +172,8 @@ function FieldAssessmentPage() {
             </div>
             <div className="fa-metric">
               <div className="fa-metric-label">Affected area</div>
-              <div className="fa-metric-value">{result!.affected_hectares != null ? `${result!.affected_hectares} ha` : 'n/a'}</div>
-              <div className="fa-metric-note">{result!.affected_hectares != null ? `of ${result!.field_size_ha} ha` : 'enter the field size'}</div>
+              <div className="fa-metric-value">{areaValue(result!)}</div>
+              <div className="fa-metric-note">{areaNote(result!)}</div>
             </div>
             <div className="fa-metric">
               <div className="fa-metric-label">Where present</div>
@@ -160,8 +182,8 @@ function FieldAssessmentPage() {
             </div>
           </div>
           <p className="fa-caveat">
-            {result!.message} Severity is the share of the photo covered by whiteheads, a stand-in for the percentage of
-            white ears. Highlighted cells are the ones the model judges to contain damage.
+            Estimate from a model trained on synthetic images; a technologist must confirm it. Severity is the share of
+            the photo covered by whiteheads, a stand-in for the percentage of white ears.
           </p>
         </section>
       )}

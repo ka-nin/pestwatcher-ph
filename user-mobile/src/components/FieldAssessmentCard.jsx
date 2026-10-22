@@ -5,12 +5,16 @@ import './FieldAssessmentCard.css';
 // the field-level damage model (server-python/app/routers/inference.py's
 // field_assessment). A 3x3 grid shows which parts of the photo have damage;
 // with the farmer's field size, the affected hectares are worked out here.
-function FieldAssessmentCard({ assessment, t }) {
+function FieldAssessmentCard({ assessment, t, showDisclaimer = true }) {
   const [fieldSize, setFieldSize] = useState('');
   if (!assessment || assessment.status !== 'ok') return null;
 
-  const size = Number(fieldSize);
-  const hasSize = fieldSize.trim() !== '' && Number.isFinite(size) && size > 0;
+  // The server reads the size from the photo's drone metadata when it can; a typed value overrides it.
+  const detectedSize = assessment.field_size_ha;
+  const typed = Number(fieldSize);
+  const hasTyped = fieldSize.trim() !== '' && Number.isFinite(typed) && typed > 0;
+  const size = hasTyped ? typed : detectedSize;
+  const hasSize = Number.isFinite(size) && size > 0;
   const hectares = hasSize ? ((assessment.cells_affected_pct / 100) * size).toFixed(2) : null;
 
   return (
@@ -42,7 +46,13 @@ function FieldAssessmentCard({ assessment, t }) {
             <small>{t('scanResultFieldSpread')}</small>
           </div>
           <div>
-            <strong>{hectares != null ? `${hectares} ha` : '-'}</strong>
+            <strong>
+              {hectares != null
+                ? `${hectares} ha`
+                : assessment.affected_area_m2 != null
+                  ? `~${Math.round(assessment.affected_area_m2)} m²`
+                  : '-'}
+            </strong>
             <small>{t('scanResultFieldHectares')}</small>
           </div>
         </div>
@@ -54,12 +64,21 @@ function FieldAssessmentCard({ assessment, t }) {
           inputMode="decimal"
           min="0"
           step="0.1"
-          placeholder="1.5"
+          placeholder={detectedSize ? String(detectedSize) : '1.5'}
           value={fieldSize}
           onChange={(e) => setFieldSize(e.target.value)}
         />
       </label>
-      <p className="scan-result-summary">{t('scanResultFieldDisclaimer')}</p>
+      {!hasTyped && detectedSize ? <p className="field-assessment-note">{t('scanResultFieldSizeAuto').replace('{ha}', detectedSize)}</p> : null}
+      {!hasSize && assessment.affected_area_m2 != null ? (
+        <p className="field-assessment-note">
+          {t('scanResultFieldAreaFromPhoto')
+            .replace('{visible}', Math.round(assessment.visible_area_m2))
+            .replace('{low}', Math.round(assessment.affected_area_m2_low))
+            .replace('{high}', Math.round(assessment.affected_area_m2_high))}
+        </p>
+      ) : null}
+      {showDisclaimer ? <p className="field-assessment-note">{t('scanResultFieldDisclaimer')}</p> : null}
     </section>
   );
 }

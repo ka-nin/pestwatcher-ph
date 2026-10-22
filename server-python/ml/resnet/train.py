@@ -36,7 +36,7 @@ import tensorflow as tf
 from sklearn.metrics import classification_report, confusion_matrix
 from tensorflow import keras
 from tensorflow.keras import layers
-from tensorflow.keras.applications import efficientnet, resnet50
+from tensorflow.keras.applications import resnet50
 
 from ml.config import PEST_PARAMS, WEIGHTS_DIR
 
@@ -54,14 +54,8 @@ HEAD_EPOCHS = 15
 FINE_TUNE_EPOCHS = 20
 FINE_TUNE_UNFREEZE_FROM = 143  # ResNet-50 has 175 layers; unfreezes roughly the last block
 
-# Backbone options so the panel's "why ResNet-50" can be answered like for like on the real
-# detector data: python -m ml.resnet.train --pest BPH --backbone efficientnetb0
-# A non-default backbone NEVER overwrites the deployed weights: it writes only a metrics file,
-# resnet50_{pest}_vs_{backbone}_test_metrics.json. EfficientNet rescales inside the model, so its
-# keras preprocess_input is the identity.
 BACKBONES = {
     "resnet50": (lambda: resnet50.ResNet50(include_top=False, weights="imagenet", input_shape=(*IMAGE_SIZE, 3), pooling="avg"), resnet50.preprocess_input, 143),
-    "efficientnetb0": (lambda: efficientnet.EfficientNetB0(include_top=False, weights="imagenet", input_shape=(*IMAGE_SIZE, 3), pooling="avg"), efficientnet.preprocess_input, 200),
 }
 PREPROCESS = [resnet50.preprocess_input]  # set in main() from --backbone
 

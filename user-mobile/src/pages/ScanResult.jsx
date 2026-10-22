@@ -62,6 +62,7 @@ export default function ScanResult() {
   // Real result from the just-completed /api/inference/image call, passed
   // via navigation state from ScanCapture.
   const inference = location.state?.inference;
+  const photo = location.state?.photo;
 
   const [forecast, setForecast] = useState(null);
   const [trajectory, setTrajectory] = useState(null);
@@ -153,14 +154,14 @@ export default function ScanResult() {
     const title = isHealthy
       ? t('scanResultHealthyTitle')
       : isDamage
-        ? t(inference.pest_detected === 'BPH' ? 'scanResultDamageTitleBPH' : 'scanResultDamageTitle')
+        ? t('scanResultDamageTitle')
         : isOtherPest
           ? t('scanResultOtherPestTitle')
           : t('scanResultModelNotReady');
     const body = isHealthy
       ? t('scanResultHealthyBody')
       : isDamage
-        ? t(inference.pest_detected === 'BPH' ? 'scanResultDamageBodyBPH' : 'scanResultDamageBody')
+        ? t('scanResultDamageBody')
             .replace('{severity}', inference.field_assessment.pct_affected.toFixed(1))
             .replace('{spread}', Math.round(inference.field_assessment.cells_affected_pct))
         : isOtherPest
@@ -178,7 +179,34 @@ export default function ScanResult() {
           </span>
           <h1>{title}</h1>
           <p>{body}</p>
-          {isDamage && <FieldAssessmentCard assessment={inference.field_assessment} t={t} />}
+          {isDamage && <FieldAssessmentCard assessment={inference.field_assessment} t={t} showDisclaimer={false} />}
+          {isDamage && inference.forecast?.points?.length > 0 && (
+            <section>
+              <h2>{t('scanResultTrajectoryTitle')}</h2>
+              <div className="forecast-grid">
+                {inference.forecast.points.map((day) => {
+                  const d = new Date(day.date);
+                  const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+                  return (
+                    <div key={day.date} className={`forecast-day risk-${day.risk_level.toLowerCase()}`}>
+                      <span className="forecast-day-name">{isEn ? weekday : DAY_NAMES_FIL[weekday]}</span>
+                      <span className="forecast-day-date">{d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="forecast-legend">
+                <span><i className="risk-low" /> {t('scanResultLegendLow')}</span>
+                <span><i className="risk-medium" /> {t('scanResultLegendMedium')}</span>
+                <span><i className="risk-high" /> {t('scanResultLegendHigh')}</span>
+              </div>
+            </section>
+          )}
+          {isDamage && photo && (
+            <button className="scan-result-rescan-btn" onClick={() => navigate('/report', { state: { photo } })}>
+              {t('scanResultReportThis')}
+            </button>
+          )}
           <button className="scan-result-rescan-btn" onClick={() => navigate('/scan')}>
             {t('scanResultRescan')}
           </button>

@@ -3,7 +3,7 @@ measured damage %. This is the test the synthetic split cannot provide.
 
 Input CSV columns: photo, pest, measured_pct   (path relative to the CSV, or absolute)
     photo,pest,measured_pct
-    quadrat_001.jpg,BPH,35
+    quadrat_001.jpg,RSB,35
     quadrat_002.jpg,RSB,6.5
 
 Run from server-python/:

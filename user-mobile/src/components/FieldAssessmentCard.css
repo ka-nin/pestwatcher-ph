@@ -5,15 +5,15 @@
 
 .field-assessment-body {
   display: flex;
-  gap: 14px;
+  gap: 20px;
   align-items: center;
-  margin: 10px 0;
+  margin: 12px 0 14px;
 }
 
 .field-assessment-grid {
   display: grid;
-  gap: 2px;
-  width: 132px;
+  gap: 4px;
+  width: 168px;
   flex: none;
 }
 
@@ -22,9 +22,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: 6px;
   background: rgba(47, 107, 50, 0.1);
-  font-size: 10px;
+  font-size: 11px;
   color: #4a4a4a;
 }
 
@@ -36,18 +36,18 @@
 .field-assessment-metrics {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   flex: 1;
 }
 
 .field-assessment-metrics strong {
   display: block;
-  font-size: 18px;
+  font-size: 22px;
   line-height: 1.1;
 }
 
 .field-assessment-metrics small {
-  font-size: 11px;
+  font-size: 12px;
   opacity: 0.7;
 }
 
@@ -56,8 +56,17 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.field-assessment-note {
+  margin: 6px 0 0;
   font-size: 12px;
-  margin-bottom: 6px;
+  line-height: 1.45;
+  opacity: 0.7;
 }
 
 .field-assessment-size input {

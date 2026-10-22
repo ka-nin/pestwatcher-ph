@@ -226,8 +226,15 @@ export interface FieldAssessment {
   cells_affected_pct: number | null
   severity_where_present_pct: number | null
   field_size_ha: number | null
+  // 'photo_metadata' = read from the photo's drone height + lens; 'entered' = typed by the user.
+  field_size_source: 'entered' | 'photo_metadata' | null
   // Spread in hectares: cells_affected_pct x field size.
   affected_hectares: number | null
+  // Area from the photo's own geometry (lens + assumed camera height 1.5 m, tilt 35 deg); low/high = tilt 45 / 30 deg.
+  visible_area_m2: number | null
+  affected_area_m2: number | null
+  affected_area_m2_low: number | null
+  affected_area_m2_high: number | null
   message: string
 }
 
@@ -240,6 +247,30 @@ export async function assessFieldPhoto(file: File, pest: PestKey, fieldSizeHa: n
   if (!res.ok) {
     throw new Error(res.status === 415 ? 'Use a JPEG, PNG or WebP photo.' : 'Field assessment failed.')
   }
+  return res.json()
+}
+
+// ---- Automatic scan: the pest is identified from the photo (POST /api/inference/image).
+// BPH found -> count + coverage; no insect but stem-borer damage -> RSB with
+// severity and spread (field_assessment); otherwise nothing detected.
+export interface PhotoScan {
+  status: 'ok' | 'model_not_loaded' | 'no_pest_detected' | 'unidentified_pest_detected' | 'damage_detected'
+  pest_detected: PestKey | null
+  confidence: number | null
+  risk_level: string | null
+  message: string
+  estimated_count: number | null
+  estimated_coverage_pct: number | null
+  estimated_damage_pct: number | null
+  field_assessment: FieldAssessment | null
+}
+
+export async function scanFieldPhoto(file: File, fieldSizeHa: number | null): Promise<PhotoScan> {
+  const body = new FormData()
+  body.append('file', file)
+  if (fieldSizeHa != null) body.append('field_size_ha', String(fieldSizeHa))
+  const res = await fetch(`${API_BASE_URL}/api/inference/image`, { method: 'POST', body })
+  if (!res.ok) throw new Error(res.status === 415 ? 'Use a JPEG, PNG or WebP photo.' : 'Photo scan failed.')
   return res.json()
 }
 

@@ -129,10 +129,11 @@ export const translations = {
     scanResultFieldSpread: 'lawak ng pinsala',
     scanResultFieldHectares: 'apektadong ektarya',
     scanResultFieldSize: 'Laki ng bukid (ektarya, opsyonal)',
+    scanResultFieldAreaFromPhoto:
+      'Humigit-kumulang {visible} m² ng lupa ang nakikita; ang apektado ay nasa {low} hanggang {high} m². Depende sa taas at anggulo ng kamera.',
+    scanResultReportThis: 'I-ulat ito sa technician',
+    scanResultFieldSizeAuto: 'Awtomatikong nakuha sa litrato: {ha} ektarya. Maglagay ng halaga para palitan.',
     scanResultFieldDisclaimer: 'Tantiya lamang ng AI mula sa larawan. Pakikumpirma sa teknolohista.',
-    scanResultDamageTitleBPH: 'May nakitang posibleng hopperburn',
-    scanResultDamageBodyBPH:
-      'Walang insektong nakita, pero may pinsalang kahawig ng hopperburn sa larawan: humigit-kumulang {severity}% ng larawan ang apektado at {spread}% ng bahagi ang may pinsala. Tantiya lamang ito ng AI. Pakikumpirma sa teknolohista.',
     scanResultDamageTitle: 'May nakitang posibleng pinsala ng stem borer',
     scanResultDamageBody:
       'Walang insektong nakita, pero may pinsalang kahawig ng whitehead sa larawan: humigit-kumulang {severity}% ng larawan ang apektado at {spread}% ng bahagi ang may pinsala. Tantiya lamang ito ng AI. Pakikumpirma sa teknolohista.',
@@ -173,6 +174,7 @@ export const translations = {
     reportClassifying: 'Sinusuri ang larawan…',
     reportClassifiedAs: 'Natukoy bilang',
     reportClassifiedEditable: 'maaari mong palitan sa ibaba.',
+    reportClassifiedFromDamage: 'batay sa pinsala sa bukid',
     reportClassifyNone: 'Walang natukoy na peste sa larawan — pakipili nalang sa ibaba.',
     reportClassifyUnidentified: 'May nakitang insekto sa larawan, ngunit hindi ito BPH o RSB — pakipili nalang sa ibaba.',
     reportSectionPest: 'Peste at Antas ng Panganib',
@@ -388,10 +390,11 @@ export const translations = {
     scanResultFieldSpread: 'spread',
     scanResultFieldHectares: 'affected area',
     scanResultFieldSize: 'Field size (hectares, optional)',
+    scanResultFieldAreaFromPhoto:
+      'About {visible} m² of ground is visible; the damaged part is roughly {low} to {high} m². Depends on camera height and tilt.',
+    scanResultReportThis: 'Report this to the technician',
+    scanResultFieldSizeAuto: 'Detected from the photo: {ha} ha. Enter a value to override.',
     scanResultFieldDisclaimer: 'An AI estimate from the photo only. Please have a technologist confirm it.',
-    scanResultDamageTitleBPH: 'Possible hopperburn found',
-    scanResultDamageBodyBPH:
-      'No insect was seen, but the photo shows damage that looks like hopperburn: about {severity}% of the photo is affected and {spread}% of the area shows damage. This is an AI estimate only. Please have a technologist confirm it.',
     scanResultDamageTitle: 'Possible stem borer damage found',
     scanResultDamageBody:
       'No insect was seen, but the photo shows damage that looks like whiteheads: about {severity}% of the photo is affected and {spread}% of the area shows damage. This is an AI estimate only. Please have a technologist confirm it.',
@@ -432,6 +435,7 @@ export const translations = {
     reportClassifying: 'Classifying photo…',
     reportClassifiedAs: 'Detected as',
     reportClassifiedEditable: 'you can change this below.',
+    reportClassifiedFromDamage: 'from the damage in the field',
     reportClassifyNone: 'No pest detected in the photo — please select manually below.',
     reportClassifyUnidentified: 'An insect was detected in the photo, but it isn\'t BPH or RSB — please select manually below.',
     reportSectionPest: 'Pest & Severity',

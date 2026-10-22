@@ -3,6 +3,8 @@ from typing import Literal
 from datetime import date, timedelta
 from pathlib import Path
 
+from PIL import Image
+
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from app.config import get_settings
@@ -10,6 +12,7 @@ from app.data.municipalities import municipality_coordinates
 from app.decision.etl_thresholds import derive_risk_level
 from app.decision.outlook import growth_outlook, project_affected_area, spread_summary
 from app.decision.report_anchor import find_lagged_observation
+from app.preprocessing.photo_footprint import ground_area_by_cell, estimate_field_size_ha
 from app.models.resnet_model import resnet_classifier, resnet_regressors
 from app.routers.weather import fetch_recent_daily_weather
 from app.schemas.inference import (
@@ -43,12 +46,32 @@ ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 # the photo: tuned on held-out synthetic photos so healthy fields are not flagged
 # (see ml/weights/rsb/field_damage_rsb_*_synthetic_test_metrics.json).
 DAMAGE_RULES = {  # pest -> (min share of cells damaged, min severity in %)
-    "RSB": (33.0, 0.4),
-    "BPH": (33.0, 3.0),
+    "RSB": (33.0, 0.8),
 }
 
 
-def _field_result(pest: str, target: str, cells: list[list[float]], field_size_ha: float | None) -> FieldAssessmentResponse:
+def _affected_area_m2(path: Path, cell_values: list[list[float]], has_damage: list[list[bool]], tilt_deg: float) -> tuple[float, float, float]:
+    """(visible m2, damaged m2, spread m2) for the photo at an assumed camera tilt.
+
+    damaged = each cell's ground area x the share of that cell the model says is
+    damaged, i.e. the area the damage actually covers. spread = the ground area
+    of every cell that contains any damage, i.e. how far it extends; counting
+    whole cells as damaged would overstate the area (a cell with 1% damage is
+    not 100% damaged)."""
+    areas = ground_area_by_cell(path, len(has_damage), len(has_damage[0]), tilt_deg=tilt_deg)
+    visible = sum(sum(r) for r in areas)
+    damaged = sum(a * min(v, 100.0) / 100 for ra, rv in zip(areas, cell_values) for a, v in zip(ra, rv))
+    spread = sum(a for ra, rd in zip(areas, has_damage) for a, d in zip(ra, rd) if d)
+    return visible, damaged, spread
+
+
+def _field_result(
+    pest: str,
+    target: str,
+    cells: list[list[float]],
+    field_size_ha: float | None,
+    field_size_source: Literal["entered", "photo_metadata"] | None = None,
+) -> FieldAssessmentResponse:
     meta = resnet_regressors.meta(pest, target)
     threshold = float(meta.get("cell_has_damage_threshold", 0.2))
     flat = [v for row in cells for v in row]
@@ -66,13 +89,27 @@ def _field_result(pest: str, target: str, cells: list[list[float]], field_size_h
         cells_affected_pct=cells_affected_pct,
         severity_where_present_pct=round(sum(affected) / len(affected), 2) if affected else 0.0,
         field_size_ha=field_size_ha,
-        affected_hectares=round(cells_affected_pct / 100 * field_size_ha, 2) if field_size_ha else None,
+        field_size_source=field_size_source if field_size_ha else None,
+        affected_hectares=round(sum(flat) / len(flat) / 100 * field_size_ha, 2) if field_size_ha else None,
         message=(
             "Field assessment complete. Estimated from synthetic-trained models; "
             "a technologist must confirm it before it counts as an observation."
         ),
     )
 
+
+
+def _with_photo_area(result: FieldAssessmentResponse, path: Path) -> FieldAssessmentResponse:
+    cells = result.cell_values
+    visible, affected, spread = _affected_area_m2(path, cells, result.cell_has_damage, 35.0)
+    _, affected_low, _ = _affected_area_m2(path, cells, result.cell_has_damage, 45.0)
+    _, affected_high, _ = _affected_area_m2(path, cells, result.cell_has_damage, 30.0)
+    result.visible_area_m2 = round(visible, 1)
+    result.spread_area_m2 = round(spread, 1)
+    result.affected_area_m2 = round(affected, 1)
+    result.affected_area_m2_low = round(affected_low, 1)
+    result.affected_area_m2_high = round(affected_high, 1)
+    return result
 
 
 def _damage_found(result: FieldAssessmentResponse) -> bool:
@@ -82,15 +119,21 @@ def _damage_found(result: FieldAssessmentResponse) -> bool:
     return (result.cells_affected_pct or 0) >= min_cells and (result.pct_affected or 0) >= min_severity
 
 
-def _assess_photo(pest: str, path: Path) -> FieldAssessmentResponse | None:
+def _assess_photo(pest: str, path: Path, field_size_ha: float | None = None) -> FieldAssessmentResponse | None:
     cells = resnet_regressors.predict_grid(pest, "field_damage_pct", path)
-    return None if cells is None else _field_result(pest, "field_damage_pct", cells, None)
+    if cells is None:
+        return None
+    if field_size_ha is not None:
+        result = _field_result(pest, "field_damage_pct", cells, field_size_ha, "entered")
+    else:
+        result = _field_result(pest, "field_damage_pct", cells, estimate_field_size_ha(path), "photo_metadata")
+    return _with_photo_area(result, path)
 
 
 @router.post("/field-assessment", response_model=FieldAssessmentResponse)
 async def assess_field(
     file: UploadFile = File(...),
-    pest: Literal["BPH", "RSB"] = Form(...),
+    pest: Literal["RSB"] = Form(...),
     field_size_ha: float | None = Form(None, gt=0, le=1000),
 ) -> FieldAssessmentResponse:
     """Severity and extent from a whole-field photo (panel concern: field
@@ -120,8 +163,17 @@ async def assess_field(
     upload_dir.mkdir(parents=True, exist_ok=True)
     destination = upload_dir / f"field_{uuid.uuid4().hex}{Path(file.filename or 'photo.jpg').suffix or '.jpg'}"
     destination.write_bytes(await file.read())
+    _require_valid_image(destination)
     try:
         cells = resnet_regressors.predict_grid(pest, target, destination)
+        detected_ha = estimate_field_size_ha(destination) if field_size_ha is None else None
+        if cells is not None:
+            result = (
+                _field_result(pest, target, cells, field_size_ha, "entered")
+                if field_size_ha is not None
+                else _field_result(pest, target, cells, detected_ha, "photo_metadata")
+            )
+            result = _with_photo_area(result, destination)
     finally:
         destination.unlink(missing_ok=True)  # an assessment keeps nothing
 
@@ -134,7 +186,7 @@ async def assess_field(
             ),
         )
 
-    return _field_result(pest, target, cells, field_size_ha)
+    return result
 
 
 @router.post("/image", response_model=ImageInferenceResponse)
@@ -145,6 +197,9 @@ async def infer_image(
     ),
     growth_stage: GrowthStage | None = Form(
         None, description="Current rice growth stage — needed for the forecast's ETL bucketing."
+    ),
+    field_size_ha: float | None = Form(
+        None, gt=0, le=1000, description="Optional field size; otherwise the area is estimated from the photo."
     ),
 ) -> ImageInferenceResponse:
     """Receives an optical field photo from the mobile app, identifies which
@@ -173,16 +228,8 @@ async def infer_image(
             detail=f"Unsupported content type: {file.content_type}",
         )
 
-    settings = get_settings()
-    upload_dir = Path(settings.upload_dir)
-    upload_dir.mkdir(parents=True, exist_ok=True)
-
-    extension = Path(file.filename or "").suffix or ".jpg"
-    destination = upload_dir / f"{uuid.uuid4().hex}{extension}"
-
-    contents = await file.read()
-    destination.write_bytes(contents)
-
+    destination = await _save_upload(file)
+    _require_valid_image(destination)
     result = resnet_classifier.predict(destination)
 
     if result is None:
@@ -190,96 +237,134 @@ async def infer_image(
             status="model_not_loaded",
             message="ResNet-50 model not loaded yet — image saved for later training/inference",
         )
-
     if result.label is None:
-        if result.unidentified:
-            return ImageInferenceResponse(
-                status="unidentified_pest_detected",
-                message=(
-                    "An insect appears to be present, but it did not match our trained BPH/RSB models. "
-                    "It may be a different pest — please consult your local agricultural technologist."
-                ),
-                pest_scores=result.pest_scores,
-                grid_used=result.grid_tiles is not None,
-                grid_tiles=result.grid_tiles,
-                bph_grid_count=result.grid_count,
-            )
-        # No insect, but the photo may show the DAMAGE: the classifiers look for the
-        # insect, so a photo of whiteheads or hopperburn with no insect in frame scores
-        # near zero. If a field-level damage model is installed, check the photo for
-        # damage before answering "none".
-        found = [a for a in (_assess_photo(p, destination) for p in ("RSB", "BPH")) if a is not None and _damage_found(a)]
-        if found:
-            assessment = max(found, key=lambda a: a.pct_affected or 0)
-            symptom = "whiteheads (stem borer)" if assessment.pest == "RSB" else "hopperburn (brown planthopper)"
-            return ImageInferenceResponse(
-                status="damage_detected",
-                pest_detected=assessment.pest,
-                message=(
-                    f"No insect is visible, but the photo shows damage consistent with {symptom}. "
-                    "This is an unverified estimate: please have a technologist confirm it."
-                ),
-                pest_scores=result.pest_scores,
-                field_assessment=assessment,
-            )
-        return ImageInferenceResponse(
-            status="no_pest_detected",
-            message="No tracked pest (BPH/RSB) was detected in this photo with sufficient confidence.",
-            pest_scores=result.pest_scores,
-            grid_used=result.grid_tiles is not None,
-            grid_tiles=result.grid_tiles,
-            bph_grid_count=result.grid_count,
-        )
+        return _no_tracked_pest_response(result, destination, municipality, growth_stage, field_size_ha)
+    return _pest_found_response(result, destination, municipality, growth_stage, field_size_ha)
 
-    # Computed BEFORE the forecast call (unlike before the panel's fix) so
-    # this photo's own quantitative estimate can actually feed the
-    # trajectory below, instead of the forecast running first with no way
-    # to see a number that doesn't exist yet.
-    # The detected pest's photo also gets the field-level severity and spread, so the
-    # scan reports how much damage the photo shows as well as which pest it is.
-    field_assessment = _assess_photo(result.label, destination) if result.label in DAMAGE_RULES else None
 
-    estimated_count = estimated_coverage_pct = estimated_damage_pct = None
-    if result.label == "BPH":
-        estimated_count = resnet_regressors.predict("BPH", "count", destination)
-        estimated_coverage_pct = resnet_regressors.predict("BPH", "coverage_pct", destination)
-    elif result.label == "RSB":
-        estimated_damage_pct = resnet_regressors.predict("RSB", "damage_pct", destination)
+def _require_valid_image(path: Path) -> None:
+    """The content type comes from the client and can lie: reject a file PIL cannot
+    decode with a clear 422 instead of letting the models fail with a 500."""
+    try:
+        with Image.open(path) as img:
+            img.verify()
+    except Exception:
+        path.unlink(missing_ok=True)
+        raise HTTPException(status_code=422, detail="The uploaded file is not a readable image.")
 
-    # The slot's unit must match the pest's own ETL/BiLSTM target unit —
-    # hoppers/hill for BPH (estimated_count, not coverage_pct, which is a
-    # different quantity: affected area, not density) and % damage for RSB
-    # (estimated_damage_pct already matches). Age 0 / recency 1.0: as far as
-    # this one-off preview is concerned, this estimate is "observed today."
-    photo_lagged_features: tuple[float, float, float] | None = None
-    if result.label == "BPH" and estimated_count is not None:
-        photo_lagged_features = (estimated_count, 0.0, 1.0)
-    elif result.label == "RSB" and estimated_damage_pct is not None:
-        photo_lagged_features = (estimated_damage_pct, 0.0, 1.0)
 
-    forecast: TrajectoryResponse | None = None
-    if municipality and growth_stage:
-        forecast = _build_trajectory(
-            municipality, result.label, growth_stage, days=13, override_lagged_features=photo_lagged_features
-        )
+async def _save_upload(file: UploadFile) -> Path:
+    """Keeps the photo on disk (uploads/) so it can be reviewed or used for training later."""
+    upload_dir = Path(get_settings().upload_dir)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    destination = upload_dir / f"{uuid.uuid4().hex}{Path(file.filename or '').suffix or '.jpg'}"
+    destination.write_bytes(await file.read())
+    return destination
 
-    return ImageInferenceResponse(
-        status="ok",
-        pest_detected=result.label,
-        estimated_count=estimated_count,
-        estimated_coverage_pct=estimated_coverage_pct,
-        estimated_damage_pct=estimated_damage_pct,
-        confidence=result.confidence,
-        risk_level=result.risk_level,
-        message="Prediction successful",
-        forecast=forecast,
-        forecast_reflects_this_photo=photo_lagged_features is not None,
-        pests_detected=result.pests_detected,
-        field_assessment=field_assessment,
+
+def _grid_fields(result) -> dict:
+    return dict(
         pest_scores=result.pest_scores,
         grid_used=result.grid_tiles is not None,
         grid_tiles=result.grid_tiles,
         bph_grid_count=result.grid_count,
+    )
+
+
+def _no_tracked_pest_response(
+    result, photo: Path, municipality: str | None, growth_stage: GrowthStage | None, field_size_ha: float | None = None
+) -> ImageInferenceResponse:
+    """The classifiers found neither BPH nor RSB. In order: another insect was
+    seen (unidentified); the photo shows RSB damage without the insect; nothing."""
+    if result.unidentified:
+        return ImageInferenceResponse(
+            status="unidentified_pest_detected",
+            message=(
+                "An insect appears to be present, but it did not match our trained BPH/RSB models. "
+                "It may be a different pest — please consult your local agricultural technologist."
+            ),
+            **_grid_fields(result),
+        )
+
+    # The classifiers look for the insect, so a photo of whiteheads with no insect
+    # in frame scores near zero: check the photo for damage before answering "none".
+    assessment = _assess_photo("RSB", photo, field_size_ha)
+    if assessment is not None and _damage_found(assessment):
+        # The photo's severity stands in for the RSB observation (% damage, the
+        # forecast's own unit), so the trajectory reacts to this photo like a BPH count does.
+        photo_features = (assessment.pct_affected, 0.0, 1.0) if assessment.pct_affected is not None else None
+        forecast = (
+            _build_trajectory(municipality, "RSB", growth_stage, days=13, override_lagged_features=photo_features)
+            if municipality and growth_stage
+            else None
+        )
+        return ImageInferenceResponse(
+            status="damage_detected",
+            pest_detected=assessment.pest,
+            message=(
+                "No insect is visible, but the photo shows damage consistent with whiteheads (stem borer). "
+                "This is an unverified estimate: please have a technologist confirm it."
+            ),
+            pest_scores=result.pest_scores,
+            field_assessment=assessment,
+            forecast=forecast,
+            forecast_reflects_this_photo=forecast is not None and photo_features is not None,
+        )
+
+    return ImageInferenceResponse(
+        status="no_pest_detected",
+        message="No tracked pest (BPH/RSB) was detected in this photo with sufficient confidence.",
+        **_grid_fields(result),
+    )
+
+
+def _quantity_estimates(pest: str, photo: Path) -> dict[str, float | None]:
+    """The pest's own photo estimate: count + coverage for BPH, damage % for RSB."""
+    if pest == "BPH":
+        return {
+            "estimated_count": resnet_regressors.predict("BPH", "count", photo),
+            "estimated_coverage_pct": resnet_regressors.predict("BPH", "coverage_pct", photo),
+        }
+    return {"estimated_damage_pct": resnet_regressors.predict("RSB", "damage_pct", photo)}
+
+
+def _photo_lagged_features(pest: str, estimates: dict[str, float | None]) -> tuple[float, float, float] | None:
+    """This photo's estimate as the forecast's one-off verified-observation input.
+    The unit must match the pest's ETL/BiLSTM target: hoppers/hill for BPH (the
+    count, not the coverage, which is affected area rather than density) and %
+    damage for RSB. Age 0 / recency 1.0: "observed today" for this preview only."""
+    value = estimates.get("estimated_count" if pest == "BPH" else "estimated_damage_pct")
+    return None if value is None else (value, 0.0, 1.0)
+
+
+def _pest_found_response(
+    result, photo: Path, municipality: str | None, growth_stage: GrowthStage | None, field_size_ha: float | None = None
+) -> ImageInferenceResponse:
+    pest = result.label
+    # The estimate is computed BEFORE the forecast so this photo's own number can feed
+    # the trajectory below. The photo also gets the field-level severity and spread.
+    field_assessment = _assess_photo(pest, photo, field_size_ha) if pest in DAMAGE_RULES else None
+    estimates = _quantity_estimates(pest, photo)
+    photo_features = _photo_lagged_features(pest, estimates)
+
+    forecast: TrajectoryResponse | None = None
+    if municipality and growth_stage:
+        forecast = _build_trajectory(
+            municipality, pest, growth_stage, days=13, override_lagged_features=photo_features
+        )
+
+    return ImageInferenceResponse(
+        status="ok",
+        pest_detected=pest,
+        **estimates,
+        confidence=result.confidence,
+        risk_level=result.risk_level,
+        message="Prediction successful",
+        forecast=forecast,
+        forecast_reflects_this_photo=photo_features is not None,
+        pests_detected=result.pests_detected,
+        field_assessment=field_assessment,
+        **_grid_fields(result),
     )
 
 

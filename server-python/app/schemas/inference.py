@@ -114,8 +114,23 @@ class FieldAssessmentResponse(BaseModel):
     # SEVERITY WHERE PRESENT: mean value over only the cells that contain damage.
     severity_where_present_pct: float | None = None
     field_size_ha: float | None = None
-    # SPREAD IN HECTARES: cells_affected_pct x field_size_ha / 100. Only with a field size.
+    # Where field_size_ha came from: typed by the user, or worked out from the
+    # photo's drone metadata (height + lens). None when neither is available.
+    field_size_source: Literal["entered", "photo_metadata"] | None = None
+    # HECTARES DAMAGED: severity (mean damaged share of the photo) x field_size_ha / 100. Only with a field size.
     affected_hectares: float | None = None
+    # AREA FROM THE PHOTO ITSELF (ground-level photos, no field size needed):
+    # square metres of ground visible in the photo and of the damaged cells,
+    # worked out from the lens field of view and an ASSUMED camera height and
+    # tilt (app/preprocessing/photo_footprint.py). Low/high bracket tilts of
+    # 45 and 30 degrees. This is the area in the photo, not the whole field.
+    visible_area_m2: float | None = None
+    # Ground area the damage actually covers (each cell's area x its damaged share).
+    affected_area_m2: float | None = None
+    # Ground area of every cell that contains any damage: how far it extends.
+    spread_area_m2: float | None = None
+    affected_area_m2_low: float | None = None
+    affected_area_m2_high: float | None = None
     message: str
 
 
