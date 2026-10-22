@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -7,12 +8,13 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from app.config import get_settings
 from app.data.municipalities import municipality_coordinates
 from app.decision.etl_thresholds import derive_risk_level
-from app.decision.outlook import growth_outlook, spread_summary
+from app.decision.outlook import growth_outlook, project_affected_area, spread_summary
 from app.decision.report_anchor import find_lagged_observation
 from app.models.resnet_model import resnet_classifier, resnet_regressors
 from app.routers.weather import fetch_recent_daily_weather
 from app.schemas.inference import (
     ExplanationResponse,
+    FieldAssessmentResponse,
     ForecastInferenceRequest,
     ForecastInferenceResponse,
     GrowthStage,
@@ -32,6 +34,89 @@ from ml.config import FORECAST_HORIZON_DAYS, GROWTH_STAGE_BUCKETS, PEST_PARAMS
 router = APIRouter(prefix="/api/inference", tags=["inference"])
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
+
+AFFECTED_CELL_MIN_PCT = 10.0  # a cell counts as "affected" at or above this value
+FIELD_GRID_LONG_SIDE_CELLS = 6  # cells along the photo's longer side
+
+
+def _grid_shape(width: int, height: int) -> tuple[int, int]:
+    """Roughly square cells: FIELD_GRID_LONG_SIDE_CELLS along the long side,
+    proportionally fewer (at least 2) along the short one."""
+    long_cells = FIELD_GRID_LONG_SIDE_CELLS
+    short_cells = max(2, round(long_cells * min(width, height) / max(width, height)))
+    return (short_cells, long_cells) if width >= height else (long_cells, short_cells)
+
+
+@router.post("/field-assessment", response_model=FieldAssessmentResponse)
+async def assess_field(
+    file: UploadFile = File(...),
+    pest: Literal["BPH", "RSB"] = Form(...),
+    field_size_ha: float | None = Form(None, gt=0, le=1000),
+    growth_stage: GrowthStage | None = Form(None),
+) -> FieldAssessmentResponse:
+    """Severity and extent over a whole-field photo (panel concern: field
+    level, not a close-up; regression, not classification).
+
+    The caller names the pest, so no classifier gate runs: the photo is cut
+    into a grid of patch-sized cells, the pest's regression model estimates
+    each cell, and the result is the mean (% of the photo affected), the share
+    of cells affected (how widely), and, given the field size, the affected
+    hectares. It uses the pest's FIELD-level damage model, not the patch-level
+    coverage/damage models: those were trained on collages of patches and
+    measured (2026-10-22) to read the same value on a damaged and a healthy
+    field, so they are not used here.
+
+    Nothing is stored and nothing reaches the forecast: this is an unverified
+    estimate for a technologist to confirm, like the scan estimates.
+    """
+    if file.content_type not in ALLOWED_CONTENT_TYPES:
+        raise HTTPException(status_code=415, detail="Unsupported image type; use JPEG, PNG or WebP.")
+
+    from PIL import Image
+
+    target = "field_damage_pct"
+    settings = get_settings()
+    upload_dir = Path(settings.upload_dir)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    destination = upload_dir / f"field_{uuid.uuid4().hex}{Path(file.filename or 'photo.jpg').suffix or '.jpg'}"
+    destination.write_bytes(await file.read())
+
+    try:
+        with Image.open(destination) as opened:
+            rows, cols = _grid_shape(*opened.size)
+        cell_values = resnet_regressors.predict_grid(pest, target, destination, rows, cols)
+    finally:
+        destination.unlink(missing_ok=True)  # an assessment keeps nothing
+
+    if cell_values is None:
+        return FieldAssessmentResponse(
+            status="model_not_loaded",
+            message=(
+                f"No field-level {pest} damage model is installed. It needs training on field photos "
+                "(ml/resnet/train_field_damage.py); the patch-level models do not transfer to field photos."
+            ),
+        )
+
+    flat = [v for row in cell_values for v in row]
+    pct_affected = round(sum(flat) / len(flat), 1)
+    risk = None
+    if pest == "RSB" and growth_stage is not None:
+        risk = derive_risk_level(pest, GROWTH_STAGE_BUCKETS[growth_stage], pct_affected)
+    return FieldAssessmentResponse(
+        status="ok",
+        pest=pest,
+        target=target,
+        rows=rows,
+        cols=cols,
+        cell_values=[[round(v, 1) for v in row] for row in cell_values],
+        pct_affected=pct_affected,
+        cells_affected_pct=round(100 * sum(v >= AFFECTED_CELL_MIN_PCT for v in flat) / len(flat), 1),
+        field_size_ha=field_size_ha,
+        affected_hectares=round(pct_affected / 100 * field_size_ha, 2) if field_size_ha else None,
+        risk_level=risk,
+        message="Field assessment complete. Unverified estimate: a technologist must confirm it.",
+    )
 
 
 @router.post("/image", response_model=ImageInferenceResponse)
@@ -408,11 +493,15 @@ def _build_trajectory(
             )
         )
 
+    spread = spread_summary(municipality, pest, today)
+    for point, hectares in zip(points, project_affected_area(points, spread["recent_hectares"])):
+        point.projected_affected_ha = hectares
+
     return TrajectoryResponse(
         status="ok",
         points=points,
         outlook=growth_outlook(points, pest),
-        spread=spread_summary(municipality, pest, today),
+        spread=spread,
         message="Trajectory forecast successful",
     )
 

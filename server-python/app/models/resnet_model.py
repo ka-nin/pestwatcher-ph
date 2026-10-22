@@ -234,6 +234,10 @@ REGRESSION_TARGETS: dict[tuple[str, str], Path] = {
     ("BPH", "count"): WEIGHTS_DIR / "bph" / "resnet50_bph_count.keras",
     ("BPH", "coverage_pct"): WEIGHTS_DIR / "bph" / "resnet50_bph_coverage_pct.keras",
     ("RSB", "damage_pct"): WEIGHTS_DIR / "rsb" / "resnet50_rsb_damage_pct.keras",
+    # Field-level damage: trained on whole-field photos (ml/resnet/train_field_damage.py),
+    # unlike the patch-level models above. Optional: absent until trained.
+    ("BPH", "field_damage_pct"): WEIGHTS_DIR / "bph" / "resnet50_bph_field_damage_pct.keras",
+    ("RSB", "field_damage_pct"): WEIGHTS_DIR / "rsb" / "resnet50_rsb_field_damage_pct.keras",
 }
 
 
@@ -265,6 +269,34 @@ class ResNet50RegressorBank:
         batch = np.expand_dims(np.array(img, dtype=np.float32), axis=0)
         prediction = self._models[(pest, target)].predict(resnet50.preprocess_input(batch), verbose=0)
         return max(0.0, float(prediction.flatten()[0]))  # count/coverage/% can't be negative
+
+
+    def predict_grid(self, pest: str, target: str, image_path: Path, rows: int, cols: int) -> list[list[float]] | None:
+        """Runs the regressor on every cell of a rows x cols grid over one
+        whole-field photo and returns the per-cell values (row-major).
+
+        This is the panel's "sampling size" idea: the model was trained on
+        photos framed like one patch of crop, so a field photo is cut into
+        patch-sized cells, each cell is estimated on its own, and the mean
+        over cells is the share of the whole photo affected. No pest
+        classifier is involved; the caller says which pest to measure.
+        """
+        if not self.is_loaded(pest, target):
+            return None
+
+        from tensorflow.keras.applications import resnet50
+
+        with Image.open(image_path) as opened:
+            img = opened.convert("RGB")
+        width, height = img.size
+        cells = []
+        for r in range(rows):
+            for c in range(cols):
+                box = (c * width // cols, r * height // rows, (c + 1) * width // cols, (r + 1) * height // rows)
+                cells.append(np.array(img.crop(box).resize(IMAGE_SIZE), dtype=np.float32))
+        predictions = self._models[(pest, target)].predict(resnet50.preprocess_input(np.stack(cells)), verbose=0)
+        values = [max(0.0, float(v)) for v in predictions.flatten()]
+        return [values[r * cols:(r + 1) * cols] for r in range(rows)]
 
 
 resnet_regressors = ResNet50RegressorBank()

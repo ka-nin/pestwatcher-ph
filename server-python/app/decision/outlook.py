@@ -132,3 +132,29 @@ def spread_summary(municipality: str, pest: str, today: date) -> dict:
         "trend": trend,
         "mean_photo_coverage_pct": round(sum(coverages) / len(coverages), 1) if coverages else None,
     }
+
+
+# Guardrail on the projection below: with no field size on record, a forecast
+# that jumps from 0.5 to 20 would otherwise imply a 40x larger affected area.
+MAX_AREA_GROWTH_FACTOR = 5.0
+
+
+def project_affected_area(points: list, anchor_hectares: float | None) -> list[float | None]:
+    """Per-day projected affected hectares, one entry per trajectory point.
+
+    A PROJECTION under one stated assumption, not a measured or learned spread:
+    affected area is taken to grow in proportion to the forecast pest level.
+    Day 0 equals the verified-report area (the anchor); each later day scales
+    it by forecast(day) / forecast(day 0), capped at MAX_AREA_GROWTH_FACTOR.
+    With no verified affected area on record (or a zero forecast to scale from)
+    there is nothing to anchor to, so every entry is None.
+    """
+    if not points or not anchor_hectares or anchor_hectares <= 0:
+        return [None] * len(points)
+    base = points[0].predicted_value
+    if base <= 0:
+        return [None] * len(points)
+    return [
+        round(anchor_hectares * min(max(p.predicted_value / base, 0.0), MAX_AREA_GROWTH_FACTOR), 2)
+        for p in points
+    ]

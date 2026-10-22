@@ -233,3 +233,9 @@
   color: #2f6b32;
   padding-top: 1px;
 }
+
+.forecast-breakdown-area {
+  font-weight: 400;
+  opacity: 0.75;
+  white-space: nowrap;
+}

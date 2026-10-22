@@ -149,6 +149,8 @@ export interface TrajectoryPoint {
   predicted_value: number
   unit: 'hoppers_per_hill' | 'pct_damage'
   risk_level: RiskLevel
+  // Projected hectares affected that day (null without a verified area).
+  projected_affected_ha?: number | null
 }
 
 // How fast the forecast says the pest is changing, read off the trajectory
