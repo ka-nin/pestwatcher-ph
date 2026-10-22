@@ -178,7 +178,7 @@ export default function ScanResult() {
           </span>
           <h1>{title}</h1>
           <p>{body}</p>
-          {isDamage && <FieldAssessmentCard assessment={inference.field_assessment} t={t} />}
+          {isDamage && <FieldAssessmentCard assessment={inference.field_assessment} t={t} showDisclaimer={false} />}
           <button className="scan-result-rescan-btn" onClick={() => navigate('/scan')}>
             {t('scanResultRescan')}
           </button>

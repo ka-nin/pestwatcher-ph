@@ -130,7 +130,7 @@ export const translations = {
     scanResultFieldHectares: 'apektadong ektarya',
     scanResultFieldSize: 'Laki ng bukid (ektarya, opsyonal)',
     scanResultFieldAreaFromPhoto:
-      'Naka-estimate mula sa larawan: humigit-kumulang {visible} m² ng lupa ang nakikita; ang apektadong bahagi ay nasa pagitan ng {low} at {high} m². Nakadepende ito sa taas at anggulo ng kamera.',
+      'Humigit-kumulang {visible} m² ng lupa ang nakikita; ang apektado ay nasa {low} hanggang {high} m². Depende sa taas at anggulo ng kamera.',
     scanResultFieldSizeAuto: 'Awtomatikong nakuha sa litrato: {ha} ektarya. Maglagay ng halaga para palitan.',
     scanResultFieldDisclaimer: 'Tantiya lamang ng AI mula sa larawan. Pakikumpirma sa teknolohista.',
     scanResultDamageTitle: 'May nakitang posibleng pinsala ng stem borer',
@@ -389,7 +389,7 @@ export const translations = {
     scanResultFieldHectares: 'affected area',
     scanResultFieldSize: 'Field size (hectares, optional)',
     scanResultFieldAreaFromPhoto:
-      'Estimated from the photo: about {visible} m² of ground is visible, and the damaged part is between {low} and {high} m². This depends on how high and how tilted the camera was.',
+      'About {visible} m² of ground is visible; the damaged part is roughly {low} to {high} m². Depends on camera height and tilt.',
     scanResultFieldSizeAuto: 'Detected from the photo: {ha} ha. Enter a value to override.',
     scanResultFieldDisclaimer: 'An AI estimate from the photo only. Please have a technologist confirm it.',
     scanResultDamageTitle: 'Possible stem borer damage found',

@@ -5,7 +5,7 @@ import './FieldAssessmentCard.css';
 // the field-level damage model (server-python/app/routers/inference.py's
 // field_assessment). A 3x3 grid shows which parts of the photo have damage;
 // with the farmer's field size, the affected hectares are worked out here.
-function FieldAssessmentCard({ assessment, t }) {
+function FieldAssessmentCard({ assessment, t, showDisclaimer = true }) {
   const [fieldSize, setFieldSize] = useState('');
   if (!assessment || assessment.status !== 'ok') return null;
 
@@ -69,16 +69,16 @@ function FieldAssessmentCard({ assessment, t }) {
           onChange={(e) => setFieldSize(e.target.value)}
         />
       </label>
-      {!hasTyped && detectedSize ? <p className="scan-result-summary">{t('scanResultFieldSizeAuto').replace('{ha}', detectedSize)}</p> : null}
+      {!hasTyped && detectedSize ? <p className="field-assessment-note">{t('scanResultFieldSizeAuto').replace('{ha}', detectedSize)}</p> : null}
       {!hasSize && assessment.affected_area_m2 != null ? (
-        <p className="scan-result-summary">
+        <p className="field-assessment-note">
           {t('scanResultFieldAreaFromPhoto')
             .replace('{visible}', Math.round(assessment.visible_area_m2))
             .replace('{low}', Math.round(assessment.affected_area_m2_low))
             .replace('{high}', Math.round(assessment.affected_area_m2_high))}
         </p>
       ) : null}
-      <p className="scan-result-summary">{t('scanResultFieldDisclaimer')}</p>
+      {showDisclaimer ? <p className="field-assessment-note">{t('scanResultFieldDisclaimer')}</p> : null}
     </section>
   );
 }
