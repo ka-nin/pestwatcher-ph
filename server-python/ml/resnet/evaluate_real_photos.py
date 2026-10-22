@@ -22,8 +22,6 @@ from pathlib import Path
 import numpy as np
 
 from app.models.resnet_model import resnet_regressors
-from app.routers.inference import _grid_shape
-from PIL import Image
 
 
 def main(csv_path: Path) -> None:
@@ -39,9 +37,7 @@ def main(csv_path: Path) -> None:
             if r["pest"] != pest:
                 continue
             path = Path(r["photo"]) if Path(r["photo"]).is_absolute() else csv_path.parent / r["photo"]
-            with Image.open(path) as im:
-                grid = _grid_shape(*im.size)
-            cells = resnet_regressors.predict_grid(pest, "field_damage_pct", path, *grid)
+            cells = resnet_regressors.predict_grid(pest, "field_damage_pct", path)
             flat = [v for row in cells for v in row]
             by_pest.setdefault(pest, []).append((r["photo"], float(r["measured_pct"]), sum(flat) / len(flat)))
 

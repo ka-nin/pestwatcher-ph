@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { X, RotateCcw, Sprout, HelpCircle } from 'lucide-react';
+import { X, RotateCcw, Sprout, HelpCircle, AlertTriangle } from 'lucide-react';
 import RiskBadge from '../components/RiskBadge';
 import { pestGuide, etlThresholds } from '../data/mockData';
 import { PestHeroMedia } from '../data/pestIcons';
@@ -146,17 +146,25 @@ export default function ScanResult() {
     const status = inference?.status;
     const isHealthy = status === 'no_pest_detected';
     const isOtherPest = status === 'unidentified_pest_detected';
-    const tone = isHealthy ? 'tone-ok' : isOtherPest ? 'tone-warn' : 'tone-neutral';
+    // No insect in frame, but the field-level model sees stem borer damage (whiteheads).
+    const isDamage = status === 'damage_detected' && inference?.field_assessment;
+    const tone = isHealthy ? 'tone-ok' : isOtherPest || isDamage ? 'tone-warn' : 'tone-neutral';
     const title = isHealthy
       ? t('scanResultHealthyTitle')
-      : isOtherPest
-        ? t('scanResultOtherPestTitle')
-        : t('scanResultModelNotReady');
+      : isDamage
+        ? t('scanResultDamageTitle')
+        : isOtherPest
+          ? t('scanResultOtherPestTitle')
+          : t('scanResultModelNotReady');
     const body = isHealthy
       ? t('scanResultHealthyBody')
-      : isOtherPest
-        ? t('scanResultOtherPestBody')
-        : inference?.message || t('scanResultModelNotReadyBody');
+      : isDamage
+        ? t('scanResultDamageBody')
+            .replace('{severity}', inference.field_assessment.pct_affected.toFixed(1))
+            .replace('{spread}', Math.round(inference.field_assessment.cells_affected_pct))
+        : isOtherPest
+          ? t('scanResultOtherPestBody')
+          : inference?.message || t('scanResultModelNotReadyBody');
 
     return (
       <div className="guide-detail-screen scan-result-unavailable">
@@ -165,7 +173,7 @@ export default function ScanResult() {
         </button>
         <div className="scan-result-unavailable-body">
           <span className={`scan-result-unavailable-icon ${tone}`}>
-            {isHealthy ? <Sprout size={28} /> : isOtherPest ? <HelpCircle size={28} /> : null}
+            {isHealthy ? <Sprout size={28} /> : isDamage ? <AlertTriangle size={28} /> : isOtherPest ? <HelpCircle size={28} /> : null}
           </span>
           <h1>{title}</h1>
           <p>{body}</p>

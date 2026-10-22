@@ -244,19 +244,34 @@ REGRESSION_TARGETS: dict[tuple[str, str], Path] = {
 class ResNet50RegressorBank:
     """Loads and runs the photo-derived regressors the panel's redesign
     asked for: BPH hoppers-per-hill count + hectares-affected coverage %,
-    RSB damage %. Each (pest, target) pair is an independent model, loaded
-    only if its weights file exists — a deployment missing one of these
-    still serves pest detection and the other regressors normally, same
-    partial-availability principle as ResNet50PestClassifier.predict()."""
+    RSB damage %, and the field-level damage models. Each (pest, target) pair
+    is an independent model, loaded only if its weights file exists, so a
+    deployment missing one of these still serves pest detection and the other
+    regressors normally (same partial-availability principle as
+    ResNet50PestClassifier.predict()).
+
+    A field-level model has a sidecar "<weights>.meta.json" written by
+    ml/resnet/train_field_damage.py: backbone (for preprocessing), input size,
+    the grid it was trained on, and the threshold for "this cell has damage"."""
 
     def __init__(self) -> None:
         self._models: dict[tuple[str, str], keras.Model] = {}
+        self._meta: dict[tuple[str, str], dict] = {}
 
     def load(self, pest: str, target: str) -> None:
-        self._models[(pest, target)] = keras.models.load_model(REGRESSION_TARGETS[(pest, target)])
+        path = REGRESSION_TARGETS[(pest, target)]
+        self._models[(pest, target)] = keras.models.load_model(path)
+        meta_path = path.with_name(path.stem + ".meta.json")
+        if meta_path.exists():
+            import json
+
+            self._meta[(pest, target)] = json.loads(meta_path.read_text())
 
     def is_loaded(self, pest: str, target: str) -> bool:
         return (pest, target) in self._models
+
+    def meta(self, pest: str, target: str) -> dict:
+        return self._meta.get((pest, target), {})
 
     def predict(self, pest: str, target: str, image_path: Path) -> float | None:
         if not self.is_loaded(pest, target):
@@ -270,33 +285,36 @@ class ResNet50RegressorBank:
         prediction = self._models[(pest, target)].predict(resnet50.preprocess_input(batch), verbose=0)
         return max(0.0, float(prediction.flatten()[0]))  # count/coverage/% can't be negative
 
+    def predict_grid(self, pest: str, target: str, image_path: Path) -> list[list[float]] | None:
+        """Per-cell values for a whole-field photo, as a grid (row-major).
 
-    def predict_grid(self, pest: str, target: str, image_path: Path, rows: int, cols: int) -> list[list[float]] | None:
-        """Runs the regressor on every cell of a rows x cols grid over one
-        whole-field photo and returns the per-cell values (row-major).
-
-        This is the panel's "sampling size" idea: the model was trained on
-        photos framed like one patch of crop, so a field photo is cut into
-        patch-sized cells, each cell is estimated on its own, and the mean
-        over cells is the share of the whole photo affected. No pest
-        classifier is involved; the caller says which pest to measure.
+        The photo is resized to the square the model was trained on (448 px),
+        cut into the model's N x N grid, and each cell is enlarged to the
+        model's input size and estimated on its own. Cells get the same
+        backbone preprocessing the model was trained with.
         """
         if not self.is_loaded(pest, target):
             return None
 
-        from tensorflow.keras.applications import resnet50
-
+        meta = self._meta.get((pest, target), {})
+        model = self._models[(pest, target)]
+        grid = int(meta.get("grid", 3))
+        size = int(meta.get("input_size", model.input_shape[1]))
         with Image.open(image_path) as opened:
-            img = opened.convert("RGB")
-        width, height = img.size
-        cells = []
-        for r in range(rows):
-            for c in range(cols):
-                box = (c * width // cols, r * height // rows, (c + 1) * width // cols, (r + 1) * height // rows)
-                cells.append(np.array(img.crop(box).resize(IMAGE_SIZE), dtype=np.float32))
-        predictions = self._models[(pest, target)].predict(resnet50.preprocess_input(np.stack(cells)), verbose=0)
-        values = [max(0.0, float(v)) for v in predictions.flatten()]
-        return [values[r * cols:(r + 1) * cols] for r in range(rows)]
+            img = opened.convert("RGB").resize((448, 448), Image.LANCZOS)
+        step = 448 // grid
+        cells = [
+            np.array(img.crop((c * step, r * step, (c + 1) * step, (r + 1) * step)).resize((size, size), Image.LANCZOS), dtype=np.float32)
+            for r in range(grid)
+            for c in range(grid)
+        ]
+        batch = np.stack(cells)
+        if meta.get("backbone", "resnet50") == "resnet50":
+            from tensorflow.keras.applications import resnet50
+
+            batch = resnet50.preprocess_input(batch)
+        values = [max(0.0, float(v)) for v in model.predict(batch, verbose=0).flatten()]
+        return [values[r * grid:(r + 1) * grid] for r in range(grid)]
 
 
 resnet_regressors = ResNet50RegressorBank()

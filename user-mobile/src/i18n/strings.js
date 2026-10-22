@@ -123,6 +123,9 @@ export const translations = {
     scanResultHealthyTitle: 'Walang natukoy na peste',
     scanResultHealthyBody:
       'Mukhang malusog ang tanim batay sa larawan — walang nakitang Kayumangging Hanip o Aksip. Ipagpatuloy ang regular na pagmamanman.',
+    scanResultDamageTitle: 'May nakitang posibleng pinsala ng stem borer',
+    scanResultDamageBody:
+      'Walang insektong nakita, pero may pinsalang kahawig ng whitehead sa larawan: humigit-kumulang {severity}% ng larawan ang apektado at {spread}% ng bahagi ang may pinsala. Tantiya lamang ito ng AI. Pakikumpirma sa teknolohista.',
     scanResultOtherPestTitle: 'May nakitang kakaibang insekto',
     scanResultOtherPestBody:
       'May insekto sa larawan, pero hindi ito tumutugma sa Kayumangging Hanip o Aksip na sinanay naming matukoy. Maaaring ibang peste ito — konsultahin ang inyong teknolohistang pang-agrikultura.',
@@ -369,6 +372,9 @@ export const translations = {
     scanResultHealthyTitle: 'No pest detected',
     scanResultHealthyBody:
       'This photo looks healthy — no Brown Planthopper or Rice Stem Borer was found. Keep up your regular monitoring.',
+    scanResultDamageTitle: 'Possible stem borer damage found',
+    scanResultDamageBody:
+      'No insect was seen, but the photo shows damage that looks like whiteheads: about {severity}% of the photo is affected and {spread}% of the area shows damage. This is an AI estimate only. Please have a technologist confirm it.',
     scanResultOtherPestTitle: 'An unrecognized insect was found',
     scanResultOtherPestBody:
       'An insect appears in this photo, but it did not match the Brown Planthopper or Rice Stem Borer models we trained. It may be a different pest — please consult your local agricultural technologist.',

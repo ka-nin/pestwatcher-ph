@@ -36,16 +36,49 @@ router = APIRouter(prefix="/api/inference", tags=["inference"])
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 
-AFFECTED_CELL_MIN_PCT = 10.0  # a cell counts as "affected" at or above this value
-FIELD_GRID_LONG_SIDE_CELLS = 6  # cells along the photo's longer side
 
 
-def _grid_shape(width: int, height: int) -> tuple[int, int]:
-    """Roughly square cells: FIELD_GRID_LONG_SIDE_CELLS along the long side,
-    proportionally fewer (at least 2) along the short one."""
-    long_cells = FIELD_GRID_LONG_SIDE_CELLS
-    short_cells = max(2, round(long_cells * min(width, height) / max(width, height)))
-    return (short_cells, long_cells) if width >= height else (long_cells, short_cells)
+# A photo with no insect is reported as showing damage only when the field model
+# finds it in at least this share of cells AND it covers at least this share of
+# the photo: tuned on held-out synthetic photos so healthy fields are not flagged
+# (see ml/weights/rsb/field_damage_rsb_*_synthetic_test_metrics.json).
+DAMAGE_MIN_CELLS_PCT = 33.0
+DAMAGE_MIN_SEVERITY_PCT = 0.4
+
+
+def _field_result(pest: str, target: str, cells: list[list[float]], field_size_ha: float | None) -> FieldAssessmentResponse:
+    meta = resnet_regressors.meta(pest, target)
+    threshold = float(meta.get("cell_has_damage_threshold", 0.2))
+    flat = [v for row in cells for v in row]
+    affected = [v for v in flat if v >= threshold]
+    cells_affected_pct = round(100 * len(affected) / len(flat), 1)
+    return FieldAssessmentResponse(
+        status="ok",
+        pest=pest,
+        target=target,
+        rows=len(cells),
+        cols=len(cells[0]),
+        cell_values=[[round(v, 2) for v in row] for row in cells],
+        cell_has_damage=[[v >= threshold for v in row] for row in cells],
+        pct_affected=round(sum(flat) / len(flat), 2),
+        cells_affected_pct=cells_affected_pct,
+        severity_where_present_pct=round(sum(affected) / len(affected), 2) if affected else 0.0,
+        field_size_ha=field_size_ha,
+        affected_hectares=round(cells_affected_pct / 100 * field_size_ha, 2) if field_size_ha else None,
+        message=(
+            "Field assessment complete. Estimated from synthetic-trained models; "
+            "a technologist must confirm it before it counts as an observation."
+        ),
+    )
+
+
+
+def _damage_found(result: FieldAssessmentResponse) -> bool:
+    return (
+        result.status == "ok"
+        and (result.cells_affected_pct or 0) >= DAMAGE_MIN_CELLS_PCT
+        and (result.pct_affected or 0) >= DAMAGE_MIN_SEVERITY_PCT
+    )
 
 
 @router.post("/field-assessment", response_model=FieldAssessmentResponse)
@@ -53,27 +86,27 @@ async def assess_field(
     file: UploadFile = File(...),
     pest: Literal["BPH", "RSB"] = Form(...),
     field_size_ha: float | None = Form(None, gt=0, le=1000),
-    growth_stage: GrowthStage | None = Form(None),
 ) -> FieldAssessmentResponse:
-    """Severity and extent over a whole-field photo (panel concern: field
+    """Severity and extent from a whole-field photo (panel concern: field
     level, not a close-up; regression, not classification).
 
-    The caller names the pest, so no classifier gate runs: the photo is cut
-    into a grid of patch-sized cells, the pest's regression model estimates
-    each cell, and the result is the mean (% of the photo affected), the share
-    of cells affected (how widely), and, given the field size, the affected
-    hectares. It uses the pest's FIELD-level damage model, not the patch-level
-    coverage/damage models: those were trained on collages of patches and
-    measured (2026-10-22) to read the same value on a damaged and a healthy
-    field, so they are not used here.
+    The caller names the pest, so no classifier gate runs. The photo is cut
+    into the model's grid of cells and the pest's FIELD-level damage model
+    estimates each one. Severity is the mean over cells (share of the photo
+    covered); spread is the share of cells containing damage, and with the
+    field size, the hectares those cells represent.
 
-    Nothing is stored and nothing reaches the forecast: this is an unverified
-    estimate for a technologist to confirm, like the scan estimates.
+    The patch-level coverage/damage models are not used here: they were trained
+    on collages of patches and measured (2026-10-22) to read the same value on
+    a damaged and a healthy field.
+
+    The RSB severity is the share of the image covered by whiteheads, a PROXY
+    for the thesis's "% white ears", so it is deliberately not mapped to an
+    ETL risk level. Nothing is stored and nothing reaches the forecast: this is an
+    unverified estimate for a technologist to confirm.
     """
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(status_code=415, detail="Unsupported image type; use JPEG, PNG or WebP.")
-
-    from PIL import Image
 
     target = "field_damage_pct"
     settings = get_settings()
@@ -81,15 +114,12 @@ async def assess_field(
     upload_dir.mkdir(parents=True, exist_ok=True)
     destination = upload_dir / f"field_{uuid.uuid4().hex}{Path(file.filename or 'photo.jpg').suffix or '.jpg'}"
     destination.write_bytes(await file.read())
-
     try:
-        with Image.open(destination) as opened:
-            rows, cols = _grid_shape(*opened.size)
-        cell_values = resnet_regressors.predict_grid(pest, target, destination, rows, cols)
+        cells = resnet_regressors.predict_grid(pest, target, destination)
     finally:
         destination.unlink(missing_ok=True)  # an assessment keeps nothing
 
-    if cell_values is None:
+    if cells is None:
         return FieldAssessmentResponse(
             status="model_not_loaded",
             message=(
@@ -98,25 +128,7 @@ async def assess_field(
             ),
         )
 
-    flat = [v for row in cell_values for v in row]
-    pct_affected = round(sum(flat) / len(flat), 1)
-    risk = None
-    if pest == "RSB" and growth_stage is not None:
-        risk = derive_risk_level(pest, GROWTH_STAGE_BUCKETS[growth_stage], pct_affected)
-    return FieldAssessmentResponse(
-        status="ok",
-        pest=pest,
-        target=target,
-        rows=rows,
-        cols=cols,
-        cell_values=[[round(v, 1) for v in row] for row in cell_values],
-        pct_affected=pct_affected,
-        cells_affected_pct=round(100 * sum(v >= AFFECTED_CELL_MIN_PCT for v in flat) / len(flat), 1),
-        field_size_ha=field_size_ha,
-        affected_hectares=round(pct_affected / 100 * field_size_ha, 2) if field_size_ha else None,
-        risk_level=risk,
-        message="Field assessment complete. Unverified estimate: a technologist must confirm it.",
-    )
+    return _field_result(pest, target, cells, field_size_ha)
 
 
 @router.post("/image", response_model=ImageInferenceResponse)
@@ -186,6 +198,24 @@ async def infer_image(
                 grid_tiles=result.grid_tiles,
                 bph_grid_count=result.grid_count,
             )
+        # No insect, but the photo may show the DAMAGE: the RSB classifier looks
+        # for the insect (adult moths and larvae), so a photo of whiteheads with no
+        # insect in frame scores near zero. If the field-level damage model is
+        # installed, check the photo for stem borer damage before answering "none".
+        cells = resnet_regressors.predict_grid("RSB", "field_damage_pct", destination)
+        if cells is not None:
+            assessment = _field_result("RSB", "field_damage_pct", cells, None)
+            if _damage_found(assessment):
+                return ImageInferenceResponse(
+                    status="damage_detected",
+                    pest_detected="RSB",
+                    message=(
+                        "No stem borer insect is visible, but the photo shows damage consistent with stem borer "
+                        "(whiteheads). This is an unverified estimate: please have a technologist confirm it."
+                    ),
+                    pest_scores=result.pest_scores,
+                    field_assessment=assessment,
+                )
         return ImageInferenceResponse(
             status="no_pest_detected",
             message="No tracked pest (BPH/RSB) was detected in this photo with sufficient confidence.",

@@ -91,6 +91,34 @@ class TrajectoryResponse(BaseModel):
     message: str
 
 
+class FieldAssessmentResponse(BaseModel):
+    """Result of POST /api/inference/field-assessment: severity and extent
+    measured over a whole-field photo, cell by cell. An ESTIMATE from a
+    regression model, not a verified observation: a technologist confirms it
+    before it can reach the forecast."""
+
+    status: Literal["ok", "model_not_loaded"]
+    pest: Literal["BPH", "RSB"] | None = None
+    target: Literal["field_damage_pct"] | None = None
+    rows: int = 0
+    cols: int = 0
+    cell_values: list[list[float]] = []
+    # Which cells the model judges to contain damage (value at or above the model's threshold).
+    cell_has_damage: list[list[bool]] = []
+    # Mean of the cell values: the share of the photographed area showing
+    # damage, 0 to 100.
+    pct_affected: float | None = None
+    # SPREAD: the share of grid cells that contain damage (how widely it is
+    # spread across the photographed area), 0 to 100.
+    cells_affected_pct: float | None = None
+    # SEVERITY WHERE PRESENT: mean value over only the cells that contain damage.
+    severity_where_present_pct: float | None = None
+    field_size_ha: float | None = None
+    # SPREAD IN HECTARES: cells_affected_pct x field_size_ha / 100. Only with a field size.
+    affected_hectares: float | None = None
+    message: str
+
+
 class ImageInferenceResponse(BaseModel):
     """Response contract for the ResNet-50 optical field surveillance endpoint.
 
@@ -123,7 +151,7 @@ class ImageInferenceResponse(BaseModel):
     technologist confirms the report this scan produces.
     """
 
-    status: Literal["ok", "model_not_loaded", "no_pest_detected", "unidentified_pest_detected"]
+    status: Literal["ok", "model_not_loaded", "no_pest_detected", "unidentified_pest_detected", "damage_detected"]
     # The single strongest pest (drives the forecast below).
     pest_detected: Literal["BPH", "RSB"] | None = None
     confidence: float | None = None
@@ -145,6 +173,9 @@ class ImageInferenceResponse(BaseModel):
     estimated_count: float | None = None
     estimated_coverage_pct: float | None = None
     estimated_damage_pct: float | None = None
+    # Set with status "damage_detected": no insect was found, but the field-level damage model
+    # sees stem borer damage (whiteheads) in the photo. Severity and spread, unverified.
+    field_assessment: FieldAssessmentResponse | None = None
     # True when `forecast` above was computed using THIS photo's own
     # estimated_count/estimated_damage_pct (not a technologist-verified
     # report) as its lagged-observation input — lets the mobile UI say "this
@@ -152,31 +183,6 @@ class ImageInferenceResponse(BaseModel):
     # same official forecast an LGU technologist would see for this
     # municipality.
     forecast_reflects_this_photo: bool = False
-
-
-class FieldAssessmentResponse(BaseModel):
-    """Result of POST /api/inference/field-assessment: severity and extent
-    measured over a whole-field photo, cell by cell. An ESTIMATE from a
-    regression model, not a verified observation: a technologist confirms it
-    before it can reach the forecast."""
-
-    status: Literal["ok", "model_not_loaded"]
-    pest: Literal["BPH", "RSB"] | None = None
-    target: Literal["field_damage_pct"] | None = None
-    rows: int = 0
-    cols: int = 0
-    cell_values: list[list[float]] = []
-    # Mean of the cell values: the share of the photographed area showing
-    # damage, 0 to 100.
-    pct_affected: float | None = None
-    # Share of cells whose own value is at least AFFECTED_CELL_MIN_PCT: how
-    # widely the damage is spread across the photo, as opposed to how heavy.
-    cells_affected_pct: float | None = None
-    field_size_ha: float | None = None
-    # pct_affected x field_size_ha / 100. Only with a field size.
-    affected_hectares: float | None = None
-    risk_level: Literal["Low", "Medium", "High"] | None = None
-    message: str
 
 
 class ExplanationFeature(BaseModel):
