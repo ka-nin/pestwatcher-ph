@@ -12,16 +12,15 @@ from pathlib import Path
 
 from ml.config import WEIGHTS_DIR
 
-WEIGHTS_PATH = WEIGHTS_DIR / "bph" / "retinanet_bph.pt"
-# A box counts as an insect at or above this score. Picked on held-out photos
-# (see retinanet_bph_test_metrics.json); raise it for fewer false boxes.
-SCORE_THRESHOLD = 0.5
-# Boxes are drawn and counted at SCORE_THRESHOLD, but the detector alone may only
-# turn a "no pest" photo into BPH when at least FLAG_MIN_BOXES boxes score at or
-# above FLAG_SCORE. Measured on 62 photos with no planthoppers (healthy fields and
-# stem borer damage), it never drew more than 2 boxes at 0.7, so this rule gave no
-# false BPH there; it also finds only 4 of 20 true BPH test photos. It is
-# deliberately cautious until the detector is trained with background photos.
+WEIGHTS_PATH = WEIGHTS_DIR / "bph" / "retinanet_bph_v2.pt"  # trained with background photos as negatives
+# A box counts as an insect at or above this score. At 0.4 the detector counts closer to the
+# truth than at 0.5 (it undercounts either way: about 55% of the insects are found) and still
+# draws a box on only 10 of 62 photos that have no planthoppers.
+SCORE_THRESHOLD = 0.4
+# The detector alone may only turn a "no pest" photo into BPH when at least FLAG_MIN_BOXES
+# boxes score at or above FLAG_SCORE. Measured on the same 62 non-BPH photos (healthy fields
+# and stem borer damage) this gave 1 false flag, and it catches 3 of 20 true BPH test photos.
+# Deliberately cautious.
 FLAG_SCORE = 0.7
 FLAG_MIN_BOXES = 3
 

@@ -7,7 +7,12 @@ brown-planthopper-ahxwj). Roboflow exports each photo twice (an augmented copy),
 photos are grouped by their source name and split by SOURCE so a photo never sits in
 both train and test.
 
-Never overwrites an existing model: weights go to ml/weights/bph/retinanet_bph.pt.
+Never overwrites an existing model: weights go to --out (default
+ml/weights/bph/retinanet_bph.pt, which is refused if it already exists).
+
+--negatives adds photos WITHOUT planthoppers (healthy rice fields, damage photos) as
+empty-label images, so the detector learns that a field is not an insect. Names listed in
+--holdout are never used for training so they can serve as an untouched false-alarm test.
 
 Run from server-python/ (SSL_CERT_FILE set to certifi's bundle so the pretrained
 weights can download):
@@ -75,6 +80,22 @@ class Photos(torch.utils.data.Dataset):
         return x, {"boxes": box, "labels": torch.ones(len(box), dtype=torch.int64)}
 
 
+class NegativePhotos(torch.utils.data.Dataset):
+    """Photos with no planthoppers: an empty target teaches the detector to stay quiet."""
+
+    def __init__(self, paths: list[Path], train: bool):
+        self.paths, self.train = paths, train
+
+    def __len__(self):
+        return len(self.paths)
+
+    def __getitem__(self, i):
+        x = to_tensor(Image.open(self.paths[i]).convert("RGB"))
+        if self.train and random.random() < 0.5:
+            x = x.flip(-1)
+        return x, {"boxes": torch.zeros((0, 4), dtype=torch.float32), "labels": torch.zeros(0, dtype=torch.int64)}
+
+
 def build_model(pretrained: bool = True):
     weights = RetinaNet_ResNet50_FPN_Weights.COCO_V1 if pretrained else None
     model = retinanet_resnet50_fpn(weights=weights, weights_backbone=None, min_size=IMAGE_MIN_SIDE, max_size=IMAGE_MIN_SIDE * 2, score_thresh=0.05)
@@ -121,7 +142,13 @@ def main():
     ap.add_argument("--epochs", type=int, default=12)
     ap.add_argument("--lr", type=float, default=1e-4)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--out", type=Path, default=OUT)
+    ap.add_argument("--negatives", type=Path, nargs="*", default=[], help="folders of photos with no planthoppers")
+    ap.add_argument("--n-negatives", type=int, default=80)
+    ap.add_argument("--holdout", type=Path, default=None, help="text file of photo names kept out of training")
     args = ap.parse_args()
+    if args.out.exists():
+        raise SystemExit(f"{args.out} already exists; pick another --out so no model is overwritten")
     random.seed(args.seed)
     torch.manual_seed(args.seed)
 
@@ -139,14 +166,24 @@ def main():
     print({k: len(v) for k, v in by_split.items()}, "photos;", sum(len(b) for _, b in by_split["train"]), "train boxes")
 
     root = args.data / "train"
-    loader = torch.utils.data.DataLoader(
-        Photos(root, by_split["train"], True), batch_size=4, shuffle=True, collate_fn=lambda b: tuple(zip(*b))
-    )
+    train_set = Photos(root, by_split["train"], True)
+    val_items = list(by_split["val"])
+    if args.negatives:
+        held = set(args.holdout.read_text().split("\n")) if args.holdout else set()
+        pool = sorted(p for d in args.negatives for p in d.rglob("*") if p.suffix.lower() in {".jpg", ".jpeg", ".png"} and p.name not in held)
+        random.Random(args.seed).shuffle(pool)
+        chosen = pool[: args.n_negatives]
+        n_val = max(8, len(chosen) // 6)
+        neg_val, neg_train = chosen[:n_val], chosen[n_val:]
+        train_set = torch.utils.data.ConcatDataset([train_set, NegativePhotos(neg_train, True)])
+        val_items += [(str(p), []) for p in neg_val]  # absolute paths: root / abs == abs
+        print(f"negatives: {len(neg_train)} train, {len(neg_val)} val, {len(held)} held out")
+    loader = torch.utils.data.DataLoader(train_set, batch_size=4, shuffle=True, collate_fn=lambda b: tuple(zip(*b)))
     model = build_model()
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.AdamW(params, lr=args.lr, weight_decay=1e-4)
     best, history, started = -1.0, [], time.time()
-    OUT.parent.mkdir(parents=True, exist_ok=True)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
     for epoch in range(1, args.epochs + 1):
         model.train()
         total = 0.0
@@ -158,18 +195,18 @@ def main():
             torch.nn.utils.clip_grad_norm_(params, 10.0)
             optimizer.step()
             total += float(loss)
-        val = evaluate(model, by_split["val"], root)
+        val = evaluate(model, val_items, root)
         f1 = 2 * val["precision"] * val["recall"] / max(val["precision"] + val["recall"], 1e-9)
         history.append({"epoch": epoch, "loss": round(total / len(loader), 4), **val, "f1": round(f1, 3)})
         print(history[-1], f"{time.time() - started:.0f}s", flush=True)
         if f1 > best:
             best = f1
-            torch.save(model.state_dict(), OUT)
+            torch.save(model.state_dict(), args.out)
 
-    model.load_state_dict(torch.load(OUT))
+    model.load_state_dict(torch.load(args.out))
     test = evaluate(model, by_split["test"], root)
     print("TEST", test)
-    (OUT.parent / "retinanet_bph_test_metrics.json").write_text(
+    (args.out.with_suffix("").parent / (args.out.stem + "_test_metrics.json")).write_text(
         json.dumps({"test": test, "best_val_f1": round(best, 3), "history": history, "train_seconds": round(time.time() - started),
                     "note": "Roboflow brown planthopper set (CC BY 4.0); split by source photo; box IoU 0.5."}, indent=1)
     )
