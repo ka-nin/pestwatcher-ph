@@ -1,0 +1,19 @@
+id,pest,municipality,date,severity,value,value_source,area_ha
+926faaa3013c4de483855a3278aa02ee,BPH,Arayat,2026-09-21,high,20.0,severity-band,
+8402a3cd53e1486aa0672ab8d9cf8e8b,BPH,Science City of Muñoz,2026-09-21,low,5.0,severity-band,
+f3bd3a5533be4ed5bc52b25d3fb1982e,RSB,Science City of Muñoz,2026-09-21,high,5.0,severity-band,
+9dccb481015a4181806591e0f9772d6c,BPH,Science City of Muñoz,2026-09-21,high,25.0,numeric,
+87281b2139424f4299af5cbd2ac68d5e,RSB,Arayat,2026-09-21,high,5.0,severity-band,
+8d2201675a2e435c96cb8cd9f5342fff,BPH,San Miguel,2026-09-21,medium,15.0,severity-band,
+b234ec93cff042158be347cdce725d12,BPH,San Miguel,2026-09-21,medium,15.0,severity-band,
+7041646f4aab4714b4ec6c927d9a1955,BPH,Concepcion,2026-09-21,low,5.0,severity-band,
+6ac26137792144c592c48c4c023534ba,RSB,Concepcion,2026-09-21,medium,3.5,severity-band,
+3f4b208a830c468badc95e9eff749c04,BPH,San Jose City,2026-09-21,medium,15.0,severity-band,
+4f7a46dff93a4902a8d31300b74870dc,RSB,San Jose City,2026-09-21,low,1.0,severity-band,
+93e474a7bcfd4c81af4f1a8d4fad782d,BPH,San Jose City,2026-09-21,high,20.0,severity-band,
+6e39a753143643c28ebba4233443b9cc,RSB,Science City of Muñoz,2026-10-08,medium,13.0,numeric,0.5
+3aff7b663a1c4a80b2526ae483800c86,RSB,Science City of Muñoz,2026-10-08,low,1.1,numeric,0.2
+5abf8233918744afa05a0e9da0c9ac31,BPH,Science City of Muñoz,2026-10-08,high,40.0,numeric,
+59930e578b81448084c077e350220f01,RSB,Science City of Muñoz,2026-10-08,low,1.0,numeric,0.2
+37e71d56d2634b988158dda2f887d89f,BPH,Science City of Muñoz,2026-10-08,low,10.0,numeric,1.2
+c51b16049719449cac3fe084e65edaaa,BPH,Science City of Muñoz,2026-10-08,high,23.9,numeric,1.1
