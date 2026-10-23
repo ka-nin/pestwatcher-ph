@@ -34,6 +34,7 @@ from tensorflow import keras
 from tensorflow.keras import layers
 
 from ml.bilstm.build_sequences import FEATURE_SET_SUFFIX, MAX_OBSERVATION_AGE_DAYS, sequences_path
+from ml.bilstm.bio_layer import LearnedBiologyGates
 from ml.bilstm.etl_metrics import classification_agreement, to_risk_levels
 from ml.config import FORECAST_HORIZON_DAYS, PEST_PARAMS
 
@@ -88,7 +89,7 @@ def scale_sequence(X_train, X_val, X_test) -> tuple[np.ndarray, np.ndarray, np.n
     return transform(X_train), transform(X_val), transform(X_test), scaler
 
 
-def build_model(window_days: int, n_seq_features: int, n_static_features: int) -> keras.Model:
+def build_model(window_days: int, n_seq_features: int, n_static_features: int, bio_layer: bool = False) -> keras.Model:
     """Deliberately small: an earlier, larger version (64/32 LSTM units, no
     L2) overfit within 2 epochs on both pests — val_loss started climbing
     immediately while train_loss kept dropping, meaning the model had far
@@ -107,7 +108,10 @@ def build_model(window_days: int, n_seq_features: int, n_static_features: int) -
     sequence_input = keras.Input(shape=(window_days, n_seq_features), name="sequence_input")
     inputs = [sequence_input]
 
-    x = layers.Bidirectional(layers.LSTM(16, kernel_regularizer=l2, recurrent_dropout=0.1))(sequence_input)
+    # Optional learnable biological gates in front of the recurrent core (ml/bilstm/bio_layer.py):
+    # trainable thresholds only, nothing hardcoded.
+    recurrent_in = LearnedBiologyGates(name="bio_gates")(sequence_input) if bio_layer else sequence_input
+    x = layers.Bidirectional(layers.LSTM(16, kernel_regularizer=l2, recurrent_dropout=0.1))(recurrent_in)
     x = layers.Dropout(0.4)(x)
 
     if n_static_features > 0:
@@ -274,6 +278,12 @@ def main() -> None:
         "model barely learns either case. 0.5 = half with, half without.",
     )
     parser.add_argument(
+        "--bio-layer",
+        action="store_true",
+        help="Put the learnable biological gates (ml/bilstm/bio_layer.py) in front of the BiLSTM. "
+        "Use with --tag bio so it is saved beside, not over, the deployed model.",
+    )
+    parser.add_argument(
         "--tag",
         default="",
         help="Extra suffix for the saved weights/scalers/metrics, for running an experiment "
@@ -322,6 +332,7 @@ def main() -> None:
         window_days=X_sequence.shape[1],
         n_seq_features=X_sequence.shape[2],
         n_static_features=X_static.shape[1],
+        bio_layer=args.bio_layer,
     )
     model.summary()
 
