@@ -134,27 +134,50 @@ def spread_summary(municipality: str, pest: str, today: date) -> dict:
     }
 
 
-# Guardrail on the projection below: with no field size on record, a forecast
+# Guardrail on the projections below: with no field size on record, a forecast
 # that jumps from 0.5 to 20 would otherwise imply a 40x larger affected area.
 MAX_AREA_GROWTH_FACTOR = 5.0
 
 
-def project_affected_area(points: list, anchor_hectares: float | None) -> list[float | None]:
-    """Per-day projected affected hectares, one entry per trajectory point.
+def project_by_forecast_ratio(
+    points: list, anchor: float | None, max_growth_factor: float = MAX_AREA_GROWTH_FACTOR, round_digits: int = 2
+) -> list[float | None]:
+    """Per-day projection of any quantity anchored to day 0, one entry per
+    trajectory point: value(day) = anchor * forecast(day) / forecast(day 0),
+    capped so a small/noisy anchor forecast ratio can't blow up the far end
+    of the trajectory.
 
-    A PROJECTION under one stated assumption, not a measured or learned spread:
-    affected area is taken to grow in proportion to the forecast pest level.
-    Day 0 equals the verified-report area (the anchor); each later day scales
-    it by forecast(day) / forecast(day 0), capped at MAX_AREA_GROWTH_FACTOR.
-    With no verified affected area on record (or a zero forecast to scale from)
-    there is nothing to anchor to, so every entry is None.
+    A PROJECTION under one stated assumption, not a measured or learned
+    growth curve: the anchored quantity is taken to grow in proportion to
+    the forecast pest level, because that is the only signal this system
+    has connecting "today" to "day N" — there is no training data for how
+    fast visible field damage (severity %, spread %, affected area) grows
+    day to day. Used for affected hectares (verified-report anchor) and,
+    for a single field-assessment photo, its own severity/spread/area
+    readings (POST /field-assessment) — same math, different anchor.
+
+    `round_digits` defaults to 2 (fine for a percentage 0-100), but hectares
+    callers should pass more — a small test plot (0.01 ha) at a low severity %
+    easily works out to a true affected area under 0.0001 ha, which 2 decimals
+    would round away to a misleading 0.0 even though it's a real, nonzero
+    number of square metres once converted back for display.
+
+    With no anchor on record (or a zero/negative forecast to scale from)
+    there is nothing to project from, so every entry is None.
     """
-    if not points or not anchor_hectares or anchor_hectares <= 0:
+    if not points or anchor is None or anchor <= 0:
         return [None] * len(points)
     base = points[0].predicted_value
     if base <= 0:
         return [None] * len(points)
     return [
-        round(anchor_hectares * min(max(p.predicted_value / base, 0.0), MAX_AREA_GROWTH_FACTOR), 2)
+        round(anchor * min(max(p.predicted_value / base, 0.0), max_growth_factor), round_digits)
         for p in points
     ]
+
+
+def project_affected_area(points: list, anchor_hectares: float | None) -> list[float | None]:
+    """Per-day projected affected hectares, one entry per trajectory point —
+    see project_by_forecast_ratio for the shared projection method. Day 0
+    equals the verified-report area (the anchor)."""
+    return project_by_forecast_ratio(points, anchor_hectares, round_digits=6)

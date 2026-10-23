@@ -235,14 +235,38 @@ export interface FieldAssessment {
   affected_area_m2: number | null
   affected_area_m2_low: number | null
   affected_area_m2_high: number | null
+  // 14-day outlook (only present when municipality + growthStage were passed to
+  // assessFieldPhoto): day 0 is this photo's own reading, days 1-13 are a
+  // PROJECTION under the BiLSTM's forecast ratio — see FieldAssessmentDay.
+  daily: FieldAssessmentDay[] | null
   message: string
 }
 
-export async function assessFieldPhoto(file: File, pest: PestKey, fieldSizeHa: number | null): Promise<FieldAssessment> {
+// One day of the field-assessment outlook — see server-python's
+// app/schemas/inference.py FieldAssessmentDay for the exact projection rule.
+export interface FieldAssessmentDay {
+  date: string
+  is_measured: boolean
+  pest_level: number
+  risk_level: RiskLevel
+  severity_pct: number | null
+  spread_pct: number | null
+  affected_hectares: number | null
+}
+
+export async function assessFieldPhoto(
+  file: File,
+  pest: PestKey,
+  fieldSizeHa: number | null,
+  municipality?: string,
+  growthStage?: GrowthStage,
+): Promise<FieldAssessment> {
   const body = new FormData()
   body.append('file', file)
   body.append('pest', pest)
   if (fieldSizeHa != null) body.append('field_size_ha', String(fieldSizeHa))
+  if (municipality) body.append('municipality', municipality)
+  if (growthStage) body.append('growth_stage', growthStage)
   const res = await fetch(`${API_BASE_URL}/api/inference/field-assessment`, { method: 'POST', body })
   if (!res.ok) {
     throw new Error(res.status === 415 ? 'Use a JPEG, PNG or WebP photo.' : 'Field assessment failed.')
@@ -265,10 +289,17 @@ export interface PhotoScan {
   field_assessment: FieldAssessment | null
 }
 
-export async function scanFieldPhoto(file: File, fieldSizeHa: number | null): Promise<PhotoScan> {
+export async function scanFieldPhoto(
+  file: File,
+  fieldSizeHa: number | null,
+  municipality?: string,
+  growthStage?: GrowthStage,
+): Promise<PhotoScan> {
   const body = new FormData()
   body.append('file', file)
   if (fieldSizeHa != null) body.append('field_size_ha', String(fieldSizeHa))
+  if (municipality) body.append('municipality', municipality)
+  if (growthStage) body.append('growth_stage', growthStage)
   const res = await fetch(`${API_BASE_URL}/api/inference/image`, { method: 'POST', body })
   if (!res.ok) throw new Error(res.status === 415 ? 'Use a JPEG, PNG or WebP photo.' : 'Photo scan failed.')
   return res.json()

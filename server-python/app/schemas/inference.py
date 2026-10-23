@@ -91,6 +91,25 @@ class TrajectoryResponse(BaseModel):
     message: str
 
 
+class FieldAssessmentDay(BaseModel):
+    """One day of the 14-day field-assessment outlook (POST /field-assessment,
+    see app/routers/inference.py's _project_field_assessment_days): day 0 is
+    this photo's own measured reading; every later day is a PROJECTION, not a
+    new measurement — severity/spread/affected-area are scaled from day 0's
+    photo value by forecast(day)/forecast(day 0), the same assumption
+    app/decision/outlook.py's project_by_forecast_ratio already uses for
+    projected_affected_ha elsewhere. pest_level/risk_level ARE the BiLSTM's
+    own trained forecast for that day, not derived from the photo."""
+
+    date: str
+    is_measured: bool  # True only for day 0 (this photo); False = projected
+    pest_level: float  # hoppers/hill (BPH) or % damage (RSB) — the BiLSTM's own forecast
+    risk_level: Literal["Low", "Medium", "High"]
+    severity_pct: float | None = None  # share of the photo covered by damage
+    spread_pct: float | None = None  # share of grid cells containing damage
+    affected_hectares: float | None = None  # only with a field size on record
+
+
 class FieldAssessmentResponse(BaseModel):
     """Result of POST /api/inference/field-assessment: severity and extent
     measured over a whole-field photo, cell by cell. An ESTIMATE from a
@@ -131,6 +150,11 @@ class FieldAssessmentResponse(BaseModel):
     spread_area_m2: float | None = None
     affected_area_m2_low: float | None = None
     affected_area_m2_high: float | None = None
+    # 14-day outlook built from this photo (day 0) plus the BiLSTM forecast
+    # for the rest — see FieldAssessmentDay. Only populated when the caller
+    # supplied municipality + growth_stage; None otherwise (same as
+    # ImageInferenceResponse.forecast being null without those).
+    daily: list[FieldAssessmentDay] | None = None
     message: str
 
 

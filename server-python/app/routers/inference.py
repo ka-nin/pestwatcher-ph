@@ -11,7 +11,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from app.config import get_settings
 from app.data.municipalities import municipality_coordinates
 from app.decision.etl_thresholds import derive_risk_level
-from app.decision.outlook import growth_outlook, project_affected_area, spread_summary
+from app.decision.outlook import growth_outlook, project_affected_area, project_by_forecast_ratio, spread_summary
 from app.decision.report_anchor import find_lagged_observation
 from app.preprocessing.tiling import TILE_HIT_THRESHOLD
 from app.preprocessing.photo_footprint import ground_area_by_cell, estimate_field_size_ha
@@ -20,6 +20,7 @@ from app.models.resnet_model import _risk_level_for_confidence, resnet_classifie
 from app.routers.weather import fetch_recent_daily_weather
 from app.schemas.inference import (
     ExplanationResponse,
+    FieldAssessmentDay,
     FieldAssessmentResponse,
     ForecastInferenceRequest,
     ForecastInferenceResponse,
@@ -93,7 +94,12 @@ def _field_result(
         severity_where_present_pct=round(sum(affected) / len(affected), 2) if affected else 0.0,
         field_size_ha=field_size_ha,
         field_size_source=field_size_source if field_size_ha else None,
-        affected_hectares=round(sum(flat) / len(flat) / 100 * field_size_ha, 4) if field_size_ha else None,
+        # 6 decimals, not 4: a small test plot (e.g. 100 m^2 = 0.01 ha) at a low
+        # severity % easily works out to a true affected area under 0.0001 ha —
+        # still a real, non-zero number of square metres once admin-web
+        # converts it back for display, but 4 decimals would round it away to
+        # a misleading 0.0.
+        affected_hectares=round(sum(flat) / len(flat) / 100 * field_size_ha, 6) if field_size_ha else None,
         message=(
             "Field assessment complete. Estimated from synthetic-trained models; "
             "a technologist must confirm it before it counts as an observation."
@@ -113,6 +119,42 @@ def _with_photo_area(result: FieldAssessmentResponse, path: Path) -> FieldAssess
     result.affected_area_m2_low = round(affected_low, 1)
     result.affected_area_m2_high = round(affected_high, 1)
     return result
+
+
+def _project_field_assessment_days(result: FieldAssessmentResponse, trajectory: TrajectoryResponse) -> list[FieldAssessmentDay] | None:
+    """Builds the panel-requested 14-day outlook: day 0 is this photo's own
+    measured severity/spread/area; days 1-13 project those same fields by
+    scaling with the BiLSTM's own forecast ratio for that day (see
+    app/decision/outlook.py's project_by_forecast_ratio — the same
+    assumption already used for projected_affected_ha). pest_level and
+    risk_level are the BiLSTM's own trained forecast, not derived from the
+    photo. Returns None if the trajectory itself didn't load (model_not_loaded)."""
+    if trajectory.status != "ok" or not trajectory.points:
+        return None
+
+    severity_series = project_by_forecast_ratio(trajectory.points, result.pct_affected, max_growth_factor=100.0)
+    spread_series = project_by_forecast_ratio(trajectory.points, result.cells_affected_pct, max_growth_factor=100.0)
+    hectares_series = project_by_forecast_ratio(trajectory.points, result.affected_hectares, round_digits=6)
+
+    # Percentages can't exceed 100 regardless of the forecast ratio — the cap
+    # above only bounds the multiplier, not the final value.
+    severity_series = [min(v, 100.0) if v is not None else None for v in severity_series]
+    spread_series = [min(v, 100.0) if v is not None else None for v in spread_series]
+
+    days = []
+    for i, point in enumerate(trajectory.points):
+        days.append(
+            FieldAssessmentDay(
+                date=point.date,
+                is_measured=i == 0,
+                pest_level=point.predicted_value,
+                risk_level=point.risk_level,
+                severity_pct=severity_series[i] if i > 0 else result.pct_affected,
+                spread_pct=spread_series[i] if i > 0 else result.cells_affected_pct,
+                affected_hectares=hectares_series[i] if i > 0 else result.affected_hectares,
+            )
+        )
+    return days
 
 
 def _damage_found(result: FieldAssessmentResponse) -> bool:
@@ -138,6 +180,12 @@ async def assess_field(
     file: UploadFile = File(...),
     pest: Literal["RSB"] = Form(...),
     field_size_ha: float | None = Form(None, gt=0, le=1000),
+    municipality: str | None = Form(
+        None, description="Needed for the 14-day outlook (day field, below) — omit for a one-day-only result."
+    ),
+    growth_stage: GrowthStage | None = Form(
+        None, description="Needed for the 14-day outlook, alongside municipality."
+    ),
 ) -> FieldAssessmentResponse:
     """Severity and extent from a whole-field photo (panel concern: field
     level, not a close-up; regression, not classification).
@@ -156,6 +204,14 @@ async def assess_field(
     for the thesis's "% white ears", so it is deliberately not mapped to an
     ETL risk level. Nothing is stored and nothing reaches the forecast: this is an
     unverified estimate for a technologist to confirm.
+
+    With municipality + growth_stage, the response's `daily` field also carries
+    the panel-requested 14-day outlook: this photo's own reading becomes day 0
+    of the same BiLSTM trajectory GET /forecast/trajectory uses (read-only —
+    this still never writes to the database or any stored forecast), and
+    severity/spread/affected-hectares for days 1-13 are PROJECTED by scaling
+    day 0's photo reading with that forecast (see _project_field_assessment_days).
+    Without both params, `daily` is null and the response is just today's photo.
     """
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(status_code=415, detail="Unsupported image type; use JPEG, PNG or WebP.")
@@ -188,6 +244,11 @@ async def assess_field(
                 "(ml/resnet/train_field_damage.py); the patch-level models do not transfer to field photos."
             ),
         )
+
+    if municipality and growth_stage:
+        photo_features = (result.pct_affected, 0.0, 1.0) if result.pct_affected is not None else None
+        trajectory = _build_trajectory(municipality, pest, growth_stage, days=14, override_lagged_features=photo_features)
+        result.daily = _project_field_assessment_days(result, trajectory)
 
     return result
 
@@ -318,10 +379,12 @@ def _no_tracked_pest_response(
         # forecast's own unit), so the trajectory reacts to this photo like a BPH count does.
         photo_features = (assessment.pct_affected, 0.0, 1.0) if assessment.pct_affected is not None else None
         forecast = (
-            _build_trajectory(municipality, "RSB", growth_stage, days=13, override_lagged_features=photo_features)
+            _build_trajectory(municipality, "RSB", growth_stage, days=14, override_lagged_features=photo_features)
             if municipality and growth_stage
             else None
         )
+        if forecast is not None:
+            assessment.daily = _project_field_assessment_days(assessment, forecast)
         return ImageInferenceResponse(
             status="damage_detected",
             pest_detected=assessment.pest,
@@ -395,8 +458,10 @@ def _pest_found_response(
     forecast: TrajectoryResponse | None = None
     if municipality and growth_stage:
         forecast = _build_trajectory(
-            municipality, pest, growth_stage, days=13, override_lagged_features=photo_features
+            municipality, pest, growth_stage, days=14, override_lagged_features=photo_features
         )
+        if forecast is not None and field_assessment is not None:
+            field_assessment.daily = _project_field_assessment_days(field_assessment, forecast)
 
     return ImageInferenceResponse(
         status="ok",

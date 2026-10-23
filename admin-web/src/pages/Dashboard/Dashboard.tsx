@@ -206,7 +206,7 @@ function Dashboard({ user, accessToken, onLogout }: DashboardProps) {
 
           {activePage === 'forecast' && <PestForecastPage user={user} />}
 
-          {activePage === 'field' && <FieldAssessmentPage />}
+          {activePage === 'field' && <FieldAssessmentPage user={user} />}
 
           {activePage === 'reports' && <ReportsPage user={user} accessToken={accessToken} />}
           {activePage === 'sms' && <SmsPage user={user} accessToken={accessToken} />}
