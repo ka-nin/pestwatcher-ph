@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { scanFieldPhoto, type FieldAssessment, type PhotoScan } from '../../lib/api'
+import { scanFieldPhoto, type FieldAssessment, type FieldAssessmentDay, type GrowthStage, type LguUser, type PhotoScan } from '../../lib/api'
+import { ASSUMED_GROWTH_STAGE, RISK_TONE } from '../../lib/etl'
 import './FieldAssessmentPage.css'
+
+const GROWTH_STAGES: GrowthStage[] = ['Seedling', 'Tillering', 'Elongation', 'Panicle', 'Flowering', 'Ripening']
 
 // A cell at or above this share is drawn at full strength; the scale is capped
 // because the model's cell values are small percentages.
@@ -25,22 +28,43 @@ function formatArea(ha: number, unit: SizeUnit) {
   return `${Number(ha.toFixed(4))} ha`
 }
 
-function areaValue(r: FieldAssessment, unit: SizeUnit) {
-  return r.affected_hectares != null ? formatArea(r.affected_hectares, unit) : 'n/a'
+function areaValue(ha: number | null, unit: SizeUnit) {
+  return ha != null ? formatArea(ha, unit) : 'n/a'
 }
 
-function areaNote(r: FieldAssessment, unit: SizeUnit) {
-  if (r.affected_hectares != null && r.field_size_ha != null) {
+function areaNote(r: FieldAssessment, selectedDay: FieldAssessmentDay | null, unit: SizeUnit) {
+  if (selectedDay?.affected_hectares != null && r.field_size_ha != null) {
     return `of ${formatArea(r.field_size_ha, unit)}${r.field_size_source === 'photo_metadata' ? ' (from drone data)' : ''}`
   }
   return 'Enter the field size to get the affected area'
 }
 
-function FieldAssessmentPage() {
+function dayLabel(dateStr: string, isMeasured: boolean) {
+  const d = new Date(dateStr + 'T00:00:00')
+  const label = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  return isMeasured ? `${label} (today)` : label
+}
+
+function dateRangeLabel(days: FieldAssessmentDay[]) {
+  const first = new Date(days[0].date + 'T00:00:00')
+  const last = new Date(days[days.length - 1].date + 'T00:00:00')
+  const sameYear = first.getFullYear() === last.getFullYear()
+  const firstLabel = first.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: sameYear ? undefined : 'numeric' })
+  const lastLabel = last.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  return `${firstLabel} – ${lastLabel}`
+}
+
+interface FieldAssessmentPageProps {
+  user: LguUser
+}
+
+function FieldAssessmentPage({ user }: FieldAssessmentPageProps) {
   const [file, setFile] = useState<File | null>(null)
   const [fieldSize, setFieldSize] = useState('')
   const [unit, setUnit] = useState<SizeUnit>('ha')
+  const [growthStage, setGrowthStage] = useState<GrowthStage>(ASSUMED_GROWTH_STAGE)
   const [scan, setScan] = useState<PhotoScan | null>(null)
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -56,8 +80,9 @@ function FieldAssessmentPage() {
     setBusy(true)
     setError('')
     setScan(null)
+    setSelectedDayIndex(0)
     try {
-      setScan(await scanFieldPhoto(file, sizeNumber))
+      setScan(await scanFieldPhoto(file, sizeNumber, user.municipality, growthStage))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Photo scan failed.')
     } finally {
@@ -68,6 +93,8 @@ function FieldAssessmentPage() {
   const result: FieldAssessment | null = scan?.field_assessment ?? null
   const ok = result?.status === 'ok'
   const pestName = scan?.pest_detected === 'BPH' ? 'Brown Planthopper (BPH)' : scan?.pest_detected === 'RSB' ? 'Rice Stem Borer (RSB)' : null
+  const daily = result?.daily ?? null
+  const selectedDay: FieldAssessmentDay | null = daily?.[selectedDayIndex] ?? null
   return (
     <>
       <section className="panel forecast-summary-panel">
@@ -116,6 +143,15 @@ function FieldAssessmentPage() {
             </div>
             <span className="fa-hint">Needed for the affected area: a photo has no scale of its own, except drone photos that record their height.</span>
             {sizeInvalid && <span className="fa-error">Enter a size above 0.</span>}
+          </div>
+          <div className="fa-field">
+            <label htmlFor="fa-growth-stage">Growth stage</label>
+            <select id="fa-growth-stage" value={growthStage} onChange={(e) => setGrowthStage(e.target.value as GrowthStage)}>
+              {GROWTH_STAGES.map((stage) => (
+                <option key={stage} value={stage}>{stage}</option>
+              ))}
+            </select>
+            <span className="fa-hint">Used with {user.municipality}'s weather for the 14-day outlook below.</span>
           </div>
           <button className="fa-run" disabled={!file || busy || sizeInvalid} onClick={run}>
             {busy ? 'Scanning…' : 'Scan photo'}
@@ -173,31 +209,70 @@ function FieldAssessmentPage() {
         </section>
       )}
 
+      {ok && daily && (
+        <section className="panel fa-panel">
+          <div className="fa-day-head">
+            <div>
+              <div className="panel-title">14-day outlook</div>
+              <div className="fa-day-range">{dateRangeLabel(daily)}</div>
+            </div>
+            {!selectedDay?.is_measured && <span className="badge badge-yellow">Projected from today's photo</span>}
+          </div>
+          <div className="fa-day-strip">
+            {daily.map((d, i) => (
+              <button
+                key={d.date}
+                type="button"
+                className={`fa-day-btn${i === selectedDayIndex ? ' is-selected' : ''}`}
+                onClick={() => setSelectedDayIndex(i)}
+              >
+                <span className="fa-day-label">{dayLabel(d.date, d.is_measured)}</span>
+                <span className={`fa-day-risk fa-day-risk-${RISK_TONE[d.risk_level]}`}>{d.risk_level}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {ok && (
         <section className="panel fa-panel">
           <div className="fa-metrics">
             <div className="fa-metric">
               <div className="fa-metric-label">Severity</div>
-              <div className="fa-metric-value">{result!.pct_affected?.toFixed(2)}%</div>
-              <div className="fa-metric-note">of the photo covered by damage</div>
+              <div className="fa-metric-value">{(selectedDay?.severity_pct ?? result!.pct_affected)?.toFixed(2)}%</div>
+              <div className="fa-metric-note">of the field covered by damage</div>
             </div>
             <div className="fa-metric">
               <div className="fa-metric-label">Spread</div>
-              <div className="fa-metric-value">{result!.cells_affected_pct?.toFixed(0)}%</div>
-              <div className="fa-metric-note">of the photo's grid cells show damage</div>
+              <div className="fa-metric-value">{(selectedDay?.spread_pct ?? result!.cells_affected_pct)?.toFixed(0)}%</div>
+              <div className="fa-metric-note">of the field's grid cells show damage</div>
             </div>
             <div className="fa-metric">
               <div className="fa-metric-label">Affected area</div>
-              <div className="fa-metric-value">{areaValue(result!, unit)}</div>
-              <div className="fa-metric-note">{areaNote(result!, unit)}</div>
+              <div className="fa-metric-value">{areaValue(selectedDay?.affected_hectares ?? result!.affected_hectares, unit)}</div>
+              <div className="fa-metric-note">{areaNote(result!, selectedDay, unit)}</div>
             </div>
             <div className="fa-metric">
-              <div className="fa-metric-label">Where present</div>
-              <div className="fa-metric-value">{result!.severity_where_present_pct?.toFixed(2)}%</div>
-              <div className="fa-metric-note">average over affected cells</div>
+              <div className="fa-metric-label">Pest count</div>
+              <div className="fa-metric-value">{selectedDay ? selectedDay.pest_level.toFixed(2) : result!.severity_where_present_pct?.toFixed(2)}</div>
+              <div className="fa-metric-note">
+                {selectedDay
+                  ? result!.pest === 'RSB' ? '% damage (BiLSTM forecast)' : 'hoppers/hill (BiLSTM forecast)'
+                  : 'severity where present, average over affected cells'}
+              </div>
             </div>
+            {selectedDay && (
+              <div className="fa-metric">
+                <div className="fa-metric-label">Risk</div>
+                <div className={`fa-metric-value fa-risk-${RISK_TONE[selectedDay.risk_level]}`}>{selectedDay.risk_level}</div>
+                <div className="fa-metric-note">{selectedDay.is_measured ? "today's forecast" : 'forecast for this day'}</div>
+              </div>
+            )}
           </div>
           <p className="fa-caveat">
+            {selectedDay?.is_measured
+              ? 'Severity and spread are measured from this photo. '
+              : "Severity, spread and affected area for this day are PROJECTED by scaling today's photo reading with the BiLSTM forecast — not a new measurement. "}
             Estimate from a model trained on synthetic images; a technologist must confirm it. Severity is the share of
             the photo covered by whiteheads, a stand-in for the percentage of white ears.
           </p>
