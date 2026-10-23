@@ -8,9 +8,9 @@ GrowthStage = Literal["Seedling", "Tillering", "Elongation", "Panicle", "Floweri
 class DailyWeatherObservation(BaseModel):
     """One day of raw weather + growth stage. The BiLSTM expects a
     consecutive run of these (length = ml.config.PEST_PARAMS[pest].crf_window_days,
-    currently 14, most recent day last) — the model computes its own
-    engineered features (GDD/CRF/HP/VPD/WSI/...) from these raw values, it
-    does not accept pre-aggregated series."""
+    currently 14, most recent day last). The model reads these raw values
+    directly and calculates nothing from them; it does not accept
+    pre-aggregated series."""
 
     date: str
     tmax: float

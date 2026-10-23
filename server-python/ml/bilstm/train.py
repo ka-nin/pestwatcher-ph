@@ -239,7 +239,7 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument(
         "--features",
-        choices=["engineered", "raw", "lagged", "lagged_fresh"],
+        choices=["engineered", "raw", "lagged", "lagged_fresh", "plain_fresh"],
         default="engineered",
         help="Which build_sequences.py configuration to train on. 'raw' is the RQ2 control. "
         "Anything other than 'engineered' is saved under its own suffix so it never "
@@ -290,7 +290,7 @@ def main() -> None:
     print(f"{pest} ({args.features}): train={len(train_idx)} val={len(val_idx)} test={len(test_idx)}")
 
     if args.observation_dropout > 0:
-        if args.features not in ("lagged", "lagged_fresh"):
+        if args.features not in ("lagged", "lagged_fresh", "plain_fresh"):
             raise SystemExit("--observation-dropout only applies to the lagged feature sets")
         X_static = hide_observations(X_static, np.concatenate([train_idx, val_idx]), args.observation_dropout)
 
@@ -343,7 +343,7 @@ def main() -> None:
     test_metrics = evaluate(
         model, X_seq_test, X_static_test, y_test, pest, is_reproductive_test, args.log_target
     )
-    if args.features in ("lagged", "lagged_fresh"):
+    if args.features in ("lagged", "lagged_fresh", "plain_fresh"):
         test_metrics["observation_conditions"] = evaluate_observation_conditions(
             model, X_seq_test, X_static[test_idx], static_scaler, y_test, pest, is_reproductive_test, args.log_target
         )

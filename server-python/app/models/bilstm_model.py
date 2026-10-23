@@ -3,9 +3,10 @@
 Loads the trained per-pest models produced by ml/bilstm/train.py
 (ml/weights/{pest}/bilstm_{pest}.keras + matching *_scalers.joblib) and
 turns a window of daily weather + growth-stage observations into the same
-sequence/static feature vectors used at training time — see
-ml/bilstm/build_sequences.py, which this mirrors. Both must stay in sync;
-if the feature engineering there changes, update it here too.
+inputs used at training time — see ml/bilstm/build_sequences.py's
+`plain_fresh` feature set, which this mirrors. There are NO hand-computed
+formulas (GDD, WSI, VPD and the like): the model reads the raw daily weather
+and the growth stage and learns the rest. Both files must stay in sync.
 
 predict() returns a continuous value only (hoppers/hill for BPH, % damage
 for RSB). Bucketing that into Low/Medium/High happens in
@@ -20,17 +21,8 @@ import joblib
 import numpy as np
 from tensorflow import keras
 
-from app.preprocessing.features import (
-    calculate_crf,
-    calculate_diurnal_range,
-    calculate_gdd,
-    calculate_hp,
-    calculate_trend,
-    calculate_vpd,
-    calculate_wsi,
-)
-from ml.bilstm.build_sequences import MAX_OBSERVATION_AGE_DAYS, STATIC_FEATURE_COLUMNS
-from ml.config import GROWTH_STAGE_BUCKETS, PEST_PARAMS
+from ml.bilstm.build_sequences import MAX_OBSERVATION_AGE_DAYS
+from ml.config import PEST_PARAMS
 
 GROWTH_STAGES = ["Seedling", "Tillering", "Elongation", "Panicle", "Flowering", "Ripening"]
 
@@ -77,32 +69,24 @@ class BiLstmOutbreakForecaster:
         return self._scalers[pest]
 
     def accepts_observation(self, pest: str) -> bool:
-        """Whether the loaded model was trained with the lagged verified-
-        observation inputs (12 static columns instead of 9). Same
-        self-describing check build_model_inputs() uses, exposed so callers
-        like the gap analysis can say honestly whether a report can reach the
-        model at all."""
+        """Whether the loaded model takes the verified-observation inputs (its
+        static vector is those three values). Exposed so callers like the gap
+        analysis can say honestly whether a report can reach the model at all."""
         if not self.is_loaded(pest):
             return False
-        n_static = len(self._scalers[pest]["static_feature_columns"])
-        return n_static == len(STATIC_FEATURE_COLUMNS) + 3
+        return len(self._scalers[pest]["static_feature_columns"]) == 3
 
     def build_model_inputs(
         self, pest: str, window: list[DailyObservation], lagged_features: tuple[float, float, float] | None = None
     ) -> tuple[np.ndarray, np.ndarray]:
-        """The feature-engineering half of predict(): window -> scaled
-        (X_sequence, X_static), without running the model. Split out so
+        """The input half of predict(): window -> scaled (X_sequence, X_static),
+        without running the model. Split out so
         ml/explainability/shap_report.py can build the exact same inputs
         predict() would, without duplicating this logic.
 
         `lagged_features` is (last_observed_value, days_since_observation,
         has_recent_observation) from app/decision/report_anchor.py's
-        find_lagged_observation() — appended to the static vector ONLY if
-        the loaded model was trained with them (checked via the scaler's own
-        recorded static_feature_columns, not a separate flag, so a plain
-        engineered-only model and a lagged one are both served correctly
-        from the same call site without the caller needing to know which is
-        on disk). None defaults to the same "no report on file" encoding
+        find_lagged_observation(): they are the model's static input. None defaults to the same "no report on file" encoding
         ml/bilstm/build_sequences.py's build_lagged_features() uses when it
         finds nothing recent enough, so a caller with no report context
         (e.g. POST /forecast's raw-observations endpoint) still gets a
@@ -115,61 +99,22 @@ class BiLstmOutbreakForecaster:
                 f"observations (most recent day last), got {len(window)}."
             )
 
-        sequence_rows = []
-        for day in window:
-            vpd_daily = calculate_vpd([day.tmax], [day.tmin], [day.relative_humidity])
-            diurnal_range_daily = calculate_diurnal_range([day.tmax], [day.tmin])
-            stage_one_hot = [1.0 if day.growth_stage == stage else 0.0 for stage in GROWTH_STAGES]
-            sequence_rows.append(
-                [
-                    day.tmax,
-                    day.tmin,
-                    day.relative_humidity,
-                    day.rainfall,
-                    vpd_daily,
-                    diurnal_range_daily,
-                    *stage_one_hot,
-                ]
-            )
-
-        t_max = [d.tmax for d in window]
-        t_min = [d.tmin for d in window]
-        rh = [d.relative_humidity for d in window]
-        rainfall = [d.rainfall for d in window]
-        temp_mean_series = [(hi + lo) / 2 for hi, lo in zip(t_max, t_min)]
-
-        gdd_accum = calculate_gdd(t_max, t_min, base_temp_c=params.gdd_base_temp_c)
-        crf = calculate_crf(rainfall)
-        hp = calculate_hp(rh, rh_threshold=params.hp_rh_threshold_pct)
-        wsi = calculate_wsi(rainfall)
-        rainfall_trend = calculate_trend(rainfall)
-        temp_trend = calculate_trend(temp_mean_series)
-
-        is_reproductive = 1.0 if GROWTH_STAGE_BUCKETS.get(window[-1].growth_stage) == "Reproductive" else 0.0
-        reproductive_x_rainfall = is_reproductive * crf
-        reproductive_x_temp = is_reproductive * (sum(temp_mean_series) / len(temp_mean_series))
-
-        static_row = [
-            gdd_accum,
-            crf,
-            hp,
-            wsi,
-            rainfall_trend,
-            temp_trend,
-            is_reproductive,
-            reproductive_x_rainfall,
-            reproductive_x_temp,
+        # The raw daily weather and the growth stage, nothing computed from them.
+        sequence_rows = [
+            [
+                day.tmax,
+                day.tmin,
+                day.relative_humidity,
+                day.rainfall,
+                *[1.0 if day.growth_stage == stage else 0.0 for stage in GROWTH_STAGES],
+            ]
+            for day in window
         ]
 
         scalers = self._scalers[pest]
-
-        # Self-describing rather than a separate "is this a lagged model"
-        # flag: the scaler already recorded exactly which static columns it
-        # was fit on (ml/bilstm/train.py's joblib dump), so the number of
-        # columns it expects tells us whether to append the lagged triplet.
-        expects_lagged = len(scalers["static_feature_columns"]) == len(static_row) + 3
-        if expects_lagged:
-            static_row = static_row + list(lagged_features or (0.0, float(MAX_OBSERVATION_AGE_DAYS), 0.0))
+        # The verified observation (latest value, days since, report present); the
+        # "no report on file" encoding is the same one training used.
+        static_row = list(lagged_features or (0.0, float(MAX_OBSERVATION_AGE_DAYS), 0.0))
 
         X_sequence = np.array([sequence_rows], dtype=np.float32)
         n, w, f = X_sequence.shape

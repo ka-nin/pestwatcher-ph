@@ -8,7 +8,7 @@ import IpmPage from './IpmPage'
 import ClimateDriversPage from './ClimateDriversPage'
 import ReportsPage from './ReportsPage'
 import SmsPage from './SmsPage'
-import { GDD_BASE_TEMP_C, HUMIDITY_PERSISTENCE_THRESHOLD, OUTLOOK_DAYS } from '../../lib/climate'
+import { OUTLOOK_DAYS } from '../../lib/climate'
 import './Dashboard.css'
 
 interface DashboardProps {
@@ -18,29 +18,20 @@ interface DashboardProps {
 }
 
 
-// The dashboard's forward-looking weather outlook — deliberately NOT the
-// model's input features. See src/lib/climate.ts for how the two differ.
+// The dashboard's forward-looking weather outlook: plain readings from the
+// forecast, no computed indices (the model learns those itself).
 function deriveClimateMetrics(weather: WeatherForecast) {
-  const gdd = weather.daily.temperature_2m_max.reduce((total, tMax, i) => {
-    const tMin = weather.daily.temperature_2m_min[i]
-    const meanTemp = (tMax + tMin) / 2
-    return total + Math.max(meanTemp - GDD_BASE_TEMP_C, 0)
-  }, 0)
-
   const sevenDayRainfall = weather.daily.precipitation_sum
     .slice(0, OUTLOOK_DAYS)
     .reduce((total, mm) => total + mm, 0)
 
   const nextWeekHumidity = weather.hourly.relative_humidity_2m.slice(0, 24 * OUTLOOK_DAYS)
-  const humidityPersistence =
-    (nextWeekHumidity.filter((rh) => rh >= HUMIDITY_PERSISTENCE_THRESHOLD).length /
-      nextWeekHumidity.length) *
-    100
+  const averageHumidity = nextWeekHumidity.reduce((total, rh) => total + rh, 0) / Math.max(nextWeekHumidity.length, 1)
 
   return {
-    gdd: Math.round(gdd),
+    highestTemp: Math.round(Math.max(...weather.daily.temperature_2m_max.slice(0, OUTLOOK_DAYS))),
     sevenDayRainfall: Math.round(sevenDayRainfall),
-    humidityPersistence: Math.round(humidityPersistence),
+    averageHumidity: Math.round(averageHumidity),
   }
 }
 

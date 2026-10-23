@@ -186,7 +186,7 @@ function HeldOutMetricsTable({ heldOut }: { heldOut: SimulationForecastResponse[
         <thead>
           <tr>
             <th>Metric</th>
-            <th>Engineered</th>
+            <th>Framework</th>
             <th>Raw (baseline)</th>
             <th>Winner</th>
             <th>p-value</th>
@@ -204,7 +204,7 @@ function HeldOutMetricsTable({ heldOut }: { heldOut: SimulationForecastResponse[
                 <td>{formatMetric(r.mean_raw, meta.pct)}</td>
                 <td>
                   <span className={`badge ${r.better_configuration === 'engineered' ? 'badge-green' : 'badge-yellow'}`}>
-                    {r.better_configuration}
+                    {r.better_configuration === 'engineered' ? 'framework' : r.better_configuration}
                   </span>
                 </td>
                 <td>{r.p_value.toFixed(4)}</td>
@@ -220,7 +220,7 @@ function HeldOutMetricsTable({ heldOut }: { heldOut: SimulationForecastResponse[
 
 const PIPELINE_STAGES = [
   { key: 'input', label: 'Raw input', hint: '14 daily observations' },
-  { key: 'features', label: 'Feature engineering', hint: 'per-day + window-level biology features' },
+  { key: 'features', label: 'Model inputs', hint: 'raw daily weather + growth stage' },
   { key: 'scaling', label: 'Normalization', hint: 'scaled to the training distribution' },
   { key: 'model', label: 'BiLSTM forward pass', hint: 'sequence branch + static branch → dense head' },
   { key: 'decision', label: 'Decision', hint: 'inverse-transform, clamp, risk bucket' },
@@ -375,26 +375,27 @@ function ComputationPipeline({
         {activeStage === 1 && (
           <div className="pipe-detail-card">
             <p className="mi-note">
-              Each day is expanded from 4 raw readings into <strong>{features.sequenceFeatureCount} sequence
-              features</strong> (Tmax, Tmin, RH, rainfall, VPD, diurnal range, + 6 growth-stage one-hot columns).
-              The whole window is also collapsed into <strong>{features.staticFeatureCount} static biology
-              features</strong>:
+              Each day is passed to the model as it was measured: <strong>Tmax, Tmin, relative humidity and
+              rainfall</strong>, plus the growth stage as 6 yes/no columns, <strong>{features.sequenceFeatureCount}{' '}
+              values per day</strong>. Nothing is calculated from them first: the model learns what matters. A
+              small second input carries the latest technologist-verified report, <strong>{features.staticFeatureCount}{' '}
+              values</strong>:
             </p>
             <div className="pipe-static-grid">
               {features.staticRows.map((row) => (
                 <div key={row.key} className="pipe-static-cell">
                   <span className="pipe-static-label">{row.label}</span>
                   <strong className="pipe-static-value">
-                    {row.value.toFixed(row.unit === '0/1' || row.unit === '0–1' ? 2 : 1)}
+                    {row.value}
                     <small> {row.unit}</small>
                   </strong>
-                  <span className="pipe-static-formula">{row.formulaHint}</span>
+                  <span className="pipe-static-formula">{row.note}</span>
                 </div>
               ))}
             </div>
             <p className="pipe-day-sample mi-note">
-              Most recent day's per-day features — VPD {lastDay?.vpd.toFixed(2)} kPa, diurnal range{' '}
-              {lastDay?.diurnalRange.toFixed(1)}°C.
+              Most recent day: Tmax {lastDay?.tmax}°C, Tmin {lastDay?.tmin}°C, humidity {lastDay?.relative_humidity}%,
+              rainfall {lastDay?.rainfall} mm, stage {lastDay?.growth_stage}.
             </p>
           </div>
         )}
@@ -429,7 +430,7 @@ function ComputationPipeline({
             </div>
             <p className="mi-note">
               The BiLSTM reads the 14-day sequence in both directions to pick up build-up and decay patterns, then
-              merges that with the static biology features before a final dense layer produces one raw number.
+              merges that with the verified-report input before a final dense layer produces one raw number.
             </p>
           </div>
         )}
@@ -568,8 +569,8 @@ function SimulationPage({ accessToken, onSessionExpired }: SimulationPageProps) 
           <div>
             <div className="panel-title">Simulation</div>
             <div className="panel-subtitle">
-              Manually enter a 14-day weather window (and/or a pest photo), then compare the deployed engineered
-              model against the raw-feature baseline, side by side.
+              Manually enter a 14-day weather window (and/or a pest photo), then compare the deployed framework
+              against the raw-weather baseline, side by side.
             </div>
           </div>
         </div>
@@ -772,9 +773,9 @@ function SimulationPage({ accessToken, onSessionExpired }: SimulationPageProps) 
           >
             <div className="sim-modal-head">
               <div>
-                <div className="sim-modal-title">Live prediction: engineered vs. raw baseline</div>
+                <div className="sim-modal-title">Live prediction: framework vs. raw baseline</div>
                 <div className="sim-modal-subtitle">
-                  Same manually-entered window, same BiLSTM architecture, two feature sets
+                  Same manually-entered window, same BiLSTM architecture, two sets of inputs
                 </div>
               </div>
               <button type="button" className="sim-modal-close" onClick={() => setShowResult(false)} aria-label="Close">
@@ -782,15 +783,15 @@ function SimulationPage({ accessToken, onSessionExpired }: SimulationPageProps) 
               </button>
             </div>
 
-            <h4 className="mi-h4 pipe-heading">How the engineered model digests this window</h4>
+            <h4 className="mi-h4 pipe-heading">How the framework digests this window</h4>
             <ComputationPipeline pest={pest} days={days} running={running} result={result} />
 
             {!running && result && (
               <>
                 <div className="sim-results-row">
                   <ModelResultCard
-                    title="Engineered (deployed)"
-                    subtitle="GDD · CRF · HP · VPD · WSI · trends · growth-stage one-hot"
+                    title="Framework (deployed)"
+                    subtitle="Tmax / Tmin / RH / Rainfall + growth stage + verified report"
                     result={result.engineered}
                     tone="green"
                   />

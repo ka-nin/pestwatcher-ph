@@ -3,147 +3,81 @@
   "features": [
     {
       "label": "Growth Stage: Ripening",
-      "value": 0.3680234060855582,
+      "value": 0.2980834035784937,
       "group": "sequence",
-      "share": 0.19703968951478054
-    },
-    {
-      "label": "Growth Stage: Elongation",
-      "value": 0.20770641664268322,
-      "group": "sequence",
-      "share": 0.11120599170800391
+      "share": 0.21357119172968717
     },
     {
       "label": "Max Temperature",
-      "value": 0.17462165741620386,
+      "value": 0.17030217593583075,
       "group": "sequence",
-      "share": 0.09349241540318264
+      "share": 0.12201832853534414
+    },
+    {
+      "label": "Growth Stage: Elongation",
+      "value": 0.15611365421785497,
+      "group": "sequence",
+      "share": 0.1118525177058503
     },
     {
       "label": "Growth Stage: Flowering",
-      "value": 0.12754052347337771,
+      "value": 0.1404665612953939,
       "group": "sequence",
-      "share": 0.06828518167647349
+      "share": 0.10064166784826946
     },
     {
       "label": "Growth Stage: Tillering",
-      "value": 0.11114919182909375,
+      "value": 0.12749184415527945,
       "group": "sequence",
-      "share": 0.05950926458936122
-    },
-    {
-      "label": "Vapor Pressure Deficit",
-      "value": 0.1109636040695932,
-      "group": "sequence",
-      "share": 0.05940990092415664
-    },
-    {
-      "label": "Growth Stage: Seedling",
-      "value": 0.10500079546852703,
-      "group": "sequence",
-      "share": 0.05621741388131623
-    },
-    {
-      "label": "Diurnal Temperature Range",
-      "value": 0.10415265865943865,
-      "group": "sequence",
-      "share": 0.05576332153076073
-    },
-    {
-      "label": "Rainfall",
-      "value": 0.08163135721453424,
-      "group": "sequence",
-      "share": 0.04370541931369063
+      "share": 0.09134552533008948
     },
     {
       "label": "Relative Humidity",
-      "value": 0.07663271076132787,
+      "value": 0.10789142007373963,
       "group": "sequence",
-      "share": 0.041029144574510144
+      "share": 0.07730218752849528
     },
     {
       "label": "Growth Stage: Panicle",
-      "value": 0.06639672826183111,
+      "value": 0.10009377171650916,
       "group": "sequence",
-      "share": 0.03554880071531908
+      "share": 0.07171531810755412
+    },
+    {
+      "label": "Growth Stage: Seedling",
+      "value": 0.07004631406386276,
+      "group": "sequence",
+      "share": 0.05018687585856071
     },
     {
       "label": "Min Temperature",
-      "value": 0.048691997909963904,
+      "value": 0.0682757614855916,
       "group": "sequence",
-      "share": 0.02606969011042508
+      "share": 0.04891830800264562
     },
     {
-      "label": "Humidity Persistence (HP)",
-      "value": 0.045231607571865125,
-      "group": "static",
-      "share": 0.02421699751929022
-    },
-    {
-      "label": "Water Stress Index (WSI)",
-      "value": 0.038335806781348465,
-      "group": "static",
-      "share": 0.020524986564956247
-    },
-    {
-      "label": "GDD Accumulated",
-      "value": 0.03809956838570846,
-      "group": "static",
-      "share": 0.020398504554957255
-    },
-    {
-      "label": "Temperature Trend",
-      "value": 0.032518161490588685,
-      "group": "static",
-      "share": 0.017410219941846578
-    },
-    {
-      "label": "Reproductive Stage x Temperature",
-      "value": 0.028069933239506403,
-      "group": "static",
-      "share": 0.015028639045113168
-    },
-    {
-      "label": "Has Recent Verified Observation",
-      "value": 0.020304484808972727,
-      "group": "static",
-      "share": 0.010871018843805437
-    },
-    {
-      "label": "Reproductive Stage x Rainfall",
-      "value": 0.01873331649500566,
-      "group": "static",
-      "share": 0.01002981550825574
+      "label": "Rainfall",
+      "value": 0.06636641215213028,
+      "group": "sequence",
+      "share": 0.04755029486377176
     },
     {
       "label": "Days Since Verified Observation",
-      "value": 0.0172775243864938,
+      "value": 0.03979318966739811,
       "group": "static",
-      "share": 0.009250384579907239
-    },
-    {
-      "label": "Cumulative Rainfall Factor (CRF)",
-      "value": 0.013839413101959509,
-      "group": "static",
-      "share": 0.007409620191501987
+      "share": 0.0285110772286044
     },
     {
       "label": "Latest Verified Observation",
-      "value": 0.012752419879249525,
+      "value": 0.033958628835777445,
       "group": "static",
-      "share": 0.006827644144419663
+      "share": 0.024330723357609874
     },
     {
-      "label": "Reproductive-Stage Target",
-      "value": 0.01260865949637567,
+      "label": "Has Recent Verified Observation",
+      "value": 0.016826654785897215,
       "group": "static",
-      "share": 0.006750674851875794
-    },
-    {
-      "label": "Rainfall Trend",
-      "value": 0.007480876294236319,
-      "group": "static",
-      "share": 0.004005260312090377
+      "share": 0.012055983903517772
     }
   ]
 }

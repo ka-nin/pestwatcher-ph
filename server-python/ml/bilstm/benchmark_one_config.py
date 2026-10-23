@@ -53,7 +53,7 @@ N_LATENCY_SAMPLES = 100
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pest", choices=["BPH", "RSB"], required=True)
-    parser.add_argument("--features", choices=["engineered", "raw", "seq_only", "lagged", "lagged_fresh"], required=True)
+    parser.add_argument("--features", choices=["engineered", "raw", "seq_only", "lagged", "lagged_fresh", "plain_fresh"], required=True)
     args = parser.parse_args()
 
     X_seq, X_static, y, meta, _, _ = load_dataset(args.pest, args.features)

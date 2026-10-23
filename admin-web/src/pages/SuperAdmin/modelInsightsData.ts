@@ -75,11 +75,11 @@ export const WEATHER_FLOW: FlowStep[] = [
   },
   {
     id: 'features',
-    title: 'Biologically-informed features',
-    short: 'Features',
-    body: 'From the same 14 days the framework computes growing degree days (GDD), cumulative rainfall (CRF), humidity persistence (HP), a water stress index (WSI) and rainfall and temperature trends, plus daily vapor pressure deficit (VPD) and temperature range. Each is a named, established agrometeorological quantity, so its contribution to a forecast can be checked and explained. The growth stage goes in alongside them.',
-    code: 'app/preprocessing/features.py',
-    outputs: ['12 daily features × 14 days', '9 window summaries'],
+    title: 'Model inputs',
+    short: 'Inputs',
+    body: 'The 14 days go into the model as they were measured: maximum and minimum temperature, humidity and rainfall for each day, with the growth stage as six yes/no columns. No index or formula is calculated from them first. The BiLSTM learns for itself which patterns of weather and growth stage matter for each pest, and SHAP then shows which inputs drove a forecast.',
+    code: 'app/models/bilstm_model.py',
+    outputs: ['10 values × 14 days'],
   },
   {
     id: 'anchor',

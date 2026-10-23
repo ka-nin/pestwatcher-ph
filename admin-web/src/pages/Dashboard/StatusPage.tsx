@@ -17,9 +17,9 @@ import DayDetailModal from '../../components/DayDetailModal'
 import ProvinceMap from './ProvinceMap'
 
 interface ClimateMetrics {
-  gdd: number
+  highestTemp: number
   sevenDayRainfall: number
-  humidityPersistence: number
+  averageHumidity: number
 }
 
 interface StatusPageProps {
@@ -346,16 +346,16 @@ function StatusPage({ user, weather, weatherError, climateMetrics, onNavigateToR
           ) : climateMetrics ? (
             <div className="stat-card-metrics">
               <div className="stat-metric">
-                <div className="stat-metric-label">GDD</div>
-                <div className="stat-metric-value">{climateMetrics.gdd}°C-days</div>
+                <div className="stat-metric-label">Highest Temperature</div>
+                <div className="stat-metric-value">{climateMetrics.highestTemp}°C</div>
               </div>
               <div className="stat-metric">
                 <div className="stat-metric-label">7-Day Rainfall</div>
                 <div className="stat-metric-value">{climateMetrics.sevenDayRainfall}mm</div>
               </div>
               <div className="stat-metric">
-                <div className="stat-metric-label">Humidity Persistence</div>
-                <div className="stat-metric-value">{climateMetrics.humidityPersistence}%</div>
+                <div className="stat-metric-label">Average Humidity</div>
+                <div className="stat-metric-value">{climateMetrics.averageHumidity}%</div>
               </div>
             </div>
           ) : (

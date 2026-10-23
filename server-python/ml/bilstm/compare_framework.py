@@ -94,11 +94,23 @@ def main() -> None:
         "(same as train.py --balance-bands), so the comparison uses the deployed training recipe.",
     )
     parser.add_argument("--tag", default="", help="Suffix for the output file, e.g. 10fold_bw05.")
+    parser.add_argument(
+        "--proposed",
+        choices=["lagged_fresh", "plain_fresh"],
+        default="lagged_fresh",
+        help="Which configuration is the proposed framework. plain_fresh = raw weather + growth stage "
+        "+ the verified observation, no hand-computed formulas; it is compared with raw (the baseline) "
+        "and with lagged_fresh (the same plus the formulas) to show what the formulas add.",
+    )
     args = parser.parse_args()
+    global CONFIGS, PAIRS
+    if args.proposed == "plain_fresh":
+        CONFIGS = ["raw", "lagged_fresh", "plain_fresh"]
+        PAIRS = [("plain_fresh", "raw"), ("plain_fresh", "lagged_fresh")]
     pest = args.pest
 
     data = {config: load_dataset(pest, config) for config in CONFIGS}
-    _, _, y, meta, _, _ = data["engineered"]
+    _, _, y, meta, _, _ = data[CONFIGS[-1]]
     for config in CONFIGS:
         if len(data[config][2]) != len(y) or not np.allclose(data[config][2], y):
             raise SystemExit(f"{config} sequences disagree with engineered on targets; rebuild them.")
