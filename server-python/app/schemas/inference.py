@@ -49,6 +49,9 @@ class TrajectoryPoint(BaseModel):
     unit: Literal["hoppers_per_hill", "pct_damage"]
     risk_level: Literal["Low", "Medium", "High"]
     adjusted_by_reports: bool = False
+    # 80% confidence band from the ensemble of runs; None when the extra runs are not installed.
+    predicted_low: float | None = None
+    predicted_high: float | None = None
     # Projected hectares affected on this day (app/decision/outlook.py's
     # project_affected_area): the latest verified area scaled by the forecast.
     # A projection under a stated assumption, None without a verified area.

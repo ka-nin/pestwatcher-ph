@@ -17,10 +17,13 @@ why the split matters (panel fix #1).
 from dataclasses import dataclass
 from typing import Optional
 
+import json
+
 import joblib
 import numpy as np
 from tensorflow import keras
 
+from ml.bilstm import bio_layer  # noqa: F401  (registers the optional learnable layer so saved models load)
 from ml.bilstm.build_sequences import MAX_OBSERVATION_AGE_DAYS
 from ml.config import PEST_PARAMS
 
@@ -40,12 +43,19 @@ class DailyObservation:
 class BiLstmPrediction:
     predicted_value: float
     unit: str  # "hoppers_per_hill" (BPH) or "pct_damage" (RSB)
+    # An 80% confidence band from the ensemble (ml/bilstm/build_ensemble.py); None when the
+    # extra runs are not installed, in which case predicted_value is the single model's.
+    low: Optional[float] = None
+    high: Optional[float] = None
 
 
 class BiLstmOutbreakForecaster:
     def __init__(self) -> None:
         self._models: dict[str, keras.Model] = {}
         self._scalers: dict[str, dict] = {}
+        # Extra runs of the same model and the band settings (ml/bilstm/build_ensemble.py).
+        self._members: dict[str, list[keras.Model]] = {}
+        self._band: dict[str, dict] = {}
 
     def load(self, pest: str) -> None:
         """Raises if the weights/scalers for `pest` haven't been trained yet
@@ -55,6 +65,16 @@ class BiLstmOutbreakForecaster:
         self._models[pest] = keras.models.load_model(params.bilstm_weights_path)
         scalers_path = params.bilstm_weights_path.parent / f"bilstm_{pest.lower()}_scalers.joblib"
         self._scalers[pest] = joblib.load(scalers_path)
+        self._load_ensemble(pest, params.bilstm_weights_path.parent)
+
+    def _load_ensemble(self, pest: str, directory) -> None:
+        """Best-effort: without the extra runs the forecast is the single model's, with no band."""
+        band_path = directory / f"bilstm_{pest.lower()}_ensemble.json"
+        member_paths = [directory / f"bilstm_{pest.lower()}_plain_fresh_{tag}.keras" for tag in ("e2", "e3", "e4", "e5")]
+        if not band_path.exists() or not all(p.exists() for p in member_paths):
+            return
+        self._members[pest] = [keras.models.load_model(p) for p in member_paths]
+        self._band[pest] = json.loads(band_path.read_text())
 
     def is_loaded(self, pest: str) -> bool:
         return pest in self._models
@@ -130,11 +150,11 @@ class BiLstmOutbreakForecaster:
 
         X_sequence_scaled, X_static_scaled = self.build_model_inputs(pest, window, lagged_features)
 
-        prediction = self._models[pest].predict(
-            {"sequence_input": X_sequence_scaled, "static_input": X_static_scaled},
-            verbose=0,
-        )
-        predicted_value = float(prediction.flatten()[0])
+        inputs = {"sequence_input": X_sequence_scaled, "static_input": X_static_scaled}
+        models = [self._models[pest], *self._members.get(pest, [])]
+        # All runs share one set of scalers (same training windows), so one input serves them all.
+        member_values = np.array([float(m.predict(inputs, verbose=0).flatten()[0]) for m in models])
+        predicted_value = float(member_values.mean())
 
         # ml/bilstm/train.py --log-target fits on log1p(y); the inverse has to
         # be applied here or every forecast would be served in log space and
@@ -149,7 +169,15 @@ class BiLstmOutbreakForecaster:
         predicted_value = max(predicted_value, 0.0)
 
         unit = "hoppers_per_hill" if pest == "BPH" else "pct_damage"
-        return BiLstmPrediction(predicted_value=predicted_value, unit=unit)
+        low = high = None
+        band = self._band.get(pest)
+        if band and len(models) > 1:
+            if self._scalers[pest].get("log_target"):
+                member_values = np.expm1(member_values)
+            member_values = np.maximum(member_values, 0.0)
+            half = band["band_width_factor"] * (float(member_values.std()) + band["disagreement_floor"])
+            low, high = max(predicted_value - half, 0.0), predicted_value + half
+        return BiLstmPrediction(predicted_value=predicted_value, unit=unit, low=low, high=high)
 
 
 bilstm_forecaster = BiLstmOutbreakForecaster()
