@@ -161,8 +161,9 @@ def test_small_photo_near_miss_becomes_bph_with_a_clear_box(client, monkeypatch,
     from app.models.planthopper_detector import Detection
 
     stub(None, None)
-    near_miss = _classifier(None)
-    near_miss.pest_scores = {"BPH": 0.3, "RSB": 0.0}
+    from app.models.resnet_model import ResnetPrediction
+
+    near_miss = ResnetPrediction(label=None, confidence=0.3, risk_level="Low", pest_scores={"BPH": 0.3, "RSB": 0.0})
     monkeypatch.setattr(inf.resnet_classifier, "predict", lambda path: near_miss)
     monkeypatch.setattr(inf.planthopper_detector, "detect", lambda path: [Detection(1, 1, 9, 9, 0.7)])
     body = _scan(client).json()
