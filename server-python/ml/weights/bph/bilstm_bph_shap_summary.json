@@ -3,81 +3,81 @@
   "features": [
     {
       "label": "Growth Stage: Tillering",
-      "value": 1.9010596864752947,
+      "value": 1.865567938081555,
       "group": "sequence",
-      "share": 0.2025671612600677
-    },
-    {
-      "label": "Growth Stage: Seedling",
-      "value": 1.6616841811822571,
-      "group": "sequence",
-      "share": 0.17706053623015702
-    },
-    {
-      "label": "Growth Stage: Ripening",
-      "value": 1.3613153740676354,
-      "group": "sequence",
-      "share": 0.14505477806214673
+      "share": 0.19591832059025668
     },
     {
       "label": "Relative Humidity",
-      "value": 1.346094899850929,
+      "value": 1.5554514788092395,
       "group": "sequence",
-      "share": 0.1434329624626446
+      "share": 0.16335049250541708
+    },
+    {
+      "label": "Growth Stage: Ripening",
+      "value": 1.2282899060999626,
+      "group": "sequence",
+      "share": 0.1289926197212276
+    },
+    {
+      "label": "Growth Stage: Seedling",
+      "value": 1.2175309698514563,
+      "group": "sequence",
+      "share": 0.12786273713795776
     },
     {
       "label": "Rainfall",
-      "value": 0.6979530313966582,
+      "value": 1.0192247925556936,
       "group": "sequence",
-      "share": 0.07437029214217536
+      "share": 0.10703700765076873
     },
     {
       "label": "Max Temperature",
-      "value": 0.6772329829304302,
+      "value": 0.8280361995304701,
       "group": "sequence",
-      "share": 0.07216247014224818
+      "share": 0.08695875303623302
     },
     {
       "label": "Growth Stage: Elongation",
-      "value": 0.5017245308013419,
+      "value": 0.6396398953485913,
       "group": "sequence",
-      "share": 0.05346119044131759
+      "share": 0.06717373917140357
     },
     {
       "label": "Min Temperature",
-      "value": 0.45975578654894583,
+      "value": 0.5350957390862807,
       "group": "sequence",
-      "share": 0.04898921649681717
+      "share": 0.05619471498025033
     },
     {
       "label": "Growth Stage: Flowering",
-      "value": 0.2639138509520611,
+      "value": 0.23936619957009195,
       "group": "sequence",
-      "share": 0.02812130517779321
-    },
-    {
-      "label": "Growth Stage: Panicle",
-      "value": 0.20622525137817624,
-      "group": "sequence",
-      "share": 0.021974304146796134
+      "share": 0.0251377732585124
     },
     {
       "label": "Latest Verified Observation",
-      "value": 0.12199155932758003,
+      "value": 0.12149888075655327,
       "group": "static",
-      "share": 0.012998794328490517
+      "share": 0.012759576419338722
     },
     {
       "label": "Has Recent Verified Observation",
-      "value": 0.09498349948941419,
+      "value": 0.10563085632553945,
       "group": "static",
-      "share": 0.010120954115749571
+      "share": 0.011093147320644873
+    },
+    {
+      "label": "Growth Stage: Panicle",
+      "value": 0.09015655083763173,
+      "group": "sequence",
+      "share": 0.009468065820472275
     },
     {
       "label": "Days Since Verified Observation",
-      "value": 0.09090185464204599,
+      "value": 0.07668254960832807,
       "group": "static",
-      "share": 0.009686034993596116
+      "share": 0.008053052387516918
     }
   ]
 }

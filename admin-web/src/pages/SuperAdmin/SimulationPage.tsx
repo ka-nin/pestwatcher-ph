@@ -220,7 +220,7 @@ function HeldOutMetricsTable({ heldOut }: { heldOut: SimulationForecastResponse[
 
 const PIPELINE_STAGES = [
   { key: 'input', label: 'Raw input', hint: '14 daily observations' },
-  { key: 'features', label: 'Model inputs', hint: 'raw daily weather + growth stage' },
+  { key: 'features', label: 'Learned features', hint: 'the network builds them from raw weather' },
   { key: 'scaling', label: 'Normalization', hint: 'scaled to the training distribution' },
   { key: 'model', label: 'BiLSTM forward pass', hint: 'sequence branch + static branch → dense head' },
   { key: 'decision', label: 'Decision', hint: 'inverse-transform, clamp, risk bucket' },
@@ -377,7 +377,9 @@ function ComputationPipeline({
             <p className="mi-note">
               Each day is passed to the model as it was measured: <strong>Tmax, Tmin, relative humidity and
               rainfall</strong>, plus the growth stage as 6 yes/no columns, <strong>{features.sequenceFeatureCount}{' '}
-              values per day</strong>. Nothing is calculated from them first: the model learns what matters. A
+              values per day</strong>. Nothing is calculated from them first: the network itself produces the biologically
+              informed features (accumulated heat, rainfall, humidity persistence, water stress, trends) from
+              these raw readings, and the forecast uses them. A
               small second input carries the latest technologist-verified report, <strong>{features.staticFeatureCount}{' '}
               values</strong>:
             </p>

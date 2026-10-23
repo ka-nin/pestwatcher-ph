@@ -187,7 +187,7 @@ function StepArt({ id }: { id: string }) {
               <text x={(x as number) + 26} y={(y as number) + 18} textAnchor="middle" fontSize="10.5" fontWeight="800" fill={GREEN}>{text}</text>
             </g>
           ))}
-          <text x="110" y="118" textAnchor="middle" fontSize="8.5" fill="#777">raw readings, no formulas: the network learns from them</text>
+          <text x="110" y="118" textAnchor="middle" fontSize="8.5" fill="#777">raw readings in, learned features inside, no formulas</text>
         </svg>
       )
     case 'bilstm':

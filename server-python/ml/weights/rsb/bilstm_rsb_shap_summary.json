@@ -3,81 +3,81 @@
   "features": [
     {
       "label": "Growth Stage: Ripening",
-      "value": 0.2980834035784937,
+      "value": 0.32385616903193293,
       "group": "sequence",
-      "share": 0.21357119172968717
+      "share": 0.2186956449895406
     },
     {
       "label": "Max Temperature",
-      "value": 0.17030217593583075,
+      "value": 0.269432318958449,
       "group": "sequence",
-      "share": 0.12201832853534414
-    },
-    {
-      "label": "Growth Stage: Elongation",
-      "value": 0.15611365421785497,
-      "group": "sequence",
-      "share": 0.1118525177058503
-    },
-    {
-      "label": "Growth Stage: Flowering",
-      "value": 0.1404665612953939,
-      "group": "sequence",
-      "share": 0.10064166784826946
-    },
-    {
-      "label": "Growth Stage: Tillering",
-      "value": 0.12749184415527945,
-      "group": "sequence",
-      "share": 0.09134552533008948
-    },
-    {
-      "label": "Relative Humidity",
-      "value": 0.10789142007373963,
-      "group": "sequence",
-      "share": 0.07730218752849528
-    },
-    {
-      "label": "Growth Stage: Panicle",
-      "value": 0.10009377171650916,
-      "group": "sequence",
-      "share": 0.07171531810755412
-    },
-    {
-      "label": "Growth Stage: Seedling",
-      "value": 0.07004631406386276,
-      "group": "sequence",
-      "share": 0.05018687585856071
-    },
-    {
-      "label": "Min Temperature",
-      "value": 0.0682757614855916,
-      "group": "sequence",
-      "share": 0.04891830800264562
+      "share": 0.18194396281466427
     },
     {
       "label": "Rainfall",
-      "value": 0.06636641215213028,
+      "value": 0.15641848901858188,
       "group": "sequence",
-      "share": 0.04755029486377176
+      "share": 0.1056272679518887
     },
     {
-      "label": "Days Since Verified Observation",
-      "value": 0.03979318966739811,
-      "group": "static",
-      "share": 0.0285110772286044
+      "label": "Growth Stage: Elongation",
+      "value": 0.1287806015536262,
+      "group": "sequence",
+      "share": 0.0869637802580636
+    },
+    {
+      "label": "Growth Stage: Seedling",
+      "value": 0.10915474676424614,
+      "group": "sequence",
+      "share": 0.07371070873416952
+    },
+    {
+      "label": "Growth Stage: Flowering",
+      "value": 0.10803999439522537,
+      "group": "sequence",
+      "share": 0.07295793169405522
+    },
+    {
+      "label": "Relative Humidity",
+      "value": 0.09806498555935074,
+      "group": "sequence",
+      "share": 0.06622194454995092
+    },
+    {
+      "label": "Min Temperature",
+      "value": 0.09131724189317841,
+      "group": "sequence",
+      "share": 0.061665285469752466
+    },
+    {
+      "label": "Growth Stage: Tillering",
+      "value": 0.07053091107022642,
+      "group": "sequence",
+      "share": 0.047628560339951956
+    },
+    {
+      "label": "Growth Stage: Panicle",
+      "value": 0.06186046383612241,
+      "group": "sequence",
+      "share": 0.0417735258168233
     },
     {
       "label": "Latest Verified Observation",
-      "value": 0.033958628835777445,
+      "value": 0.027178420567603705,
       "group": "static",
-      "share": 0.024330723357609874
+      "share": 0.018353215977315585
+    },
+    {
+      "label": "Days Since Verified Observation",
+      "value": 0.01845873899176998,
+      "group": "static",
+      "share": 0.012464934176074555
     },
     {
       "label": "Has Recent Verified Observation",
-      "value": 0.016826654785897215,
+      "value": 0.017760225006107553,
       "group": "static",
-      "share": 0.012055983903517772
+      "share": 0.011993237227749334
     }
   ]
 }

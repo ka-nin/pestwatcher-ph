@@ -278,6 +278,19 @@ def main() -> None:
         "model barely learns either case. 0.5 = half with, half without.",
     )
     parser.add_argument(
+        "--learned-features",
+        action="store_true",
+        help="Train the network to produce the biologically informed features itself "
+        "(ml/bilstm/learned_features.py): the formulas serve only as training answers, never as inputs. "
+        "Use with --tag so it is saved beside, not over, the deployed model.",
+    )
+    parser.add_argument(
+        "--feature-loss-weight",
+        type=float,
+        default=1.0,
+        help="With --learned-features: how much the feature answers count against the forecast loss.",
+    )
+    parser.add_argument(
         "--bio-layer",
         action="store_true",
         help="Put the learnable biological gates (ml/bilstm/bio_layer.py) in front of the BiLSTM. "
@@ -328,28 +341,55 @@ def main() -> None:
     # undone inside predict(), so everything downstream stays in real units.
     y_fit, y_fit_val = (np.log1p(y_train), np.log1p(y_val)) if args.log_target else (y_train, y_val)
 
-    model = build_model(
-        window_days=X_sequence.shape[1],
-        n_seq_features=X_sequence.shape[2],
-        n_static_features=X_static.shape[1],
-        bio_layer=args.bio_layer,
-    )
-    model.summary()
+    if args.learned_features:
+        from ml.bilstm import learned_features as lf
 
-    early_stopping = keras.callbacks.EarlyStopping(
-        monitor="val_loss", patience=15, restore_best_weights=True
-    )
+        ans_w, ans_d = lf.training_answers(X_sequence, pest)
+        w_stats = {"mean": ans_w[train_idx].mean(0), "std": ans_w[train_idx].std(0) + 1e-6}
+        d_stats = {"mean": ans_d[train_idx].reshape(-1, ans_d.shape[2]).mean(0), "std": ans_d[train_idx].reshape(-1, ans_d.shape[2]).std(0) + 1e-6}
+        z_w = (ans_w - w_stats["mean"]) / w_stats["std"]
+        z_d = (ans_d - d_stats["mean"]) / d_stats["std"]
+        y_mean, y_std = float(np.mean(y_fit)), float(np.std(y_fit))
+        train_model, model, feature_model = lf.build_learned_feature_models(
+            X_sequence.shape[1], X_sequence.shape[2], X_static.shape[1], y_mean, y_std, args.feature_loss_weight
+        )
+        train_model.summary()
+        train_model.fit(
+            model_inputs(X_seq_train, X_static_train),
+            {"prediction_z": (y_fit - y_mean) / y_std, "window_features": z_w[train_idx], "daily_features": z_d[train_idx]},
+            validation_data=(
+                model_inputs(X_seq_val, X_static_val),
+                {"prediction_z": (y_fit_val - y_mean) / y_std, "window_features": z_w[val_idx], "daily_features": z_d[val_idx]},
+            ),
+            epochs=max(args.epochs, 200),
+            batch_size=args.batch_size,
+            callbacks=[keras.callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=25, restore_best_weights=True)],
+            verbose=2,
+        )
+    else:
+        model = build_model(
+            window_days=X_sequence.shape[1],
+            n_seq_features=X_sequence.shape[2],
+            n_static_features=X_static.shape[1],
+            bio_layer=args.bio_layer,
+        )
+        model.summary()
 
-    model.fit(
-        model_inputs(X_seq_train, X_static_train),
-        y_fit,
-        sample_weight=sample_weight,
-        validation_data=(model_inputs(X_seq_val, X_static_val), y_fit_val),
-        epochs=args.epochs,
-        batch_size=args.batch_size,
-        callbacks=[early_stopping],
-        verbose=2,
-    )
+    if not args.learned_features:
+        early_stopping = keras.callbacks.EarlyStopping(
+            monitor="val_loss", patience=15, restore_best_weights=True
+        )
+
+        model.fit(
+            model_inputs(X_seq_train, X_static_train),
+            y_fit,
+            sample_weight=sample_weight,
+            validation_data=(model_inputs(X_seq_val, X_static_val), y_fit_val),
+            epochs=args.epochs,
+            batch_size=args.batch_size,
+            callbacks=[early_stopping],
+            verbose=2,
+        )
 
     test_metrics = evaluate(
         model, X_seq_test, X_static_test, y_test, pest, is_reproductive_test, args.log_target
@@ -359,6 +399,12 @@ def main() -> None:
             model, X_seq_test, X_static[test_idx], static_scaler, y_test, pest, is_reproductive_test, args.log_target
         )
         test_metrics["observation_dropout"] = args.observation_dropout
+    if args.learned_features:
+        test_metrics["learned_feature_match_r2"] = {
+            "on_test_windows": lf.match_report(feature_model, X_seq_test, X_static_test, ans_w[test_idx], ans_d[test_idx], w_stats, d_stats),
+            "on_validation_windows": lf.match_report(feature_model, X_seq_val, X_static_val, ans_w[val_idx], ans_d[val_idx], w_stats, d_stats),
+        }
+    test_metrics["learned_features"] = bool(args.learned_features)
     test_metrics["feature_set"] = args.features
     test_metrics["log_target"] = args.log_target
     test_metrics["balance_bands"] = args.balance_bands
@@ -372,6 +418,8 @@ def main() -> None:
         weights_path = weights_path.with_name(f"{weights_path.stem}{suffix}{weights_path.suffix}")
     weights_path.parent.mkdir(parents=True, exist_ok=True)
     model.save(weights_path)
+    if args.learned_features:
+        feature_model.save(weights_path.with_name(weights_path.stem + "_features" + weights_path.suffix))
 
     scalers_path = weights_path.parent / f"bilstm_{pest.lower()}{suffix}_scalers.joblib"
     joblib.dump(
@@ -391,6 +439,7 @@ def main() -> None:
             # instead of inferring it from the static column count (lagged and
             # lagged_fresh both have 12 columns but different observations).
             "feature_set": args.features,
+            **({"learned_feature_stats": {"window": w_stats, "daily": d_stats}} if args.learned_features else {}),
         },
         scalers_path,
     )

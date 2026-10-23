@@ -75,11 +75,11 @@ export const WEATHER_FLOW: FlowStep[] = [
   },
   {
     id: 'features',
-    title: 'Model inputs',
-    short: 'Inputs',
-    body: 'The 14 days go into the model as they were measured: maximum and minimum temperature, humidity and rainfall for each day, with the growth stage as six yes/no columns. No index or formula is calculated from them first. The BiLSTM learns for itself which patterns of weather and growth stage matter for each pest, and SHAP then shows which inputs drove a forecast.',
-    code: 'app/models/bilstm_model.py',
-    outputs: ['10 values × 14 days'],
+    title: 'Learned biological features',
+    short: 'Features',
+    body: 'The 14 days go into the network as they were measured: maximum and minimum temperature, humidity and rainfall for each day, with the growth stage as six yes/no columns. No formula is calculated first. Inside the model, learned layers produce the biologically informed features the study is built on (accumulated heat, cumulative rainfall, humidity persistence, water stress, rainfall and temperature trends, daily vapor pressure deficit and temperature range), and the forecast reads them. During training each feature was given an answer to match; when the system predicts, there is no formula anywhere.',
+    code: 'ml/bilstm/learned_features.py',
+    outputs: ['10 raw values × 14 days', '8 learned features'],
   },
   {
     id: 'anchor',
