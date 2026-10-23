@@ -5,17 +5,25 @@ import './FieldAssessmentCard.css';
 // the field-level damage model (server-python/app/routers/inference.py's
 // field_assessment). A 3x3 grid shows which parts of the photo have damage;
 // with the farmer's field size, the affected hectares are worked out here.
+// Small areas keep a decimal: rounding 0.5 m² to 1 m² would double it.
+const formatM2 = (m2) => (m2 < 10 ? Number(m2.toFixed(1)) : Math.round(m2));
+
 function FieldAssessmentCard({ assessment, t, showDisclaimer = true }) {
   const [fieldSize, setFieldSize] = useState('');
+  const [unit, setUnit] = useState('ha');
   if (!assessment || assessment.status !== 'ok') return null;
 
   // The server reads the size from the photo's drone metadata when it can; a typed value overrides it.
   const detectedSize = assessment.field_size_ha;
   const typed = Number(fieldSize);
   const hasTyped = fieldSize.trim() !== '' && Number.isFinite(typed) && typed > 0;
-  const size = hasTyped ? typed : detectedSize;
+  const size = hasTyped ? (unit === 'm2' ? typed / 10000 : typed) : detectedSize; // hectares
   const hasSize = Number.isFinite(size) && size > 0;
-  const hectares = hasSize ? ((assessment.cells_affected_pct / 100) * size).toFixed(2) : null;
+  // The damaged share of the photo applied to the field size. A photo has no scale of its own,
+  // so there is no area without a size (drone photos supply one).
+  const damagedHa = hasSize ? (assessment.pct_affected / 100) * size : null;
+  const areaText =
+    damagedHa == null ? '-' : unit === 'm2' && hasTyped ? `${formatM2(damagedHa * 10000)} m²` : `${Number(damagedHa.toFixed(4))} ha`;
 
   return (
     <section className="scan-result-signal field-assessment-card">
@@ -46,13 +54,7 @@ function FieldAssessmentCard({ assessment, t, showDisclaimer = true }) {
             <small>{t('scanResultFieldSpread')}</small>
           </div>
           <div>
-            <strong>
-              {hectares != null
-                ? `${hectares} ha`
-                : assessment.affected_area_m2 != null
-                  ? `~${Math.round(assessment.affected_area_m2)} m²`
-                  : '-'}
-            </strong>
+            <strong>{areaText}</strong>
             <small>{t('scanResultFieldHectares')}</small>
           </div>
         </div>
@@ -63,21 +65,18 @@ function FieldAssessmentCard({ assessment, t, showDisclaimer = true }) {
           type="number"
           inputMode="decimal"
           min="0"
-          step="0.1"
-          placeholder={detectedSize ? String(detectedSize) : '1.5'}
+          step="any"
+          placeholder={unit === 'ha' ? (detectedSize ? String(detectedSize) : '1.5') : '5000'}
           value={fieldSize}
           onChange={(e) => setFieldSize(e.target.value)}
         />
+        <select aria-label={t('scanResultFieldSize')} value={unit} onChange={(e) => setUnit(e.target.value)}>
+          <option value="ha">{t('scanResultUnitHa')}</option>
+          <option value="m2">m²</option>
+        </select>
       </label>
       {!hasTyped && detectedSize ? <p className="field-assessment-note">{t('scanResultFieldSizeAuto').replace('{ha}', detectedSize)}</p> : null}
-      {!hasSize && assessment.affected_area_m2 != null ? (
-        <p className="field-assessment-note">
-          {t('scanResultFieldAreaFromPhoto')
-            .replace('{visible}', Math.round(assessment.visible_area_m2))
-            .replace('{low}', Math.round(assessment.affected_area_m2_low))
-            .replace('{high}', Math.round(assessment.affected_area_m2_high))}
-        </p>
-      ) : null}
+      {!hasSize ? <p className="field-assessment-note">{t('scanResultFieldNeedSize')}</p> : null}
       {showDisclaimer ? <p className="field-assessment-note">{t('scanResultFieldDisclaimer')}</p> : null}
     </section>
   );

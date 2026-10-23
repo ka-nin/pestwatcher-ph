@@ -12,25 +12,34 @@ function cellColour(value: number, hasDamage: boolean) {
   return `rgba(214, 69, 65, ${strength * 0.55})`
 }
 
-function areaValue(r: FieldAssessment) {
-  if (r.affected_hectares != null) return `${r.affected_hectares} ha`
-  if (r.affected_area_m2 != null) return `~${Math.round(r.affected_area_m2)} m²`
-  return 'n/a'
+type SizeUnit = 'ha' | 'm2'
+const M2_PER_HA = 10_000
+
+// Area is shown in the unit the field size was entered in. The photo alone has no scale
+// (a close-up and a wide shot look alike), so there is no area without a field size.
+function formatArea(ha: number, unit: SizeUnit) {
+  if (unit === 'm2') {
+    const m2 = ha * M2_PER_HA
+    return `${(m2 < 10 ? Number(m2.toFixed(1)) : Math.round(m2)).toLocaleString()} m²`
+  }
+  return `${Number(ha.toFixed(4))} ha`
 }
 
-function areaNote(r: FieldAssessment) {
-  if (r.affected_hectares != null) {
-    return `of ${r.field_size_ha} ha${r.field_size_source === 'photo_metadata' ? ' (from drone data)' : ''}`
+function areaValue(r: FieldAssessment, unit: SizeUnit) {
+  return r.affected_hectares != null ? formatArea(r.affected_hectares, unit) : 'n/a'
+}
+
+function areaNote(r: FieldAssessment, unit: SizeUnit) {
+  if (r.affected_hectares != null && r.field_size_ha != null) {
+    return `of ${formatArea(r.field_size_ha, unit)}${r.field_size_source === 'photo_metadata' ? ' (from drone data)' : ''}`
   }
-  if (r.affected_area_m2 != null) {
-    return `Between ${Math.round(r.affected_area_m2_low ?? 0)} and ${Math.round(r.affected_area_m2_high ?? 0)} m² of the ~${Math.round(r.visible_area_m2 ?? 0)} m² seen in the photo`
-  }
-  return 'Enter the field size'
+  return 'Enter the field size to get the affected area'
 }
 
 function FieldAssessmentPage() {
   const [file, setFile] = useState<File | null>(null)
   const [fieldSize, setFieldSize] = useState('')
+  const [unit, setUnit] = useState<SizeUnit>('ha')
   const [scan, setScan] = useState<PhotoScan | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -38,8 +47,9 @@ function FieldAssessmentPage() {
   const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
 
-  const sizeNumber = fieldSize.trim() === '' ? null : Number(fieldSize)
-  const sizeInvalid = sizeNumber != null && (!Number.isFinite(sizeNumber) || sizeNumber <= 0)
+  const typed = fieldSize.trim() === '' ? null : Number(fieldSize)
+  const sizeInvalid = typed != null && (!Number.isFinite(typed) || typed <= 0)
+  const sizeNumber = typed == null ? null : unit === 'm2' ? typed / M2_PER_HA : typed
 
   async function run() {
     if (!file || sizeInvalid) return
@@ -88,17 +98,23 @@ function FieldAssessmentPage() {
             />
           </div>
           <div className="fa-field">
-            <label htmlFor="fa-size">Field size in hectares (optional)</label>
-            <input
-              id="fa-size"
-              type="number"
-              min="0"
-              step="0.1"
-              placeholder="e.g. 1.5"
-              value={fieldSize}
-              onChange={(e) => setFieldSize(e.target.value)}
-            />
-            <span className="fa-hint">Leave blank to estimate the area from the photo itself.</span>
+            <label htmlFor="fa-size">Field size (optional)</label>
+            <div className="fa-size-row">
+              <input
+                id="fa-size"
+                type="number"
+                min="0"
+                step="any"
+                placeholder={unit === 'ha' ? 'e.g. 1.5' : 'e.g. 5000'}
+                value={fieldSize}
+                onChange={(e) => setFieldSize(e.target.value)}
+              />
+              <select aria-label="Field size unit" value={unit} onChange={(e) => setUnit(e.target.value as SizeUnit)}>
+                <option value="ha">hectares</option>
+                <option value="m2">m²</option>
+              </select>
+            </div>
+            <span className="fa-hint">Needed for the affected area: a photo has no scale of its own, except drone photos that record their height.</span>
             {sizeInvalid && <span className="fa-error">Enter a size above 0.</span>}
           </div>
           <button className="fa-run" disabled={!file || busy || sizeInvalid} onClick={run}>
@@ -168,12 +184,12 @@ function FieldAssessmentPage() {
             <div className="fa-metric">
               <div className="fa-metric-label">Spread</div>
               <div className="fa-metric-value">{result!.cells_affected_pct?.toFixed(0)}%</div>
-              <div className="fa-metric-note">of the field area shows damage</div>
+              <div className="fa-metric-note">of the photo's grid cells show damage</div>
             </div>
             <div className="fa-metric">
               <div className="fa-metric-label">Affected area</div>
-              <div className="fa-metric-value">{areaValue(result!)}</div>
-              <div className="fa-metric-note">{areaNote(result!)}</div>
+              <div className="fa-metric-value">{areaValue(result!, unit)}</div>
+              <div className="fa-metric-note">{areaNote(result!, unit)}</div>
             </div>
             <div className="fa-metric">
               <div className="fa-metric-label">Where present</div>

@@ -40,6 +40,7 @@ from PIL import Image
 from tensorflow import keras
 
 from app.preprocessing.tiling import (
+    TILE_HIT_THRESHOLD,
     group_hits,
     make_tiles,
     needs_grid,
@@ -48,6 +49,10 @@ from app.preprocessing.tiling import (
 from ml.config import PEST_PARAMS, WEIGHTS_DIR
 
 IMAGE_SIZE = (224, 224)
+RETRY_SCALE = 2.0  # enlargement for the second BPH grid pass (see _score_pest)
+# Strong tiles needed before that second pass: one lone tile is the false hit the grouping
+# rule exists to discard (a stem-borer larva fired exactly one), a crowd of planthoppers fires several.
+RETRY_MIN_STRONG_TILES = 2
 POSITIVE_THRESHOLD = 0.5  # matches the 0.5 cutoff used at training-time evaluation (ml/resnet/train.py)
 
 # Separate bug-vs-no-bug detector consulted only when neither tracked pest
@@ -158,12 +163,26 @@ class ResNet50PestClassifier:
             return confidence, confidence >= POSITIVE_THRESHOLD, None, None
 
         work = prepare_for_grid(img)
+        tiles, scores, groups = self._grid_pass(pest, work)
+        # Insects that are small in the frame (a mid-distance shot of stems covered in
+        # nymphs) fill too few tiles to form a group. If several tiles already fired strongly,
+        # look again with the photo enlarged so each insect is bigger. Gated on that
+        # evidence so photos with no insect signal are not scored twice.
+        if not groups and sum(score >= TILE_HIT_THRESHOLD for score in scores) >= RETRY_MIN_STRONG_TILES:
+            enlarged = work.resize(
+                (round(work.width * RETRY_SCALE), round(work.height * RETRY_SCALE)), Image.LANCZOS
+            )
+            retry_tiles, retry_scores, retry_groups = self._grid_pass(pest, enlarged)
+            if retry_groups:
+                return max(retry_scores), True, len(retry_tiles), len(retry_groups)
+        return max(scores), bool(groups), len(tiles), len(groups)
+
+    def _grid_pass(self, pest: str, work: Image.Image):
         tiles = make_tiles(*work.size)
         scores = self._positive_scores(
             pest, [work.crop((t.x, t.y, t.x + t.side, t.y + t.side)) for t in tiles]
         )
-        groups = group_hits(tiles, scores)
-        return max(scores), bool(groups), len(tiles), len(groups)
+        return tiles, scores, group_hits(tiles, scores)
 
     def predict(self, image_path: Path) -> Optional[ResnetPrediction]:
         """Returns None only if NEITHER tracked-pest model is loaded yet

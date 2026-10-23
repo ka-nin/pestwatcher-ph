@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import replace
 from typing import Literal
 from datetime import date, timedelta
 from pathlib import Path
@@ -12,8 +13,10 @@ from app.data.municipalities import municipality_coordinates
 from app.decision.etl_thresholds import derive_risk_level
 from app.decision.outlook import growth_outlook, project_affected_area, spread_summary
 from app.decision.report_anchor import find_lagged_observation
+from app.preprocessing.tiling import TILE_HIT_THRESHOLD
 from app.preprocessing.photo_footprint import ground_area_by_cell, estimate_field_size_ha
-from app.models.resnet_model import resnet_classifier, resnet_regressors
+from app.models.planthopper_detector import planthopper_detector
+from app.models.resnet_model import _risk_level_for_confidence, resnet_classifier, resnet_regressors
 from app.routers.weather import fetch_recent_daily_weather
 from app.schemas.inference import (
     ExplanationResponse,
@@ -90,7 +93,7 @@ def _field_result(
         severity_where_present_pct=round(sum(affected) / len(affected), 2) if affected else 0.0,
         field_size_ha=field_size_ha,
         field_size_source=field_size_source if field_size_ha else None,
-        affected_hectares=round(sum(flat) / len(flat) / 100 * field_size_ha, 2) if field_size_ha else None,
+        affected_hectares=round(sum(flat) / len(flat) / 100 * field_size_ha, 4) if field_size_ha else None,
         message=(
             "Field assessment complete. Estimated from synthetic-trained models; "
             "a technologist must confirm it before it counts as an observation."
@@ -237,9 +240,24 @@ async def infer_image(
             status="model_not_loaded",
             message="ResNet-50 model not loaded yet — image saved for later training/inference",
         )
+    # The box detector finds each planthopper itself, so a photo the classifier
+    # missed (many small insects, a leaf close-up) can still be recognised as BPH.
+    detections = planthopper_detector.detect(destination)
+    if result.label is None and (
+        planthopper_detector.confident(detections)
+        or planthopper_detector.second_opinion(
+            detections, result.pest_scores.get("BPH", 0.0), tiled=result.grid_tiles is not None
+        )
+    ):
+        top = max(d.score for d in detections)
+        result = replace(
+            result, label="BPH", confidence=top, risk_level=_risk_level_for_confidence(top),
+            pests_detected=["BPH"], unidentified=False,
+        )
     if result.label is None:
         return _no_tracked_pest_response(result, destination, municipality, growth_stage, field_size_ha)
-    return _pest_found_response(result, destination, municipality, growth_stage, field_size_ha)
+    return _pest_found_response(result, destination, municipality, growth_stage, field_size_ha, detections)
+
 
 
 def _require_valid_image(path: Path) -> None:
@@ -271,24 +289,30 @@ def _grid_fields(result) -> dict:
     )
 
 
+def _detection_fields(photo: Path, detections: list | None) -> dict:
+    if not detections:
+        return {}
+    from PIL import Image
+
+    with Image.open(photo) as img:
+        width, height = img.size
+    return dict(detections=[d.__dict__ for d in detections], image_width=width, image_height=height)
+
+
 def _no_tracked_pest_response(
     result, photo: Path, municipality: str | None, growth_stage: GrowthStage | None, field_size_ha: float | None = None
 ) -> ImageInferenceResponse:
-    """The classifiers found neither BPH nor RSB. In order: another insect was
-    seen (unidentified); the photo shows RSB damage without the insect; nothing."""
-    if result.unidentified:
-        return ImageInferenceResponse(
-            status="unidentified_pest_detected",
-            message=(
-                "An insect appears to be present, but it did not match our trained BPH/RSB models. "
-                "It may be a different pest — please consult your local agricultural technologist."
-            ),
-            **_grid_fields(result),
-        )
-
+    """The classifiers found neither BPH nor RSB. In order: the photo shows RSB damage
+    (checked first: on 100 real stem-borer photos the unknown-insect detector fired on 64%
+    of whitehead photos and 24% of healthy ones, so it cannot outrank the damage check);
+    another insect was seen (unidentified); nothing."""
     # The classifiers look for the insect, so a photo of whiteheads with no insect
     # in frame scores near zero: check the photo for damage before answering "none".
-    assessment = _assess_photo("RSB", photo, field_size_ha)
+    # But not when the BPH classifier already saw something insect-like: a tile that fired
+    # strongly means planthoppers are the likelier reading, and the damage model (trained
+    # on synthetic whiteheads) must not relabel such a photo as stem borer.
+    bph_signal = result.pest_scores.get("BPH", 0.0) >= TILE_HIT_THRESHOLD
+    assessment = None if bph_signal else _assess_photo("RSB", photo, field_size_ha)
     if assessment is not None and _damage_found(assessment):
         # The photo's severity stands in for the RSB observation (% damage, the
         # forecast's own unit), so the trajectory reacts to this photo like a BPH count does.
@@ -311,15 +335,35 @@ def _no_tracked_pest_response(
             forecast_reflects_this_photo=forecast is not None and photo_features is not None,
         )
 
+    if result.unidentified:
+        return ImageInferenceResponse(
+            status="unidentified_pest_detected",
+            message=(
+                "An insect appears to be present, but it did not match our trained BPH/RSB models. "
+                "It may be a different pest — please consult your local agricultural technologist."
+            ),
+            **_grid_fields(result),
+        )
+
     return ImageInferenceResponse(
         status="no_pest_detected",
-        message="No tracked pest (BPH/RSB) was detected in this photo with sufficient confidence.",
+        message=(
+            "Possible planthoppers were seen but not clearly enough to confirm. Try a closer, sharper photo."
+            if bph_signal
+            else "No tracked pest (BPH/RSB) was detected in this photo with sufficient confidence."
+        ),
         **_grid_fields(result),
     )
 
 
-def _quantity_estimates(pest: str, photo: Path) -> dict[str, float | None]:
-    """The pest's own photo estimate: count + coverage for BPH, damage % for RSB."""
+def _quantity_estimates(pest: str, photo: Path, detections: list | None = None) -> dict[str, float | None]:
+    """The pest's own photo estimate: count + coverage for BPH, damage % for RSB.
+    When the box detector ran and found insects, the count is the number of boxes."""
+    if pest == "BPH" and detections:
+        return {
+            "estimated_count": float(len(detections)),
+            "estimated_coverage_pct": resnet_regressors.predict("BPH", "coverage_pct", photo),
+        }
     if pest == "BPH":
         return {
             "estimated_count": resnet_regressors.predict("BPH", "count", photo),
@@ -338,13 +382,14 @@ def _photo_lagged_features(pest: str, estimates: dict[str, float | None]) -> tup
 
 
 def _pest_found_response(
-    result, photo: Path, municipality: str | None, growth_stage: GrowthStage | None, field_size_ha: float | None = None
+    result, photo: Path, municipality: str | None, growth_stage: GrowthStage | None,
+    field_size_ha: float | None = None, detections: list | None = None
 ) -> ImageInferenceResponse:
     pest = result.label
     # The estimate is computed BEFORE the forecast so this photo's own number can feed
     # the trajectory below. The photo also gets the field-level severity and spread.
     field_assessment = _assess_photo(pest, photo, field_size_ha) if pest in DAMAGE_RULES else None
-    estimates = _quantity_estimates(pest, photo)
+    estimates = _quantity_estimates(pest, photo, detections)
     photo_features = _photo_lagged_features(pest, estimates)
 
     forecast: TrajectoryResponse | None = None
@@ -362,6 +407,7 @@ def _pest_found_response(
         message="Prediction successful",
         forecast=forecast,
         forecast_reflects_this_photo=photo_features is not None,
+        **_detection_fields(photo, detections if pest == "BPH" else None),
         pests_detected=result.pests_detected,
         field_assessment=field_assessment,
         **_grid_fields(result),

@@ -81,7 +81,7 @@ def test_entered_field_size_overrides_and_scales_hectares(client, stub):
     stub(None, DAMAGED)
     fa = _scan(client, field_size_ha="2").json()["field_assessment"]
     assert fa["field_size_source"] == "entered"
-    assert fa["affected_hectares"] == round(fa["pct_affected"] / 100 * 2, 2)
+    assert fa["affected_hectares"] == round(fa["pct_affected"] / 100 * 2, 4)
 
 
 def test_fake_image_is_rejected_with_422(client):
@@ -132,3 +132,39 @@ def test_report_photo_with_only_damage_is_attributed_to_rsb(client, stub, monkey
     assert record.ai_pest_detected == "RSB"
     assert record.ai_suggested_damage_pct and record.ai_suggested_damage_pct > 0
     assert record.estimated_value is None
+
+
+def test_damage_outranks_the_unknown_insect_detector(client, monkeypatch, stub):
+    """The unknown-insect detector fires on plant photos, so damage is checked first."""
+    stub(None, DAMAGED)
+    unidentified = _classifier(None)
+    unidentified.unidentified = True
+    monkeypatch.setattr(inf.resnet_classifier, "predict", lambda path: unidentified)
+    assert _scan(client).json()["status"] == "damage_detected"
+    monkeypatch.setattr(inf.resnet_regressors, "predict_grid", lambda *a, **k: [[0.0] * 3] * 3)
+    assert _scan(client).json()["status"] == "unidentified_pest_detected"
+
+
+def test_detector_second_opinion_only_for_small_photos():
+    from app.models.planthopper_detector import Detection, PlanthopperDetector
+
+    box = lambda score: [Detection(0, 0, 10, 10, score)]
+    second = PlanthopperDetector.second_opinion
+    assert second(box(0.65), 0.2, tiled=False)  # near-miss classifier + clear box
+    assert not second(box(0.65), 0.05, tiled=False)  # classifier far from a hit
+    assert not second(box(0.5), 0.2, tiled=False)  # box not clear enough
+    assert not second(box(0.95), 0.9, tiled=True)  # tiled photo: classifier score means something else
+    assert not second(None, 0.9, tiled=False) and not second([], 0.9, tiled=False)
+
+
+def test_small_photo_near_miss_becomes_bph_with_a_clear_box(client, monkeypatch, stub):
+    from app.models.planthopper_detector import Detection
+
+    stub(None, None)
+    near_miss = _classifier(None)
+    near_miss.pest_scores = {"BPH": 0.3, "RSB": 0.0}
+    monkeypatch.setattr(inf.resnet_classifier, "predict", lambda path: near_miss)
+    monkeypatch.setattr(inf.planthopper_detector, "detect", lambda path: [Detection(1, 1, 9, 9, 0.7)])
+    body = _scan(client).json()
+    assert body["status"] == "ok" and body["pest_detected"] == "BPH"
+    assert body["estimated_count"] == 1.0  # one box
