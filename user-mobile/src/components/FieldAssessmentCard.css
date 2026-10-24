@@ -1,86 +1,319 @@
 .field-assessment-card {
   text-align: left;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
-.field-assessment-body {
+/* Damage map */
+
+.field-assessment-section {
   display: flex;
-  gap: 20px;
-  align-items: center;
-  margin: 12px 0 14px;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-assessment-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.field-assessment-section-title {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.field-assessment-section-source {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.field-assessment-map-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* The grid sits directly on top of the actual photo (same pattern as
+   DetectionOverlay's SVG-over-img) so each cell's percentage is readable
+   against the real part of the field it was measured from, instead of
+   floating on its own with no way to tell which area it refers to. */
+.field-assessment-photo-wrap {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.field-assessment-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.field-assessment-photo-wrap .field-assessment-grid {
+  position: absolute;
+  inset: 0;
+  margin-bottom: 0;
+}
+
+/* No photo available (e.g. an older saved result without one): the grid
+   falls back to being its own block, same as before. */
+.field-assessment-photo-wrap.no-photo {
+  margin-bottom: 0;
+}
+
+.field-assessment-photo-wrap.no-photo .field-assessment-grid {
+  position: static;
+  margin-bottom: 12px;
 }
 
 .field-assessment-grid {
   display: grid;
-  gap: 4px;
-  width: 168px;
-  flex: none;
+  gap: 3px;
 }
 
 .field-assessment-cell {
   aspect-ratio: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 6px;
   border-radius: 6px;
-  background: rgba(47, 107, 50, 0.1);
-  font-size: 11px;
-  color: #4a4a4a;
-}
-
-.field-assessment-cell.is-damaged {
-  background: #d64541;
+  background: var(--color-bg);
+  font-size: var(--text-xs);
+  font-weight: 700;
   color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
-.field-assessment-metrics {
+.field-assessment-heat-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+}
+
+.field-assessment-heat-bar {
+  flex: 1 1 auto;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(to right, var(--color-bg), #b43c1e);
+}
+
+/* Severity / Spread */
+
+.field-assessment-metric-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.field-assessment-metric-card {
   display: flex;
   flex-direction: column;
+  gap: 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.field-assessment-metric-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.field-assessment-metric-value {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--color-text);
+}
+
+.field-assessment-metric-hint {
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+}
+
+/* Affected area */
+
+.field-assessment-area-card {
+  display: flex;
+  align-items: center;
   gap: 12px;
-  flex: 1;
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px;
 }
 
-.field-assessment-metrics strong {
-  display: block;
-  font-size: 22px;
-  line-height: 1.1;
+.field-assessment-area-icon {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.field-assessment-metrics small {
-  font-size: 12px;
-  opacity: 0.7;
+.field-assessment-area-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.field-assessment-size {
+.field-assessment-area-title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.field-assessment-area-value {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.field-assessment-area-prompt {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* 14-day outlook */
+
+.field-assessment-outlook {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.field-assessment-outlook-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.field-assessment-outlook-title {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.field-assessment-outlook-range {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.field-assessment-outlook-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  margin: 0;
+}
+
+.field-assessment-risk-pill {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.field-assessment-risk-pill.risk-low {
+  background: var(--risk-low-bg);
+  color: var(--risk-low-fg);
+}
+
+.field-assessment-risk-pill.risk-medium {
+  background: var(--risk-medium-bg);
+  color: var(--risk-medium-fg);
+}
+
+.field-assessment-risk-pill.risk-high {
+  background: var(--risk-high-bg);
+  color: var(--risk-high-fg);
+}
+
+.field-assessment-day-strip {
+  display: flex;
+  gap: 4px;
+}
+
+.field-assessment-day-btn {
+  flex: 1 1 auto;
+  height: 28px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.field-assessment-day-btn.risk-low {
+  background: var(--color-accent-yellow);
+  opacity: 0.55;
+}
+
+.field-assessment-day-btn.risk-medium {
+  background: var(--color-accent-yellow);
+  opacity: 0.85;
+}
+
+.field-assessment-day-btn.risk-high {
+  background: var(--color-accent-red);
+  opacity: 0.85;
+}
+
+.field-assessment-day-btn.is-selected {
+  border-color: var(--color-text);
+  opacity: 1;
+}
+
+.field-assessment-day-range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.field-assessment-outlook-count {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-  font-size: 13px;
-  margin-bottom: 8px;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.field-assessment-outlook-count strong {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-text);
 }
 
 .field-assessment-note {
-  margin: 6px 0 0;
-  font-size: 12px;
-  line-height: 1.45;
-  opacity: 0.7;
-}
-
-.field-assessment-size select {
-  padding: 6px 4px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 8px;
-  font: inherit;
-  background: #fff;
-}
-
-.field-assessment-size input {
-  width: 76px;
-  padding: 6px 8px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 6px;
-  font: inherit;
+  margin: 0;
+  font-size: var(--text-2xs);
+  line-height: 1.5;
+  color: var(--color-text-muted);
 }

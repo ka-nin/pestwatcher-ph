@@ -1,0 +1,33 @@
+{
+  "pest": "BPH",
+  "backbone": "resnet50",
+  "input_size": 160,
+  "train_seconds": 2882.2,
+  "parameters": 23718913,
+  "test_set_is_synthetic": true,
+  "cell": {
+    "rmse": 3.5069410707544497,
+    "mae": 1.6860318811054689,
+    "r2": 0.9653041623707909,
+    "n": 1494
+  },
+  "image_severity": {
+    "rmse": 2.0982767091915737,
+    "mae": 1.3398509363971123,
+    "r2": 0.9594587867036516,
+    "n": 166
+  },
+  "image_severity_baseline_mae_predict_mean": 8.20463339300979,
+  "image_spread_pct_of_cells": {
+    "rmse": 12.907063767811458,
+    "mae": 8.165997322623827,
+    "r2": 0.8162128498771754,
+    "n": 166
+  },
+  "cell_has_damage": {
+    "threshold": 1.0,
+    "label_min_pct": 0.2,
+    "precision": 0.9694072657743786,
+    "recall": 0.8190630048465266
+  }
+}

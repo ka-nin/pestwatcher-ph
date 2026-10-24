@@ -51,6 +51,15 @@ ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 # (see ml/weights/rsb/field_damage_rsb_*_synthetic_test_metrics.json).
 DAMAGE_RULES = {  # pest -> (min share of cells damaged, min severity in %)
     "RSB": (33.0, 0.8),
+    # UNTUNED PLACEHOLDER (2026-10-24): resnet50_bph_field_damage_pct.keras was
+    # just trained (ml/weights/bph/field_damage_bph_resnet50_synthetic_test_metrics.json)
+    # and has no held-out real-photo evaluation yet, unlike RSB's pair above —
+    # see ml/resnet/evaluate_real_photos.py for that process. Deliberately set
+    # higher than RSB's bar (its own cell_has_damage.threshold of 1.0 is ~20x
+    # RSB's 0.05, and the baseline-mean severity MAE was 8.2%) so this
+    # under-flags rather than risks false-flagging healthy BPH fields as
+    # hopperburn-damaged. Re-tune once real photos are evaluated.
+    "BPH": (40.0, 5.0),
 }
 
 

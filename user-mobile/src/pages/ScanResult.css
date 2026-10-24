@@ -284,79 +284,146 @@
   flex-direction: column;
   height: 100%;
   background: var(--color-bg);
+}
+
+.scan-result-unavailable-header {
+  flex-shrink: 0;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 56px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.scan-result-unavailable-header h1 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.scan-result-unavailable-timestamp {
+  position: absolute;
+  right: 56px;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
 }
 
 .scan-result-unavailable-close {
   position: absolute;
-  top: 16px;
+  top: 50%;
   right: 16px;
+  transform: translateY(-50%);
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
   border: none;
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--color-bg);
   color: var(--color-text);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.scan-result-unavailable-body {
+.scan-result-unavailable-scroll {
   flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px 24px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 40px 32px;
-  gap: 14px;
+  gap: 18px;
 }
 
-.scan-result-unavailable-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
+.scan-result-status-banner {
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scan-result-status-banner.tone-ok {
+  background: var(--risk-low-bg);
+}
+
+.scan-result-status-banner.tone-warn {
+  background: var(--risk-medium-bg);
+}
+
+.scan-result-status-banner.tone-neutral {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.scan-result-status-badge {
+  align-self: flex-start;
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin-bottom: 4px;
-}
-
-.scan-result-unavailable-icon:empty {
-  display: none;
-}
-
-.scan-result-unavailable-icon.tone-ok {
-  background: var(--color-primary-light);
-  color: var(--color-primary-dark);
-}
-
-.scan-result-unavailable-icon.tone-warn {
-  background: color-mix(in srgb, var(--color-accent-orange) 18%, transparent);
-  color: var(--color-accent-orange);
-}
-
-.scan-result-unavailable-body h1 {
-  margin: 0;
-  font-size: var(--text-lg);
+  gap: 5px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.6);
   color: var(--color-text);
 }
 
-.scan-result-unavailable-body p {
+.scan-result-status-banner h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.scan-result-status-banner p {
   margin: 0;
   font-size: var(--text-sm);
-  line-height: 1.6;
+  line-height: 1.55;
+  color: var(--color-text);
+}
+
+.scan-result-status-banner strong {
+  font-weight: 700;
+}
+
+.scan-result-status-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
+.scan-result-unavailable-actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
+
 .scan-result-rescan-btn {
-  margin-top: 10px;
   padding: 13px 28px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: none;
-  background: var(--color-primary);
-  color: #fff;
   font-weight: 700;
   font-size: var(--text-base);
+}
+
+.scan-result-rescan-btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.scan-result-rescan-btn-secondary {
+  background: transparent;
+  color: var(--color-primary-dark);
+  border: 1px solid var(--color-primary);
 }
