@@ -1,0 +1,143 @@
+{
+  "rmse": 7.1748774607757895,
+  "mae": 3.9246909618377686,
+  "r2": 0.25757265090942383,
+  "etl_classification": {
+    "accuracy": 0.7871008140262993,
+    "precision_macro": 0.46939842295452355,
+    "recall_macro": 0.42137085137085134,
+    "f1_macro": 0.4316338854382333,
+    "confusion_matrix": [
+      [
+        1204,
+        68,
+        18
+      ],
+      [
+        118,
+        38,
+        19
+      ],
+      [
+        76,
+        41,
+        15
+      ]
+    ],
+    "confusion_matrix_labels": [
+      "Low",
+      "Medium",
+      "High"
+    ],
+    "support_per_level": {
+      "Low": 1290,
+      "Medium": 175,
+      "High": 132
+    }
+  },
+  "observation_conditions": {
+    "with_report": {
+      "rmse": 7.1748774607757895,
+      "mae": 3.9246909618377686,
+      "r2": 0.25757265090942383,
+      "etl_classification": {
+        "accuracy": 0.7871008140262993,
+        "precision_macro": 0.46939842295452355,
+        "recall_macro": 0.42137085137085134,
+        "f1_macro": 0.4316338854382333,
+        "confusion_matrix": [
+          [
+            1204,
+            68,
+            18
+          ],
+          [
+            118,
+            38,
+            19
+          ],
+          [
+            76,
+            41,
+            15
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "Low",
+          "Medium",
+          "High"
+        ],
+        "support_per_level": {
+          "Low": 1290,
+          "Medium": 175,
+          "High": 132
+        }
+      }
+    },
+    "no_report": {
+      "rmse": 7.1794484029148915,
+      "mae": 3.9529330730438232,
+      "r2": 0.2566264271736145,
+      "etl_classification": {
+        "accuracy": 0.7871008140262993,
+        "precision_macro": 0.47146387322052113,
+        "recall_macro": 0.42137085137085134,
+        "f1_macro": 0.43195394569515105,
+        "confusion_matrix": [
+          [
+            1204,
+            69,
+            17
+          ],
+          [
+            118,
+            38,
+            19
+          ],
+          [
+            78,
+            39,
+            15
+          ]
+        ],
+        "confusion_matrix_labels": [
+          "Low",
+          "Medium",
+          "High"
+        ],
+        "support_per_level": {
+          "Low": 1290,
+          "Medium": 175,
+          "High": 132
+        }
+      }
+    }
+  },
+  "observation_dropout": 0.0,
+  "learned_feature_match_r2": {
+    "on_test_windows": {
+      "Growing degree days": 0.9479646682739258,
+      "Cumulative rainfall": 0.938403308391571,
+      "Humidity persistence": 0.8666092157363892,
+      "Water stress index": 0.9545861482620239,
+      "Rainfall trend": 0.8603866100311279,
+      "Temperature trend": 0.9102543592453003,
+      "Vapor pressure deficit (daily)": 0.9946951270103455,
+      "Diurnal temperature range (daily)": 0.9960204362869263
+    },
+    "on_validation_windows": {
+      "Growing degree days": 0.9399343729019165,
+      "Cumulative rainfall": 0.9644250869750977,
+      "Humidity persistence": 0.9009639620780945,
+      "Water stress index": 0.9444966316223145,
+      "Rainfall trend": 0.9094667434692383,
+      "Temperature trend": 0.9121861457824707,
+      "Vapor pressure deficit (daily)": 0.994672954082489,
+      "Diurnal temperature range (daily)": 0.9968019723892212
+    }
+  },
+  "learned_features": true,
+  "feature_set": "plain_fresh",
+  "log_target": false,
+  "balance_bands": false
+}
