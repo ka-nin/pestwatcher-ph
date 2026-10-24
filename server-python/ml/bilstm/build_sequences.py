@@ -52,8 +52,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from app.preprocessing import features_vectorized as vf
-from app.preprocessing.features import (
+from ml.ablation import hand_features_vectorized as vf
+from ml.ablation.hand_features import (
     calculate_crf,
     calculate_diurnal_range,
     calculate_gdd,
@@ -217,7 +217,7 @@ def build_daily_sequence_row(day: pd.Series, feature_set: str = "engineered") ->
         return raw
 
     stage_one_hot = [1.0 if day["Rice_Growth_Stage"] == stage else 0.0 for stage in GROWTH_STAGES]
-    if feature_set == "seq_only":
+    if feature_set in ("seq_only", "plain_fresh"):
         return [*raw, *stage_one_hot]
 
     t_max, t_min, rh = [day["Tmax"]], [day["Tmin"]], [day["Relative_Humidity"]]
@@ -372,7 +372,7 @@ def build_sequences_for_pest(
                 if feature_set in ("engineered", "lagged", "lagged_fresh")
                 else []
             )
-            if feature_set == "lagged_fresh":
+            if feature_set in ("lagged_fresh", "plain_fresh"):
                 static_row = static_row + build_fresh_lagged_features(
                     group, rng, start + window_days - 1, pest, is_reproductive
                 )
@@ -406,7 +406,7 @@ def build_sequences_for_pest_vectorized(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, pd.DataFrame]:
     """Same output as build_sequences_for_pest, computed per municipality in
     one vectorized pass instead of a Python loop over every window and day
-    (app/preprocessing/features_vectorized.py). Each daily term is computed
+    (ml/ablation/hand_features_vectorized.py). Each daily term is computed
     once and window aggregates come from sliding-window views, so the 13 of
     14 days consecutive windows share are no longer recomputed.
 
@@ -433,7 +433,7 @@ def build_sequences_for_pest_vectorized(
         stage_one_hot = np.stack([(stage == s).astype(np.float64) for s in GROWTH_STAGES], axis=1)
 
         columns = [tmax, tmin, rh, rain]
-        if feature_set == "seq_only":
+        if feature_set in ("seq_only", "plain_fresh"):
             daily = np.column_stack(columns + [stage_one_hot])
         elif feature_set == "raw":
             daily = np.column_stack(columns)
@@ -465,7 +465,7 @@ def build_sequences_for_pest_vectorized(
             obs = np.array(
                 [
                     build_fresh_lagged_features(group, rng, int(end), pest, float(rep))
-                    if feature_set == "lagged_fresh"
+                    if feature_set in ("lagged_fresh", "plain_fresh")
                     else build_lagged_features(group, observed, int(end), pest, float(rep))
                     for end, rep in zip(ends, is_reproductive)
                 ]
@@ -524,6 +524,7 @@ FEATURE_SET_SUFFIX = {
     "lagged": "_lagged",
     "lagged_fresh": "_lagged_fresh",
     "seq_only": "_seqonly",
+    "plain_fresh": "_plain_fresh",
 }
 
 
@@ -542,17 +543,19 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--features",
-        choices=["engineered", "raw", "lagged", "lagged_fresh", "seq_only"],
+        choices=["engineered", "raw", "lagged", "lagged_fresh", "seq_only", "plain_fresh"],
         default="engineered",
         help="engineered = the deployed feature set; raw = the paper's RQ2 control "
         "(Tmax/Tmin/RH/rainfall only); lagged = engineered plus the simulated "
         "last-verified-observation features; seq_only = raw climate + growth "
         "stage in the sequence, no hand-computed aggregates — tests whether "
-        "the LSTM can learn GDD/CRF/HP/WSI/trends itself",
+        "the LSTM can learn GDD/CRF/HP/WSI/trends itself; plain_fresh = seq_only "
+        "plus the verified-observation values (no formulas anywhere): the framework "
+        "as the panel asked for it",
     )
     args = parser.parse_args()
     feature_set = args.features
-    lagged = args.features in ("lagged", "lagged_fresh")
+    lagged = args.features in ("lagged", "lagged_fresh", "plain_fresh")
 
     df = load_clean_daily()
     SEQUENCES_DIR.mkdir(parents=True, exist_ok=True)
@@ -567,6 +570,7 @@ def main() -> None:
         "lagged": SEQUENCE_FEATURE_COLUMNS,
         "lagged_fresh": SEQUENCE_FEATURE_COLUMNS,
         "seq_only": SEQ_ONLY_FEATURE_COLUMNS,
+        "plain_fresh": SEQ_ONLY_FEATURE_COLUMNS,
     }
 
     summary = {}

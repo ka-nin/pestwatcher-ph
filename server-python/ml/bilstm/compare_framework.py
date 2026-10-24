@@ -94,11 +94,28 @@ def main() -> None:
         "(same as train.py --balance-bands), so the comparison uses the deployed training recipe.",
     )
     parser.add_argument("--tag", default="", help="Suffix for the output file, e.g. 10fold_bw05.")
+    parser.add_argument(
+        "--proposed",
+        choices=["lagged_fresh", "plain_fresh", "learned_fresh"],
+        default="lagged_fresh",
+        help="Which configuration is the proposed framework. plain_fresh = raw weather + growth stage "
+        "+ the verified observation, no hand-computed formulas; it is compared with raw (the baseline) "
+        "and with lagged_fresh (the same plus the formulas) to show what the formulas add.",
+    )
     args = parser.parse_args()
+    global CONFIGS, PAIRS
+    if args.proposed == "plain_fresh":
+        CONFIGS = ["raw", "lagged_fresh", "plain_fresh"]
+        PAIRS = [("plain_fresh", "raw"), ("plain_fresh", "lagged_fresh")]
+    if args.proposed == "learned_fresh":
+        # The framework as built: raw inputs, with the biologically informed features learned by the
+        # network (formulas only as training answers). Compared with raw and with the plain BiLSTM.
+        CONFIGS = ["raw", "plain_fresh", "learned_fresh"]
+        PAIRS = [("learned_fresh", "raw"), ("learned_fresh", "plain_fresh")]
     pest = args.pest
 
-    data = {config: load_dataset(pest, config) for config in CONFIGS}
-    _, _, y, meta, _, _ = data["engineered"]
+    data = {config: load_dataset(pest, "plain_fresh" if config == "learned_fresh" else config) for config in CONFIGS}
+    _, _, y, meta, _, _ = data[CONFIGS[-1]]
     for config in CONFIGS:
         if len(data[config][2]) != len(y) or not np.allclose(data[config][2], y):
             raise SystemExit(f"{config} sequences disagree with engineered on targets; rebuild them.")
@@ -116,6 +133,7 @@ def main() -> None:
             scores = run_one(
                 pest, X_seq, X_static, y, is_reproductive, train_idx, test_idx, args.epochs, args.batch_size,
                 args.band_weight_power,
+                learned_features=0.6 if config == "learned_fresh" else None,
             )
             per_fold[config].append(scores)
             print(f"  {config:<11}" + "  ".join(f"{m}={scores[m]:.4f}" for m in METRICS), flush=True)

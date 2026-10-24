@@ -333,6 +333,8 @@
   padding: 18px 20px 24px;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
   gap: 18px;
 }
 
@@ -341,7 +343,10 @@
   padding: 16px;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 8px;
+  text-align: left;
+  width: 100%;
 }
 
 .scan-result-status-banner.tone-ok {
@@ -426,4 +431,86 @@
   background: transparent;
   color: var(--color-primary-dark);
   border: 1px solid var(--color-primary);
+}
+
+/* The damage screen carries a card, a forecast and two buttons: keep them one width and one scale. */
+.scan-result-unavailable-scroll > section,
+.scan-result-unavailable-scroll > .scan-result-next,
+.scan-result-unavailable-scroll > .scan-result-todo,
+.scan-result-unavailable-scroll > .scan-result-details {
+  width: 100%;
+  max-width: 380px;
+}
+
+.scan-result-unavailable-scroll > section h2 {
+  margin: 6px 0 10px;
+  font-size: var(--text-base);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.scan-result-unavailable-scroll .forecast-day-date {
+  font-size: var(--text-sm);
+}
+
+.scan-result-unavailable-scroll .forecast-legend {
+  justify-content: center;
+}
+
+/* Farmer view of the damage result: one risk line, three things to do, the numbers tucked away
+   (under "Show details" below) until they're wanted. */
+.scan-result-next {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.scan-result-todo {
+  text-align: left;
+  background: var(--color-primary-light);
+  border-radius: 14px;
+  padding: 12px 16px;
+}
+
+.scan-result-todo h2 {
+  margin: 0 0 6px;
+  font-size: var(--text-base);
+  color: var(--color-text);
+}
+
+.scan-result-todo ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--color-text);
+}
+
+.scan-result-details {
+  margin-top: 6px;
+  text-align: left;
+}
+
+.scan-result-details summary {
+  cursor: pointer;
+  text-align: center;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-primary);
+  padding: 8px 0;
+}
+
+.scan-result-details[open] summary {
+  margin-bottom: 8px;
+}
+
+.scan-result-details section h2 {
+  margin: 14px 0 10px;
+  font-size: var(--text-base);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--color-text);
 }

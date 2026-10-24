@@ -121,7 +121,7 @@ def compute_top_attributions(
     for day_index in range(window_days):
         day_offset = day_index - (window_days - 1)  # 0 = most recent day, negative = days before
         day_label = "Today" if day_offset == 0 else f"Day {day_offset}"
-        for feature_index, column in enumerate(SEQUENCE_FEATURE_COLUMNS):
+        for feature_index, column in enumerate(bilstm_forecaster.scalers_for(pest)["sequence_feature_columns"]):
             value = float(shap_seq[day_index, feature_index])
             attributions.append({"label": f"{day_label} {_display_name(column)}", "value": value})
 

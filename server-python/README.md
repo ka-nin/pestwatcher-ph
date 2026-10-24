@@ -111,8 +111,7 @@ server-python/
 │   │   ├── gap_implication.py     # turns a gap analysis into a one-sentence plain-language summary
 │   │   └── pest_matching.py       # free-text pest_type -> BPH/RSB code
 │   └── preprocessing/
-│       └── features.py             # GDD/CRF/HP/VPD/WSI/trend — canonical formulas, shared
-│                                    #   between training (ml/) and inference (app/)
+│       └── tiling.py               # BPH photo tiling for the classifier
 │
 ├── ml/                          # training pipeline — separate from the serving app
 │   ├── config.py                 # per-pest params (T_base, CRF window, RH threshold), paths
@@ -214,7 +213,7 @@ the farmer sees today" and "what the farmer reported" cleanly separated.
    - `--balance-bands` — inverse-frequency sample weights per ETL band, so rare High windows carry real loss.
    - `--tag NAME` — extra filename suffix for an experiment run.
 6. **Score the ETL bucketing** (RQ1.1.2, without retraining): `python -m ml.bilstm.etl_metrics` → loads the weights already on disk, re-scores them on the same held-out split, and merges Accuracy/Precision/Recall/F1 (macro) plus a Low/Medium/High confusion matrix into each `bilstm_{pest}_test_metrics.json`.
-7. **Compare feature sets** (RQ2 + RQ3): `python -m ml.bilstm.compare_features --pest BPH` (and `--pest RSB`) → 5-fold expanding-window time-series CV, training both the engineered and the raw configuration on identical folds, then a paired-samples t-test per metric (Shapiro-Wilk first; Wilcoxon signed-rank when normality fails). Writes `bilstm_{pest}_feature_comparison.json` — this is what fills Table 3's rows 2 and 3. Requires step 4 to have been run both ways.
+7. **Compare the framework with the baseline** (RQ2 + RQ3): `python -m ml.bilstm.compare_framework --pest BPH --proposed plain_fresh` (and `--pest RSB`) → expanding-window time-series CV on identical folds, a paired t-test or Wilcoxon test per metric. The framework gets raw weather, the growth stage and the verified observation, with no hand-computed formulas; the formula code survives only in `ml/ablation/` to reproduce the test that showed formulas add nothing.
 8. **Validate**: `python -m ml.validity_test` → re-checks the saved test metrics against a minimum R²/MAE bar, and separately checks the model's forecast for each verified report's own date against that report's confirmed ETL band, via `GET /api/reports/{id}/gap-analysis`. Prints a pass/fail per pest and exits non-zero on failure. Needs the database up.
 7. **Serve**: `app/main.py` loads those weights at startup; `app/models/bilstm_model.py` rebuilds the same features at inference time from live weather.
 8. **Explain**: `ml/explainability/shap_report.py` — a `GradientExplainer` against a background sample from the pest's own training sequences, cached per pest after first use.
@@ -257,8 +256,7 @@ scheduler in this repo (see "No deployment infra" below).
 ## Known placeholders / still needs real data
 
 - **ETL thresholds** (`app/decision/etl_thresholds.py`) — transcribed directly from the thesis's Table 2, real.
-- **RSB GDD base temp** (15°C) — cited in the thesis's RSB literature review, real.
-- **BPH GDD base temp**, **CRF window size**, **RH threshold for Humidity Persistence**, and the **WSI daily water requirement constant** — still placeholder values with no citation behind them yet. See `ml/config.py` and `app/preprocessing/features.py` for where these live.
+- No agrometeorological formulas (growing degree days, water stress and the like) are used by the live system: the panel asked for none, and a comparison showed they add nothing. See `ml/ablation/`.
 - The training dataset itself is synthetic, not collected field data, and spans only 5 municipalities over 6 years — model performance (BPH R²≈0.35, RSB R²≈0.21; see `ml/weights/{pest}/bilstm_{pest}_test_metrics.json`) reflects that ceiling, not primarily model capacity (confirmed by testing a much smaller/more regularized architecture and getting an equivalent result). RSB currently fails `ml/validity_test.py`'s statistical-validity threshold (R² < 0.3) — the 14-vs-28-day CRF window ambiguity in `ml/config.py` was tested directly (28 days made it worse: R² 0.206 → 0.135), so 14 is the confirmed better choice, not just the convenient one; RSB's low R² looks like a genuine data ceiling from the synthetic dataset rather than a fixable hyperparameter.
 - RSB's ResNet-50 classifier scores a perfect 1.0 accuracy on its held-out test set (`ml/weights/rsb/resnet50_rsb_test_metrics.json`), vs. BPH's 0.99 with a nonzero confusion matrix (`ml/weights/bph/resnet50_bph_test_metrics.json`). Checked `ml/resnet/prepare_dataset.py`'s split logic directly: it's hash-keyed on the *original source image filename*, so every crop from one annotated image always lands in the same train/val/test bucket — no near-duplicate leakage across the split. The perfect score is more likely explained by RSB's smaller test set (933 images vs. BPH's 1,508, per `ml/resnet/datasets/processed/{bph,rsb}/prepare_summary.json`) and rice stem borer damage symptoms (dead hearts/white ears) being more visually distinct from the other four tracked pests than BPH's planthopper-vs-planthopper-like-insect distinction.
 - No deployment infrastructure exists (no Dockerfile for the API or either frontend, no CI). `docker-compose.yml` at the repo root only runs Postgres for local dev.

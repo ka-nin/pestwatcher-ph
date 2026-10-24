@@ -34,7 +34,7 @@ import sys
 from pathlib import Path
 
 PESTS = ["BPH", "RSB"]
-FEATURE_SETS = ["raw", "engineered", "lagged_fresh", "seq_only"]
+FEATURE_SETS = ["raw", "plain_fresh", "lagged_fresh"]
 
 OUT_PATH = Path(__file__).resolve().parents[1] / "weights" / "bilstm_efficiency_benchmark.json"
 

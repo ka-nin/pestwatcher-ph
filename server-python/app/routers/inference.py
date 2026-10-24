@@ -736,6 +736,8 @@ def _build_trajectory(
                 unit=result.unit,
                 risk_level=derive_risk_level(pest, growth_stage_bucket, value),
                 adjusted_by_reports=lagged_features[2] == 1.0,
+                predicted_low=result.low,
+                predicted_high=result.high,
             )
         )
 

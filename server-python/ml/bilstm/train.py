@@ -34,6 +34,7 @@ from tensorflow import keras
 from tensorflow.keras import layers
 
 from ml.bilstm.build_sequences import FEATURE_SET_SUFFIX, MAX_OBSERVATION_AGE_DAYS, sequences_path
+from ml.bilstm.bio_layer import LearnedBiologyGates
 from ml.bilstm.etl_metrics import classification_agreement, to_risk_levels
 from ml.config import FORECAST_HORIZON_DAYS, PEST_PARAMS
 
@@ -88,7 +89,7 @@ def scale_sequence(X_train, X_val, X_test) -> tuple[np.ndarray, np.ndarray, np.n
     return transform(X_train), transform(X_val), transform(X_test), scaler
 
 
-def build_model(window_days: int, n_seq_features: int, n_static_features: int) -> keras.Model:
+def build_model(window_days: int, n_seq_features: int, n_static_features: int, bio_layer: bool = False) -> keras.Model:
     """Deliberately small: an earlier, larger version (64/32 LSTM units, no
     L2) overfit within 2 epochs on both pests — val_loss started climbing
     immediately while train_loss kept dropping, meaning the model had far
@@ -107,7 +108,10 @@ def build_model(window_days: int, n_seq_features: int, n_static_features: int) -
     sequence_input = keras.Input(shape=(window_days, n_seq_features), name="sequence_input")
     inputs = [sequence_input]
 
-    x = layers.Bidirectional(layers.LSTM(16, kernel_regularizer=l2, recurrent_dropout=0.1))(sequence_input)
+    # Optional learnable biological gates in front of the recurrent core (ml/bilstm/bio_layer.py):
+    # trainable thresholds only, nothing hardcoded.
+    recurrent_in = LearnedBiologyGates(name="bio_gates")(sequence_input) if bio_layer else sequence_input
+    x = layers.Bidirectional(layers.LSTM(16, kernel_regularizer=l2, recurrent_dropout=0.1))(recurrent_in)
     x = layers.Dropout(0.4)(x)
 
     if n_static_features > 0:
@@ -239,7 +243,7 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument(
         "--features",
-        choices=["engineered", "raw", "lagged", "lagged_fresh"],
+        choices=["engineered", "raw", "lagged", "lagged_fresh", "plain_fresh"],
         default="engineered",
         help="Which build_sequences.py configuration to train on. 'raw' is the RQ2 control. "
         "Anything other than 'engineered' is saved under its own suffix so it never "
@@ -274,6 +278,25 @@ def main() -> None:
         "model barely learns either case. 0.5 = half with, half without.",
     )
     parser.add_argument(
+        "--learned-features",
+        action="store_true",
+        help="Train the network to produce the biologically informed features itself "
+        "(ml/bilstm/learned_features.py): the formulas serve only as training answers, never as inputs. "
+        "Use with --tag so it is saved beside, not over, the deployed model.",
+    )
+    parser.add_argument(
+        "--feature-loss-weight",
+        type=float,
+        default=1.0,
+        help="With --learned-features: how much the feature answers count against the forecast loss.",
+    )
+    parser.add_argument(
+        "--bio-layer",
+        action="store_true",
+        help="Put the learnable biological gates (ml/bilstm/bio_layer.py) in front of the BiLSTM. "
+        "Use with --tag bio so it is saved beside, not over, the deployed model.",
+    )
+    parser.add_argument(
         "--tag",
         default="",
         help="Extra suffix for the saved weights/scalers/metrics, for running an experiment "
@@ -290,7 +313,7 @@ def main() -> None:
     print(f"{pest} ({args.features}): train={len(train_idx)} val={len(val_idx)} test={len(test_idx)}")
 
     if args.observation_dropout > 0:
-        if args.features not in ("lagged", "lagged_fresh"):
+        if args.features not in ("lagged", "lagged_fresh", "plain_fresh"):
             raise SystemExit("--observation-dropout only applies to the lagged feature sets")
         X_static = hide_observations(X_static, np.concatenate([train_idx, val_idx]), args.observation_dropout)
 
@@ -318,36 +341,70 @@ def main() -> None:
     # undone inside predict(), so everything downstream stays in real units.
     y_fit, y_fit_val = (np.log1p(y_train), np.log1p(y_val)) if args.log_target else (y_train, y_val)
 
-    model = build_model(
-        window_days=X_sequence.shape[1],
-        n_seq_features=X_sequence.shape[2],
-        n_static_features=X_static.shape[1],
-    )
-    model.summary()
+    if args.learned_features:
+        from ml.bilstm import learned_features as lf
 
-    early_stopping = keras.callbacks.EarlyStopping(
-        monitor="val_loss", patience=15, restore_best_weights=True
-    )
+        ans_w, ans_d = lf.training_answers(X_sequence, pest)
+        w_stats = {"mean": ans_w[train_idx].mean(0), "std": ans_w[train_idx].std(0) + 1e-6}
+        d_stats = {"mean": ans_d[train_idx].reshape(-1, ans_d.shape[2]).mean(0), "std": ans_d[train_idx].reshape(-1, ans_d.shape[2]).std(0) + 1e-6}
+        z_w = (ans_w - w_stats["mean"]) / w_stats["std"]
+        z_d = (ans_d - d_stats["mean"]) / d_stats["std"]
+        y_mean, y_std = float(np.mean(y_fit)), float(np.std(y_fit))
+        train_model, model, feature_model = lf.build_learned_feature_models(
+            X_sequence.shape[1], X_sequence.shape[2], X_static.shape[1], y_mean, y_std, args.feature_loss_weight
+        )
+        train_model.summary()
+        train_model.fit(
+            model_inputs(X_seq_train, X_static_train),
+            {"prediction_z": (y_fit - y_mean) / y_std, "window_features": z_w[train_idx], "daily_features": z_d[train_idx]},
+            validation_data=(
+                model_inputs(X_seq_val, X_static_val),
+                {"prediction_z": (y_fit_val - y_mean) / y_std, "window_features": z_w[val_idx], "daily_features": z_d[val_idx]},
+            ),
+            epochs=max(args.epochs, 200),
+            batch_size=args.batch_size,
+            callbacks=[keras.callbacks.EarlyStopping(monitor="val_loss", mode="min", patience=25, restore_best_weights=True)],
+            verbose=2,
+        )
+    else:
+        model = build_model(
+            window_days=X_sequence.shape[1],
+            n_seq_features=X_sequence.shape[2],
+            n_static_features=X_static.shape[1],
+            bio_layer=args.bio_layer,
+        )
+        model.summary()
 
-    model.fit(
-        model_inputs(X_seq_train, X_static_train),
-        y_fit,
-        sample_weight=sample_weight,
-        validation_data=(model_inputs(X_seq_val, X_static_val), y_fit_val),
-        epochs=args.epochs,
-        batch_size=args.batch_size,
-        callbacks=[early_stopping],
-        verbose=2,
-    )
+    if not args.learned_features:
+        early_stopping = keras.callbacks.EarlyStopping(
+            monitor="val_loss", patience=15, restore_best_weights=True
+        )
+
+        model.fit(
+            model_inputs(X_seq_train, X_static_train),
+            y_fit,
+            sample_weight=sample_weight,
+            validation_data=(model_inputs(X_seq_val, X_static_val), y_fit_val),
+            epochs=args.epochs,
+            batch_size=args.batch_size,
+            callbacks=[early_stopping],
+            verbose=2,
+        )
 
     test_metrics = evaluate(
         model, X_seq_test, X_static_test, y_test, pest, is_reproductive_test, args.log_target
     )
-    if args.features in ("lagged", "lagged_fresh"):
+    if args.features in ("lagged", "lagged_fresh", "plain_fresh"):
         test_metrics["observation_conditions"] = evaluate_observation_conditions(
             model, X_seq_test, X_static[test_idx], static_scaler, y_test, pest, is_reproductive_test, args.log_target
         )
         test_metrics["observation_dropout"] = args.observation_dropout
+    if args.learned_features:
+        test_metrics["learned_feature_match_r2"] = {
+            "on_test_windows": lf.match_report(feature_model, X_seq_test, X_static_test, ans_w[test_idx], ans_d[test_idx], w_stats, d_stats),
+            "on_validation_windows": lf.match_report(feature_model, X_seq_val, X_static_val, ans_w[val_idx], ans_d[val_idx], w_stats, d_stats),
+        }
+    test_metrics["learned_features"] = bool(args.learned_features)
     test_metrics["feature_set"] = args.features
     test_metrics["log_target"] = args.log_target
     test_metrics["balance_bands"] = args.balance_bands
@@ -361,6 +418,8 @@ def main() -> None:
         weights_path = weights_path.with_name(f"{weights_path.stem}{suffix}{weights_path.suffix}")
     weights_path.parent.mkdir(parents=True, exist_ok=True)
     model.save(weights_path)
+    if args.learned_features:
+        feature_model.save(weights_path.with_name(weights_path.stem + "_features" + weights_path.suffix))
 
     scalers_path = weights_path.parent / f"bilstm_{pest.lower()}{suffix}_scalers.joblib"
     joblib.dump(
@@ -380,6 +439,7 @@ def main() -> None:
             # instead of inferring it from the static column count (lagged and
             # lagged_fresh both have 12 columns but different observations).
             "feature_set": args.features,
+            **({"learned_feature_stats": {"window": w_stats, "daily": d_stats}} if args.learned_features else {}),
         },
         scalers_path,
     )

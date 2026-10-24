@@ -1,4 +1,13 @@
-"""Engineered biological features used by the BiLSTM outbreak forecaster.
+"""EXPERIMENT ONLY: hand-computed agrometeorological formulas (GDD, WSI, VPD and the like).
+
+The live system does NOT use these. The panel asked that the framework contain no
+hardcoded formulas, because the BiLSTM can learn from the raw weather itself, and a
+comparison confirmed it: models with and without these formulas forecast equally well.
+They are kept here only so that comparison (ml/bilstm/compare_framework.py, the
+`engineered` and `lagged_fresh` feature sets) can be reproduced. Nothing under app/
+imports this file.
+
+Original description: engineered biological features used by the BiLSTM outbreak forecaster.
 
 These are the Python/canonical versions of the same metrics already computed
 client-side in admin-web (see src/pages/Dashboard/Dashboard.tsx,

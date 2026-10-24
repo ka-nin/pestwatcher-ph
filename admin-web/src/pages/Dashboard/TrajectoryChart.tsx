@@ -116,6 +116,14 @@ function TrajectoryChart({
 
   const linePath = monotonePath(points.map((p, i) => ({ x: xPixel(i), y: yPixel(p.predicted_value) })))
 
+  // 80% confidence band: the upper edge left to right, then the lower edge back.
+  const hasBand = points.length > 1 && points.every((p) => p.predicted_low != null && p.predicted_high != null)
+  const bandPath = hasBand
+    ? `${monotonePath(points.map((p, i) => ({ x: xPixel(i), y: yPixel(p.predicted_high as number) })))} L ${xPixel(points.length - 1)} ${yPixel(points[points.length - 1].predicted_low as number)} ${monotonePath(
+        points.map((p, i) => ({ x: xPixel(points.length - 1 - i), y: yPixel(points[points.length - 1 - i].predicted_low as number) })),
+      ).replace(/^M [\d.\-]+ [\d.\-]+/, '')} Z`
+    : null
+
   const handlePointer = (e: React.PointerEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * WIDTH
@@ -233,6 +241,16 @@ function TrajectoryChart({
           />
         )}
 
+        {/* confidence band, clipped to the plot area */}
+        {bandPath && (
+          <>
+            <clipPath id="trajectory-plot-clip">
+              <rect x={MARGIN.left} y={MARGIN.top} width={PLOT_W} height={PLOT_H} />
+            </clipPath>
+            <path d={bandPath} className="trajectory-band" clipPath="url(#trajectory-plot-clip)" />
+          </>
+        )}
+
         {/* faint connecting line */}
         <path d={linePath} className="trajectory-line" />
 
@@ -256,6 +274,11 @@ function TrajectoryChart({
         >
           <strong>{formatDateLabel(active.date)}</strong>
           <span>{valueText(active.predicted_value)}</span>
+          {active.predicted_low != null && active.predicted_high != null && (
+            <span className="trajectory-tooltip-range">
+              Likely range {valueText(active.predicted_low)} to {valueText(active.predicted_high)}
+            </span>
+          )}
           <span className="trajectory-tooltip-risk">
             <i style={{ background: riskFill[active.risk_level] }} />
             {active.risk_level} risk · {etlPercent}% of ETL

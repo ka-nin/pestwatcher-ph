@@ -1,0 +1,170 @@
+{
+  "pest": "BPH",
+  "windows_test": 1597,
+  "runs": [
+    {
+      "run": "bio",
+      "thresholds": {
+        "heat_base_temperature_c": [
+          29.19916173450931,
+          24.41233090126894
+        ],
+        "heat_weight_tmax_vs_tmin": [
+          0.6435248255729675,
+          -0.16528446972370148
+        ],
+        "humid_level_pct": [
+          78.871314768652,
+          73.62580048014536
+        ],
+        "humid_sharpness": [
+          0.6874483823776245,
+          0.7320391535758972
+        ],
+        "dry_rainfall_level_mm": [
+          14.224932050311565,
+          4.15484967572649
+        ],
+        "wet_rainfall_level_mm": [
+          14.473004133770777,
+          3.193838391958793
+        ]
+      },
+      "gate_vs_formula_r2_trained": {
+        "heat_gate_vs_gdd": 0.6586617929233294,
+        "humid_gate_vs_hp": 0.8654299412555589,
+        "dry_gate_vs_wsi": 0.873393914443993,
+        "wet_gate_vs_crf": 0.7822035316653524
+      },
+      "gate_vs_formula_r2_untrained": {
+        "heat_gate_vs_gdd": 0.31076949255875136,
+        "humid_gate_vs_hp": 0.615999226848002,
+        "dry_gate_vs_wsi": 0.8107611336908083,
+        "wet_gate_vs_crf": 0.7300477978494974
+      }
+    },
+    {
+      "run": "bio2",
+      "thresholds": {
+        "heat_base_temperature_c": [
+          19.763774803425978,
+          16.024672682684578
+        ],
+        "heat_weight_tmax_vs_tmin": [
+          -0.27023613452911377,
+          -0.34973084926605225
+        ],
+        "humid_level_pct": [
+          74.352292891475,
+          72.65563529417086
+        ],
+        "humid_sharpness": [
+          0.725817084312439,
+          0.7144235372543335
+        ],
+        "dry_rainfall_level_mm": [
+          5.408726221761428,
+          1.575387368612252
+        ],
+        "wet_rainfall_level_mm": [
+          4.222314030710504,
+          0.39937449819223403
+        ]
+      },
+      "gate_vs_formula_r2_trained": {
+        "heat_gate_vs_gdd": 0.014381434943530813,
+        "humid_gate_vs_hp": 0.6185215092608277,
+        "dry_gate_vs_wsi": 0.8210889431745501,
+        "wet_gate_vs_crf": 0.7291342786586785
+      },
+      "gate_vs_formula_r2_untrained": {
+        "heat_gate_vs_gdd": 0.7203786276350852,
+        "humid_gate_vs_hp": 0.6823100735042066,
+        "dry_gate_vs_wsi": 0.8278845238500349,
+        "wet_gate_vs_crf": 0.7422588149327922
+      }
+    },
+    {
+      "run": "bio3",
+      "thresholds": {
+        "heat_base_temperature_c": [
+          28.17263506742884,
+          48.15955529485847
+        ],
+        "heat_weight_tmax_vs_tmin": [
+          0.5518502593040466,
+          0.7358782291412354
+        ],
+        "humid_level_pct": [
+          77.47206284444451,
+          78.64064246619427
+        ],
+        "humid_sharpness": [
+          0.740442156791687,
+          0.679844319820404
+        ],
+        "dry_rainfall_level_mm": [
+          11.4516734134013,
+          12.92344617096478
+        ],
+        "wet_rainfall_level_mm": [
+          12.01821779694539,
+          13.374049010299732
+        ]
+      },
+      "gate_vs_formula_r2_trained": {
+        "heat_gate_vs_gdd": 0.6894036924808576,
+        "humid_gate_vs_hp": 0.8548149783949424,
+        "dry_gate_vs_wsi": 0.8713352945071416,
+        "wet_gate_vs_crf": 0.7777455071565308
+      },
+      "gate_vs_formula_r2_untrained": {
+        "heat_gate_vs_gdd": 0.6103532660552563,
+        "humid_gate_vs_hp": 0.5225592802812535,
+        "dry_gate_vs_wsi": 0.7780871001825225,
+        "wet_gate_vs_crf": 0.7142226922596092
+      }
+    },
+    {
+      "run": "bio4",
+      "thresholds": {
+        "heat_base_temperature_c": [
+          14.833767194859409,
+          96.21797266545627
+        ],
+        "heat_weight_tmax_vs_tmin": [
+          0.3877250850200653,
+          0.6400370001792908
+        ],
+        "humid_level_pct": [
+          75.98392398859714,
+          76.95939367592985
+        ],
+        "humid_sharpness": [
+          0.7278673648834229,
+          0.7406774759292603
+        ],
+        "dry_rainfall_level_mm": [
+          8.775153521490594,
+          9.724401927630424
+        ],
+        "wet_rainfall_level_mm": [
+          8.560992576946997,
+          8.611642707304256
+        ]
+      },
+      "gate_vs_formula_r2_trained": {
+        "heat_gate_vs_gdd": 0.2265660312183101,
+        "humid_gate_vs_hp": 0.7768842044507437,
+        "dry_gate_vs_wsi": 0.8551502101298705,
+        "wet_gate_vs_crf": 0.7564736930478657
+      },
+      "gate_vs_formula_r2_untrained": {
+        "heat_gate_vs_gdd": 0.5452537837668368,
+        "humid_gate_vs_hp": 0.8883955146698019,
+        "dry_gate_vs_wsi": 0.8733578289206916,
+        "wet_gate_vs_crf": 0.7809930782467333
+      }
+    }
+  ]
+}

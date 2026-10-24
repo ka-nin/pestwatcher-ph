@@ -1,3 +1,5 @@
+> **SUPERSEDED (24 October 2026).** This draft describes the earlier framework with hand-computed formulas (GDD, CRF, HP, VPD, WSI). The panel asked for no hardcoded formulas, and the framework now reads raw weather, growth stage and the verified observation. The current wording is in the Thesis Text Updates document, and the evidence is in the Panel Concerns Technical Report. Do not paste text from below without checking it against those.
+
 # Statement of the Problem — Revised
 
 ## Lead paragraph (replace in full)
