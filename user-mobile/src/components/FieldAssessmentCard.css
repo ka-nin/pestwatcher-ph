@@ -53,9 +53,9 @@
 
 .field-assessment-size {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 8px 10px;
   padding-top: 12px;
   border-top: 1px solid rgba(0, 0, 0, 0.08);
   font-size: 13px;
@@ -69,8 +69,17 @@
   opacity: 0.7;
 }
 
-.field-assessment-size select {
-  padding: 6px 4px;
+/* label on its own line, then the number and its unit side by side at the same height */
+.field-assessment-size > span {
+  flex: 1 0 100%;
+  font-weight: 600;
+}
+
+.field-assessment-size select,
+.field-assessment-size input {
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 10px;
   border: 1px solid rgba(0, 0, 0, 0.15);
   border-radius: 8px;
   font: inherit;
@@ -78,9 +87,10 @@
 }
 
 .field-assessment-size input {
-  width: 76px;
-  padding: 6px 8px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 6px;
-  font: inherit;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.field-assessment-size select {
+  flex: 0 0 116px;
 }

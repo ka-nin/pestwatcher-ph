@@ -239,3 +239,13 @@
   opacity: 0.75;
   white-space: nowrap;
 }
+
+.trajectory-band {
+  fill: rgba(47, 107, 50, 0.14);
+  stroke: none;
+}
+
+.trajectory-tooltip-range {
+  font-size: 11px;
+  opacity: 0.75;
+}

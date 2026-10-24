@@ -152,6 +152,20 @@ export default function ScanResult() {
     // No insect in frame, but the field-level model sees stem borer damage (whiteheads).
     const isDamage = status === 'damage_detected' && inference?.field_assessment;
     const tone = isHealthy ? 'tone-ok' : isOtherPest || isDamage ? 'tone-warn' : 'tone-neutral';
+    // A farmer needs "what was found, how worried to be, what to do", not percentages and grids:
+    // those stay available under "Show details". The worry level is the forecast's own risk (the
+    // worst day in the next two weeks); the photo's damage numbers are never turned into a level.
+    const flags = isDamage ? inference.field_assessment.cell_has_damage.flat() : [];
+    const damagedParts = flags.filter(Boolean).length;
+    const totalParts = flags.length;
+    const RISK_ORDER = ['Low', 'Medium', 'High'];
+    const worstRisk = isDamage
+      ? (inference.forecast?.points || []).reduce(
+          (worst, p) => (RISK_ORDER.indexOf(p.risk_level) > RISK_ORDER.indexOf(worst) ? p.risk_level : worst),
+          'Low'
+        )
+      : null;
+    const hasForecast = isDamage && inference.forecast?.points?.length > 0;
     const title = isHealthy
       ? t('scanResultHealthyTitle')
       : isDamage
@@ -162,9 +176,7 @@ export default function ScanResult() {
     const body = isHealthy
       ? t('scanResultHealthyBody')
       : isDamage
-        ? t('scanResultDamageBody')
-            .replace('{severity}', inference.field_assessment.pct_affected.toFixed(1))
-            .replace('{spread}', Math.round(inference.field_assessment.cells_affected_pct))
+        ? t('scanResultDamageSimple').replace('{n}', damagedParts).replace('{total}', totalParts)
         : isOtherPest
           ? t('scanResultOtherPestBody')
           : inference?.message || t('scanResultModelNotReadyBody');
@@ -180,28 +192,21 @@ export default function ScanResult() {
           </span>
           <h1>{title}</h1>
           <p>{body}</p>
-          {isDamage && <FieldAssessmentCard assessment={inference.field_assessment} t={t} showDisclaimer={false} />}
-          {isDamage && inference.forecast?.points?.length > 0 && (
-            <section>
-              <h2>{t('scanResultTrajectoryTitle')}</h2>
-              <div className="forecast-grid">
-                {inference.forecast.points.map((day) => {
-                  const d = new Date(day.date);
-                  const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
-                  return (
-                    <div key={day.date} className={`forecast-day risk-${day.risk_level.toLowerCase()}`}>
-                      <span className="forecast-day-name">{isEn ? weekday : DAY_NAMES_FIL[weekday]}</span>
-                      <span className="forecast-day-date">{d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="forecast-legend">
-                <span><i className="risk-low" /> {t('scanResultLegendLow')}</span>
-                <span><i className="risk-medium" /> {t('scanResultLegendMedium')}</span>
-                <span><i className="risk-high" /> {t('scanResultLegendHigh')}</span>
-              </div>
-            </section>
+          {hasForecast && (
+            <div className={`scan-result-next risk-${worstRisk.toLowerCase()}`}>
+              <RiskBadge level={worstRisk.toLowerCase()} label={RISK_LABEL[worstRisk.toLowerCase()][language]} />
+              <p>{t('scanResultDamageNext')}</p>
+            </div>
+          )}
+          {isDamage && (
+            <div className="scan-result-todo">
+              <h2>{t('scanResultTodoTitle')}</h2>
+              <ul>
+                <li>{t('scanResultTodo1')}</li>
+                <li>{t('scanResultTodo2')}</li>
+                <li>{t('scanResultTodo3')}</li>
+              </ul>
+            </div>
           )}
           {isDamage && photo && (
             <button className="scan-result-rescan-btn" onClick={() => navigate('/report', { state: { photo } })}>
@@ -211,6 +216,34 @@ export default function ScanResult() {
           <button className="scan-result-rescan-btn" onClick={() => navigate('/scan')}>
             {t('scanResultRescan')}
           </button>
+          {isDamage && (
+            <details className="scan-result-details">
+              <summary>{t('scanResultShowDetails')}</summary>
+              <FieldAssessmentCard assessment={inference.field_assessment} t={t} showDisclaimer={false} />
+              {hasForecast && (
+                <section>
+                  <h2>{t('scanResultTrajectoryTitle')}</h2>
+                  <div className="forecast-grid">
+                    {inference.forecast.points.map((day) => {
+                      const d = new Date(day.date);
+                      const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+                      return (
+                        <div key={day.date} className={`forecast-day risk-${day.risk_level.toLowerCase()}`}>
+                          <span className="forecast-day-name">{isEn ? weekday : DAY_NAMES_FIL[weekday]}</span>
+                          <span className="forecast-day-date">{d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="forecast-legend">
+                    <span><i className="risk-low" /> {t('scanResultLegendLow')}</span>
+                    <span><i className="risk-medium" /> {t('scanResultLegendMedium')}</span>
+                    <span><i className="risk-high" /> {t('scanResultLegendHigh')}</span>
+                  </div>
+                </section>
+              )}
+            </details>
+          )}
         </div>
       </div>
     );

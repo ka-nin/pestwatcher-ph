@@ -1,0 +1,12 @@
+{
+  "pest": "RSB",
+  "members": 5,
+  "target_coverage": 0.8,
+  "band_width_factor": 8.62476634979248,
+  "disagreement_floor": 0.009406856261193752,
+  "coverage_on_validation": 0.799617102744097,
+  "coverage_on_test": 0.7664370695053225,
+  "mean_band_half_width_test": 0.8598678112030029,
+  "test_rmse_single_deployed": 1.3606005907058716,
+  "test_rmse_ensemble_mean": 1.375403881072998
+}

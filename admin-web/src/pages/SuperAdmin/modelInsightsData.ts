@@ -75,11 +75,11 @@ export const WEATHER_FLOW: FlowStep[] = [
   },
   {
     id: 'features',
-    title: 'Biologically-informed features',
+    title: 'Learned biological features',
     short: 'Features',
-    body: 'From the same 14 days the framework computes growing degree days (GDD), cumulative rainfall (CRF), humidity persistence (HP), a water stress index (WSI) and rainfall and temperature trends, plus daily vapor pressure deficit (VPD) and temperature range. Each is a named, established agrometeorological quantity, so its contribution to a forecast can be checked and explained. The growth stage goes in alongside them.',
-    code: 'app/preprocessing/features.py',
-    outputs: ['12 daily features × 14 days', '9 window summaries'],
+    body: 'The 14 days go into the network as they were measured: maximum and minimum temperature, humidity and rainfall for each day, with the growth stage as six yes/no columns. No formula is calculated first. Inside the model, learned layers produce the biologically informed features the study is built on (accumulated heat, cumulative rainfall, humidity persistence, water stress, rainfall and temperature trends, daily vapor pressure deficit and temperature range), and the forecast reads them. During training each feature was given an answer to match; when the system predicts, there is no formula anywhere.',
+    code: 'ml/bilstm/learned_features.py',
+    outputs: ['10 raw values × 14 days', '8 learned features'],
   },
   {
     id: 'anchor',

@@ -149,6 +149,9 @@ export interface TrajectoryPoint {
   predicted_value: number
   unit: 'hoppers_per_hill' | 'pct_damage'
   risk_level: RiskLevel
+  // 80% confidence band from the ensemble of runs (null when the extra runs are not installed).
+  predicted_low?: number | null
+  predicted_high?: number | null
   // Projected hectares affected that day (null without a verified area).
   projected_affected_ha?: number | null
 }

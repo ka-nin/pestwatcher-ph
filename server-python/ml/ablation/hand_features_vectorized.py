@@ -1,6 +1,6 @@
 """Vectorized feature engineering: every window's features in one pass.
 
-app/preprocessing/features.py defines each biologically-informed feature as a
+ml/ablation/hand_features.py defines each biologically-informed feature as a
 plain function over ONE window's daily lists, and ml/bilstm/build_sequences.py
 used to call those functions window by window, day by day, through pandas
 row access. For one live forecast that is fine; for building a training set
@@ -21,7 +21,7 @@ one value (or row) per window, where window k covers days k .. k+window-1.
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 
-from app.preprocessing.features import (
+from ml.ablation.hand_features import (
     GDD_BASE_TEMP_C,
     HUMIDITY_PERSISTENCE_THRESHOLD,
     WSI_DAILY_WATER_REQUIREMENT_MM,

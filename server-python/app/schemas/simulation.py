@@ -1,5 +1,5 @@
 """SuperAdmin Simulation page: run a manually-entered 14-day weather window
-(and optionally a pest photo) through BOTH the deployed engineered-feature
+(and optionally a pest photo) through BOTH the deployed framework
 BiLSTM and the raw-feature baseline (the thesis's RQ2 control), side by
 side, plus the real ResNet-50 classifier if a photo is supplied.
 
