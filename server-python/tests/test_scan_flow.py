@@ -50,7 +50,7 @@ def test_planthopper_photo_is_counted_and_forecast(client, monkeypatch, stub):
     assert body["status"] == "ok" and body["pest_detected"] == "BPH"
     assert body["estimated_count"] is not None
     assert body["field_assessment"] is None  # no BPH field model
-    assert body["forecast_reflects_this_photo"] and len(body["forecast"]["points"]) == 13
+    assert body["forecast_reflects_this_photo"] and len(body["forecast"]["points"]) == 14
 
 
 def test_no_insect_but_damage_is_flagged_rsb_with_trajectory(client, stub):
@@ -81,7 +81,7 @@ def test_entered_field_size_overrides_and_scales_hectares(client, stub):
     stub(None, DAMAGED)
     fa = _scan(client, field_size_ha="2").json()["field_assessment"]
     assert fa["field_size_source"] == "entered"
-    assert fa["affected_hectares"] == round(fa["pct_affected"] / 100 * 2, 4)
+    assert fa["affected_hectares"] == pytest.approx(fa["pct_affected"] / 100 * 2, rel=1e-3)  # pct_affected is shown rounded
 
 
 def test_fake_image_is_rejected_with_422(client):
@@ -169,3 +169,40 @@ def test_small_photo_near_miss_becomes_bph_with_a_clear_box(client, monkeypatch,
     body = _scan(client).json()
     assert body["status"] == "ok" and body["pest_detected"] == "BPH"
     assert body["estimated_count"] == 1.0  # one box
+
+
+def test_field_assessment_outlook_is_day0_measured_then_projected(client, stub):
+    """With municipality + growth stage the field assessment carries a 14-day outlook: day 0 is the
+    photo's own reading, later days are projections scaled by the forecast and capped at 100%."""
+    stub(None, DAMAGED)
+
+    def assess(**extra):
+        return client.post(
+            "/api/inference/field-assessment",
+            files={"file": ("a.jpg", _jpeg(), "image/jpeg")},
+            data={"pest": "RSB", "field_size_ha": "2", **extra},
+        ).json()
+
+    plain = assess()
+    assert plain["daily"] is None  # no municipality/stage: today's photo only
+
+    body = assess(municipality="Arayat", growth_stage="Flowering")
+    days = body["daily"]
+    assert len(days) == 14
+    assert days[0]["is_measured"] and not any(d["is_measured"] for d in days[1:])
+    assert days[0]["severity_pct"] == body["pct_affected"]
+    assert days[0]["spread_pct"] == body["cells_affected_pct"]
+    assert days[0]["affected_hectares"] == body["affected_hectares"]
+    assert all(d["severity_pct"] <= 100 and d["spread_pct"] <= 100 for d in days)
+    assert all(d["risk_level"] in ("Low", "Medium", "High") for d in days)
+
+
+def test_projection_scales_with_the_forecast_and_is_capped():
+    from types import SimpleNamespace
+
+    from app.decision.outlook import project_by_forecast_ratio
+
+    points = [SimpleNamespace(predicted_value=v) for v in (2.0, 4.0, 1.0, 40.0)]
+    assert project_by_forecast_ratio(points, 10.0, max_growth_factor=5.0) == [10.0, 20.0, 5.0, 50.0]  # last one capped at 5x
+    assert project_by_forecast_ratio(points, None) == [None] * 4  # nothing to anchor to
+    assert project_by_forecast_ratio([SimpleNamespace(predicted_value=0.0)], 10.0) == [None]  # nothing to scale from
