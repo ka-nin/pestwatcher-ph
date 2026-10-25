@@ -187,7 +187,7 @@ function FieldAssessmentPage({ user }: FieldAssessmentPageProps) {
           <div className="fa-metric-label">Detected automatically</div>
           <div className="fa-metric-value">{pestName ?? 'No tracked pest'}</div>
           <p className="fa-caveat">{scan.message}</p>
-          {scan.pest_detected === 'BPH' && (
+          {scan.estimated_count != null && (
             <div className="fa-metrics">
               <div className="fa-metric">
                 <div className="fa-metric-label">Estimated count</div>
@@ -240,7 +240,7 @@ function FieldAssessmentPage({ user }: FieldAssessmentPageProps) {
             <div className="fa-metric">
               <div className="fa-metric-label">Severity</div>
               <div className="fa-metric-value">{(selectedDay?.severity_pct ?? result!.pct_affected)?.toFixed(2)}%</div>
-              <div className="fa-metric-note">of the field covered by damage</div>
+              <div className="fa-metric-note">{result?.pest === 'BPH' ? 'of the plants in view are dried' : 'of the photo covered by damage'}</div>
             </div>
             <div className="fa-metric">
               <div className="fa-metric-label">Spread</div>
@@ -273,8 +273,9 @@ function FieldAssessmentPage({ user }: FieldAssessmentPageProps) {
             {selectedDay?.is_measured
               ? 'Severity and spread are measured from this photo. '
               : "Severity, spread and affected area for this day are PROJECTED by scaling today's photo reading with the BiLSTM forecast — not a new measurement. "}
-            Estimate from a model trained on synthetic images; a technologist must confirm it. Severity is the share of
-            the photo covered by whiteheads, a stand-in for the percentage of white ears.
+            {result?.pest === 'BPH'
+              ? 'Hopperburn is read from the photo by colour and shape (a large solid dried patch with green plants around it), not by a trained model: a technologist must confirm it. Severity is the dried share of the plants in view.'
+              : 'Estimate from a model trained on synthetic images; a technologist must confirm it. Severity is the share of the photo covered by whiteheads, a stand-in for the percentage of white ears.'}
           </p>
         </section>
       )}

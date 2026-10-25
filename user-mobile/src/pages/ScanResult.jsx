@@ -151,6 +151,8 @@ export default function ScanResult() {
     const isOtherPest = status === 'unidentified_pest_detected';
     // No insect in frame, but the field-level model sees stem borer damage (whiteheads).
     const isDamage = status === 'damage_detected' && inference?.field_assessment;
+    // Hopperburn (brown planthopper) and stem borer damage get their own wording and advice.
+    const damageSuffix = isDamage && inference.pest_detected === 'BPH' ? 'Bph' : '';
     const tone = isHealthy ? 'tone-ok' : isOtherPest || isDamage ? 'tone-warn' : 'tone-neutral';
     // A farmer needs "what was found, how worried to be, what to do", not percentages and grids:
     // those stay available under "Show details". The worry level is the forecast's own risk (the
@@ -169,14 +171,14 @@ export default function ScanResult() {
     const title = isHealthy
       ? t('scanResultHealthyTitle')
       : isDamage
-        ? t('scanResultDamageTitle')
+        ? t('scanResultDamageTitle' + damageSuffix)
         : isOtherPest
           ? t('scanResultOtherPestTitle')
           : t('scanResultModelNotReady');
     const body = isHealthy
       ? t('scanResultHealthyBody')
       : isDamage
-        ? t('scanResultDamageSimple').replace('{n}', damagedParts).replace('{total}', totalParts)
+        ? t('scanResultDamageSimple' + damageSuffix).replace('{n}', damagedParts).replace('{total}', totalParts)
         : isOtherPest
           ? t('scanResultOtherPestBody')
           : inference?.message || t('scanResultModelNotReadyBody');
@@ -195,16 +197,16 @@ export default function ScanResult() {
           {hasForecast && (
             <div className={`scan-result-next risk-${worstRisk.toLowerCase()}`}>
               <RiskBadge level={worstRisk.toLowerCase()} label={RISK_LABEL[worstRisk.toLowerCase()][language]} />
-              <p>{t('scanResultDamageNext')}</p>
+              <p>{t('scanResultDamageNext' + damageSuffix)}</p>
             </div>
           )}
           {isDamage && (
             <div className="scan-result-todo">
               <h2>{t('scanResultTodoTitle')}</h2>
               <ul>
-                <li>{t('scanResultTodo1')}</li>
-                <li>{t('scanResultTodo2')}</li>
-                <li>{t('scanResultTodo3')}</li>
+                <li>{t('scanResultTodo' + damageSuffix + '1')}</li>
+                <li>{t('scanResultTodo' + damageSuffix + '2')}</li>
+                <li>{t('scanResultTodo' + damageSuffix + '3')}</li>
               </ul>
             </div>
           )}

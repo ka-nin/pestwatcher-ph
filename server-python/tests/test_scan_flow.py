@@ -5,6 +5,7 @@ damage, nothing found, and the area/size maths."""
 import io
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 from PIL import Image
 
@@ -206,3 +207,86 @@ def test_projection_scales_with_the_forecast_and_is_capped():
     assert project_by_forecast_ratio(points, 10.0, max_growth_factor=5.0) == [10.0, 20.0, 5.0, 50.0]  # last one capped at 5x
     assert project_by_forecast_ratio(points, None) == [None] * 4  # nothing to anchor to
     assert project_by_forecast_ratio([SimpleNamespace(predicted_value=0.0)], 10.0) == [None]  # nothing to scale from
+
+
+# ---- hopperburn (brown planthopper field damage) vs stem borer, told apart by pattern ----
+
+def _field_photo(kind: str, sky: bool = True) -> bytes:
+    """640x480 stand-in photos: green canopy, optional sky across the top, and one kind of damage."""
+    rng = np.random.default_rng(3)
+    img = np.zeros((480, 640, 3), np.float32)
+    img[:] = (50, 140, 40)
+    top = 130 if sky else 0
+    if sky:
+        img[:top] = (135, 170, 215)
+    yy, xx = np.mgrid[0:480, 0:640]
+    if kind == "hopperburn":  # one big solid dried patch
+        img[(((yy - 300) / 110) ** 2 + ((xx - 330) / 170) ** 2) < 1] = (150, 110, 60)
+    elif kind == "scattered":  # many small pale panicles, like whiteheads
+        for _ in range(500):
+            y, x = int(rng.integers(top, 470)), int(rng.integers(0, 630))
+            img[y:y + 5, x:x + 5] = (235, 225, 190)
+    elif kind == "ripening":  # the whole canopy golden, nothing green left
+        img[top:] = (200, 170, 60)
+    img += rng.normal(0, 6, img.shape)
+    buf = io.BytesIO()
+    Image.fromarray(np.clip(img, 0, 255).astype("uint8")).save(buf, "JPEG")
+    return buf.getvalue()
+
+
+def _read(tmp_path, data):
+    from app.preprocessing.damage_pattern import read_photo
+
+    p = tmp_path / "f.jpg"
+    p.write_bytes(data)
+    return read_photo(p)
+
+
+def test_one_big_dried_patch_with_green_around_it_is_hopperburn(tmp_path):
+    r = _read(tmp_path, _field_photo("hopperburn"))
+    assert r.hopperburn and r.field_scale and r.largest_patch_share > 0.9
+
+
+def test_scattered_pale_specks_are_not_hopperburn(tmp_path):
+    assert not _read(tmp_path, _field_photo("scattered")).hopperburn
+
+
+def test_a_close_up_is_never_called_hopperburn(tmp_path):
+    """A close-up has big smooth shapes (no fine stalk texture) and no sky: not a field-scale photo."""
+    from PIL import ImageFilter
+
+    close_up = Image.open(io.BytesIO(_field_photo("hopperburn", sky=False))).filter(ImageFilter.GaussianBlur(7))
+    buf = io.BytesIO()
+    close_up.save(buf, "JPEG")
+    r = _read(tmp_path, buf.getvalue())
+    assert not r.field_scale and not r.hopperburn
+
+
+def test_a_uniform_golden_ripening_field_is_not_hopperburn(tmp_path):
+    assert not _read(tmp_path, _field_photo("ripening")).hopperburn
+
+
+def test_scan_calls_a_dried_patch_bph_and_scattered_damage_rsb(client, stub):
+    stub(None, DAMAGED)  # the stem-borer model reads damage everywhere
+    for kind, pest in (("hopperburn", "BPH"), ("scattered", "RSB")):
+        res = client.post(
+            "/api/inference/image",
+            files={"file": ("a.jpg", _field_photo(kind), "image/jpeg")},
+            data={"municipality": "Arayat", "growth_stage": "Flowering", "field_size_ha": "2"},
+        ).json()
+        assert res["status"] == "damage_detected" and res["pest_detected"] == pest, kind
+        fa = res["field_assessment"]
+        assert fa["pest"] == pest and len(fa["daily"]) == 14
+    burn = client.post(
+        "/api/inference/image", files={"file": ("a.jpg", _field_photo("hopperburn"), "image/jpeg")}, data={"field_size_ha": "2"}
+    ).json()["field_assessment"]
+    assert burn["affected_hectares"] == pytest.approx(burn["pct_affected"] / 100 * 2, rel=1e-3)
+
+
+def test_field_assessment_accepts_bph(client):
+    res = client.post(
+        "/api/inference/field-assessment",
+        files={"file": ("a.jpg", _field_photo("hopperburn"), "image/jpeg")},
+        data={"pest": "BPH", "field_size_ha": "1"},
+    ).json()
+    assert res["status"] == "ok" and res["pest"] == "BPH" and "Hopperburn pattern" in res["message"]
