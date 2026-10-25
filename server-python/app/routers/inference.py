@@ -13,6 +13,7 @@ from app.data.municipalities import municipality_coordinates
 from app.decision.etl_thresholds import derive_risk_level
 from app.decision.outlook import growth_outlook, project_affected_area, project_by_forecast_ratio, spread_summary
 from app.decision.report_anchor import find_lagged_observation
+from app.preprocessing.damage_pattern import CELL_AFFECTED_MIN_PCT, HopperburnReading, read_photo
 from app.preprocessing.tiling import TILE_HIT_THRESHOLD
 from app.preprocessing.photo_footprint import ground_area_by_cell, estimate_field_size_ha
 from app.models.planthopper_detector import planthopper_detector
@@ -166,6 +167,35 @@ def _project_field_assessment_days(result: FieldAssessmentResponse, trajectory: 
     return days
 
 
+def _hopperburn_result(reading: HopperburnReading, field_size_ha: float | None, source: str | None) -> FieldAssessmentResponse:
+    """BPH field damage (hopperburn) from the colour-and-shape screen, in the same shape as the
+    stem-borer field model's result. Severity is the dried share of the plant canopy in view;
+    spread is the share of the 3x3 grid cells with at least CELL_AFFECTED_MIN_PCT dried."""
+    cells = reading.cell_values
+    flat = [v for row in cells for v in row]
+    affected = [v for v in flat if v >= CELL_AFFECTED_MIN_PCT]
+    severity = reading.dry_share_pct
+    return FieldAssessmentResponse(
+        status="ok",
+        pest="BPH",
+        target="field_damage_pct",
+        rows=len(cells),
+        cols=len(cells[0]),
+        cell_values=[[round(v, 2) for v in row] for row in cells],
+        cell_has_damage=[[v >= CELL_AFFECTED_MIN_PCT for v in row] for row in cells],
+        pct_affected=severity,
+        cells_affected_pct=round(100 * len(affected) / len(flat), 1),
+        severity_where_present_pct=round(sum(affected) / len(affected), 2) if affected else 0.0,
+        field_size_ha=field_size_ha,
+        field_size_source=source if field_size_ha else None,
+        affected_hectares=round(severity / 100 * field_size_ha, 6) if field_size_ha else None,
+        message=(
+            ("Hopperburn pattern: " if reading.hopperburn else "Not clearly hopperburn: ") + reading.reason + ". "
+            "This is a colour-and-shape screen, not a trained model: a technologist must confirm it."
+        ),
+    )
+
+
 def _damage_found(result: FieldAssessmentResponse) -> bool:
     if result.status != "ok" or result.pest not in DAMAGE_RULES:
         return False
@@ -187,7 +217,7 @@ def _assess_photo(pest: str, path: Path, field_size_ha: float | None = None) -> 
 @router.post("/field-assessment", response_model=FieldAssessmentResponse)
 async def assess_field(
     file: UploadFile = File(...),
-    pest: Literal["RSB"] = Form(...),
+    pest: Literal["RSB", "BPH"] = Form(...),
     field_size_ha: float | None = Form(None, gt=0, le=1000),
     municipality: str | None = Form(
         None, description="Needed for the 14-day outlook (day field, below) — omit for a one-day-only result."
@@ -233,9 +263,19 @@ async def assess_field(
     destination.write_bytes(await file.read())
     _require_valid_image(destination)
     try:
-        cells = resnet_regressors.predict_grid(pest, target, destination)
         detected_ha = estimate_field_size_ha(destination) if field_size_ha is None else None
-        if cells is not None:
+        if pest == "BPH":
+            # No trained BPH field model exists (no field-level BPH data): hopperburn is read from
+            # the photo's colours and shape (app/preprocessing/damage_pattern.py).
+            result = _hopperburn_result(
+                read_photo(destination),
+                field_size_ha if field_size_ha is not None else detected_ha,
+                "entered" if field_size_ha is not None else "photo_metadata",
+            )
+            cells = result.cell_values
+        else:
+            cells = resnet_regressors.predict_grid(pest, target, destination)
+        if pest != "BPH" and cells is not None:
             result = (
                 _field_result(pest, target, cells, field_size_ha, "entered")
                 if field_size_ha is not None
@@ -255,7 +295,9 @@ async def assess_field(
         )
 
     if municipality and growth_stage:
-        photo_features = (result.pct_affected, 0.0, 1.0) if result.pct_affected is not None else None
+        # Severity is % damage, the RSB forecast's own unit; BPH's unit is hoppers per hill, so a
+        # hopperburn reading cannot be fed in as that observation.
+        photo_features = (result.pct_affected, 0.0, 1.0) if pest == "RSB" and result.pct_affected is not None else None
         trajectory = _build_trajectory(municipality, pest, growth_stage, days=14, override_lagged_features=photo_features)
         result.daily = _project_field_assessment_days(result, trajectory)
 
@@ -382,6 +424,30 @@ def _no_tracked_pest_response(
     # strongly means planthoppers are the likelier reading, and the damage model (trained
     # on synthetic whiteheads) must not relabel such a photo as stem borer.
     bph_signal = result.pest_scores.get("BPH", 0.0) >= TILE_HIT_THRESHOLD
+    # A large solid dried patch with green around it is brown planthopper damage (hopperburn);
+    # the stem-borer model would also fire on it, so the pattern is checked first.
+    reading = None if bph_signal else read_photo(photo)
+    if reading is not None and reading.hopperburn:
+        burn = _hopperburn_result(
+            reading, field_size_ha if field_size_ha is not None else estimate_field_size_ha(photo),
+            "entered" if field_size_ha is not None else "photo_metadata",
+        )
+        forecast = _build_trajectory(municipality, "BPH", growth_stage, days=14) if municipality and growth_stage else None
+        if forecast is not None:
+            burn.daily = _project_field_assessment_days(burn, forecast)
+        return ImageInferenceResponse(
+            status="damage_detected",
+            pest_detected="BPH",
+            message=(
+                "No insect is visible, but the photo shows a large dried patch with green plants around it, "
+                "the pattern of brown planthopper damage (hopperburn). This is a colour-and-shape screen, "
+                "not a trained model: please have a technologist confirm it."
+            ),
+            pest_scores=result.pest_scores,
+            field_assessment=burn,
+            forecast=forecast,
+            forecast_reflects_this_photo=False,
+        )
     assessment = None if bph_signal else _assess_photo("RSB", photo, field_size_ha)
     if assessment is not None and _damage_found(assessment):
         # The photo's severity stands in for the RSB observation (% damage, the

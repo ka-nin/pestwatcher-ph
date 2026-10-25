@@ -120,7 +120,7 @@ function TrajectoryChart({
   const hasBand = points.length > 1 && points.every((p) => p.predicted_low != null && p.predicted_high != null)
   const bandPath = hasBand
     ? `${monotonePath(points.map((p, i) => ({ x: xPixel(i), y: yPixel(p.predicted_high as number) })))} L ${xPixel(points.length - 1)} ${yPixel(points[points.length - 1].predicted_low as number)} ${monotonePath(
-        points.map((p, i) => ({ x: xPixel(points.length - 1 - i), y: yPixel(points[points.length - 1 - i].predicted_low as number) })),
+        points.map((_, i) => ({ x: xPixel(points.length - 1 - i), y: yPixel(points[points.length - 1 - i].predicted_low as number) })),
       ).replace(/^M [\d.\-]+ [\d.\-]+/, '')} Z`
     : null
 
