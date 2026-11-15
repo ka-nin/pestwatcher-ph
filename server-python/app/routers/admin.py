@@ -158,7 +158,7 @@ def get_model_insights() -> dict[str, Any]:
 
 
 # ---- Simulation page: manual weather window (+ optional photo) run through
-# the deployed engineered model AND the raw-feature baseline side by side.
+# the deployed framework AND the raw-feature baseline side by side.
 
 
 def _simulation_result(forecaster, pest: str, window: list[DailyObservation]) -> SimulationModelResult:
@@ -179,11 +179,11 @@ def _simulation_result(forecaster, pest: str, window: list[DailyObservation]) ->
 @router.post("/simulation/forecast", response_model=SimulationForecastResponse)
 def run_simulation_forecast(payload: SimulationForecastRequest) -> SimulationForecastResponse:
     """Runs one manually-entered 14-day weather window through the deployed
-    engineered-feature BiLSTM and the raw-feature baseline (ml/bilstm/train.py
+    framework BiLSTM and the raw-feature baseline (ml/bilstm/train.py
     --features raw), so a panelist/technician can see both models' live
     prediction and risk level for the exact same hypothetical window.
 
-    `heldOutMetrics` is the already-computed engineered-vs-raw comparison
+    `heldOutMetrics` is the already-computed framework-vs-raw comparison
     from ml/bilstm/compare_features.py (5-fold expanding-window CV, paired
     significance tests) — historical evidence shown alongside this one-off
     run, not recomputed per request.

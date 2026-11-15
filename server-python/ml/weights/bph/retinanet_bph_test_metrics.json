@@ -1,0 +1,147 @@
+{
+ "test": {
+  "photos": 20,
+  "gt_boxes": 120,
+  "precision": 0.774,
+  "recall": 0.6,
+  "count_mae": 1.55,
+  "score_threshold": 0.4
+ },
+ "best_val_f1": 0.675,
+ "history": [
+  {
+   "epoch": 1,
+   "loss": 1.1135,
+   "photos": 31,
+   "gt_boxes": 88,
+   "precision": 0.418,
+   "recall": 0.318,
+   "count_mae": 2.81,
+   "score_threshold": 0.4,
+   "f1": 0.361
+  },
+  {
+   "epoch": 2,
+   "loss": 0.6599,
+   "photos": 31,
+   "gt_boxes": 88,
+   "precision": 0.737,
+   "recall": 0.318,
+   "count_mae": 2.13,
+   "score_threshold": 0.4,
+   "f1": 0.444
+  },
+  {
+   "epoch": 3,
+   "loss": 0.4973,
+   "photos": 31,
+   "gt_boxes": 88,
+   "precision": 0.879,
+   "recall": 0.33,
+   "count_mae": 1.97,
+   "score_threshold": 0.4,
+   "f1": 0.48
+  },
+  {
+   "epoch": 4,
+   "loss": 0.4276,
+   "photos": 31,
+   "gt_boxes": 88,
+   "precision": 0.581,
+   "recall": 0.568,
+   "count_mae": 1.23,
+   "score_threshold": 0.4,
+   "f1": 0.574
+  },
+  {
+   "epoch": 5,
+   "loss": 0.378,
+   "photos": 31,
+   "gt_boxes": 88,
+   "precision": 0.722,
+   "recall": 0.295,
+   "count_mae": 1.87,
+   "score_threshold": 0.4,
+   "f1": 0.419
+  },
+  {
+   "epoch": 6,
+   "loss": 0.3549,
+   "photos": 31,
+   "gt_boxes": 88,
+   "precision": 0.612,
+   "recall": 0.466,
+   "count_mae": 1.9,
+   "score_threshold": 0.4,
+   "f1": 0.529
+  },
+  {
+   "epoch": 7,
+   "loss": 0.3297,
+   "photos": 31,
+   "gt_boxes": 88,
+   "precision": 0.566,
+   "recall": 0.636,
+   "count_mae": 1.45,
+   "score_threshold": 0.4,
+   "f1": 0.599
+  },
+  {
+   "epoch": 8,
+   "loss": 0.3111,
+   "photos": 31,
+   "gt_boxes": 88,
+   "precision": 0.822,
+   "recall": 0.42,
+   "count_mae": 1.58,
+   "score_threshold": 0.4,
+   "f1": 0.556
+  },
+  {
+   "epoch": 9,
+   "loss": 0.3011,
+   "photos": 31,
+   "gt_boxes": 88,
+   "precision": 0.788,
+   "recall": 0.591,
+   "count_mae": 1.16,
+   "score_threshold": 0.4,
+   "f1": 0.675
+  },
+  {
+   "epoch": 10,
+   "loss": 0.2603,
+   "photos": 31,
+   "gt_boxes": 88,
+   "precision": 0.528,
+   "recall": 0.534,
+   "count_mae": 1.97,
+   "score_threshold": 0.4,
+   "f1": 0.531
+  },
+  {
+   "epoch": 11,
+   "loss": 0.2337,
+   "photos": 31,
+   "gt_boxes": 88,
+   "precision": 0.587,
+   "recall": 0.693,
+   "count_mae": 1.94,
+   "score_threshold": 0.4,
+   "f1": 0.636
+  },
+  {
+   "epoch": 12,
+   "loss": 0.2248,
+   "photos": 31,
+   "gt_boxes": 88,
+   "precision": 0.675,
+   "recall": 0.614,
+   "count_mae": 1.29,
+   "score_threshold": 0.4,
+   "f1": 0.643
+  }
+ ],
+ "train_seconds": 4063,
+ "note": "Roboflow brown planthopper set (CC BY 4.0); split by source photo; box IoU 0.5."
+}

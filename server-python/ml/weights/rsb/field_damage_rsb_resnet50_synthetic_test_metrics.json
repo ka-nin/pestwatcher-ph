@@ -1,0 +1,33 @@
+{
+  "pest": "RSB",
+  "backbone": "resnet50",
+  "input_size": 160,
+  "train_seconds": 18513.5,
+  "parameters": 23718913,
+  "test_set_is_synthetic": true,
+  "cell": {
+    "rmse": 1.2647590611388777,
+    "mae": 0.6422506676765661,
+    "r2": 0.836251569714667,
+    "n": 1008
+  },
+  "image_severity": {
+    "rmse": 0.6287357391582816,
+    "mae": 0.4107263624860077,
+    "r2": 0.8876242340607194,
+    "n": 112
+  },
+  "image_severity_baseline_mae_predict_mean": 1.5648641581632652,
+  "image_spread_pct_of_cells": {
+    "rmse": 19.72585479624852,
+    "mae": 13.98809523809524,
+    "r2": 0.7343849724885285,
+    "n": 112
+  },
+  "cell_has_damage": {
+    "threshold": 0.05,
+    "label_min_pct": 0.2,
+    "precision": 0.8341232227488151,
+    "recall": 0.7839643652561247
+  }
+}

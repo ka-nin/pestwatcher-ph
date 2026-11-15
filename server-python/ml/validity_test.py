@@ -44,6 +44,7 @@ from app.data import reports_store
 from app.decision.etl_thresholds import derive_risk_level
 from app.decision.pest_matching import derive_pest_code
 from app.decision.report_anchor import anchor_from_report
+from app.models.bilstm_model import bilstm_forecaster
 from app.routers.reports import get_report_gap_analysis
 from ml.config import GROWTH_STAGE_BUCKETS, PEST_PARAMS
 
@@ -206,6 +207,12 @@ def main() -> None:
     overall_pass = True
     for pest in PEST_PARAMS:
         print(f"=== {pest} ===")
+        # The field check runs the live gap-analysis endpoint, which needs the
+        # model in memory. The FastAPI app loads it at startup; a standalone
+        # run has to do it itself. Without this every report came back
+        # "model_not_loaded", was skipped, and field validity always read
+        # "0 comparable reports" no matter how many were on file.
+        bilstm_forecaster.load(pest)
 
         stat = check_statistical_validity(pest)
         print(f"Statistical validity: {_verdict_str(stat.passed)}")

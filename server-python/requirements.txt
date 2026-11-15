@@ -31,3 +31,7 @@ pillow==11.0.0  # ml/resnet image cropping/loading
 # Tests (see tests/)
 pytest==8.3.4
 httpx==0.28.1  # required by starlette.testclient.TestClient
+
+# BPH detector (ml/detector)
+torch
+torchvision

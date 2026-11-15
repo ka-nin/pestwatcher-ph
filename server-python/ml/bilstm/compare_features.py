@@ -55,6 +55,7 @@ from tensorflow import keras
 
 from ml.bilstm.etl_metrics import classification_agreement
 from ml.bilstm.train import (
+    band_sample_weights,
     build_model,
     load_dataset,
     model_inputs,
@@ -76,18 +77,20 @@ LOWER_IS_BETTER = {"rmse", "mae"}
 METRICS = ["rmse", "mae", "r2", "accuracy", "precision_macro", "recall_macro", "f1_macro"]
 
 
-def expanding_window_folds(order: np.ndarray, purge: int) -> list[tuple[np.ndarray, np.ndarray]]:
+def expanding_window_folds(
+    order: np.ndarray, purge: int, n_folds: int = N_FOLDS
+) -> list[tuple[np.ndarray, np.ndarray]]:
     """(train_idx, test_idx) per fold, over an array of row indices already
     sorted by target date. Block k+1 is the test set; blocks 0..k are training,
     minus a purge gap at the join."""
     n = len(order)
-    block_size = n // (N_FOLDS + 1)
+    block_size = n // (n_folds + 1)
 
     folds = []
-    for k in range(N_FOLDS):
+    for k in range(n_folds):
         train_end = block_size * (k + 1)
         test_start = train_end
-        test_end = test_start + block_size if k < N_FOLDS - 1 else n
+        test_end = test_start + block_size if k < n_folds - 1 else n
 
         train_idx = order[: max(train_end - purge, 0)]
         test_idx = order[test_start:test_end]
@@ -105,8 +108,15 @@ def run_one(
     test_idx: np.ndarray,
     epochs: int,
     batch_size: int,
+    band_weight_power: float | None = None,
+    learned_features: float | None = None,
 ) -> dict[str, float]:
     """Trains one configuration on one fold and returns its seven metrics.
+
+    `band_weight_power`, when set, weights training samples by inverse ETL
+    band frequency (ml/bilstm/train.py's band_sample_weights), the same
+    recipe as `train.py --balance-bands --band-weight-power`. None keeps the
+    original unweighted fit, so existing callers are unchanged.
 
     The tail of the training block becomes the validation set for early
     stopping. It is carved off chronologically (not sampled) so validation
@@ -123,20 +133,52 @@ def run_one(
     )
 
     keras.backend.clear_session()
-    model = build_model(
-        window_days=X_sequence.shape[1],
-        n_seq_features=X_sequence.shape[2],
-        n_static_features=X_static.shape[1],
-    )
-    model.fit(
-        model_inputs(X_seq_fit, X_static_fit),
-        y[fit_idx],
-        validation_data=(model_inputs(X_seq_val, X_static_val), y[val_idx]),
-        epochs=epochs,
-        batch_size=batch_size,
-        callbacks=[keras.callbacks.EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True)],
-        verbose=0,
-    )
+    if learned_features is not None:
+        # The network learns the biologically informed features itself; the formulas are only
+        # training answers (ml/bilstm/learned_features.py), never inputs.
+        from ml.bilstm import learned_features as lf
+
+        ans_w, ans_d = lf.training_answers(X_sequence, pest)
+        w_mean, w_std = ans_w[fit_idx].mean(0), ans_w[fit_idx].std(0) + 1e-6
+        flat = ans_d[fit_idx].reshape(-1, ans_d.shape[2])
+        d_mean, d_std = flat.mean(0), flat.std(0) + 1e-6
+        y_mean, y_std = float(y[fit_idx].mean()), float(y[fit_idx].std())
+        train_model, model, _ = lf.build_learned_feature_models(
+            X_sequence.shape[1], X_sequence.shape[2], X_static.shape[1], y_mean, y_std, learned_features
+        )
+        train_model.fit(
+            model_inputs(X_seq_fit, X_static_fit),
+            {"prediction_z": (y[fit_idx] - y_mean) / y_std, "window_features": (ans_w[fit_idx] - w_mean) / w_std, "daily_features": (ans_d[fit_idx] - d_mean) / d_std},
+            validation_data=(
+                model_inputs(X_seq_val, X_static_val),
+                {"prediction_z": (y[val_idx] - y_mean) / y_std, "window_features": (ans_w[val_idx] - w_mean) / w_std, "daily_features": (ans_d[val_idx] - d_mean) / d_std},
+            ),
+            epochs=max(epochs, 120),
+            batch_size=batch_size,
+            callbacks=[keras.callbacks.EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True)],
+            verbose=0,
+        )
+    else:
+        model = build_model(
+            window_days=X_sequence.shape[1],
+            n_seq_features=X_sequence.shape[2],
+            n_static_features=X_static.shape[1],
+        )
+        sample_weight = (
+            band_sample_weights(pest, y[fit_idx], is_reproductive[fit_idx], band_weight_power)
+            if band_weight_power
+            else None
+        )
+        model.fit(
+            model_inputs(X_seq_fit, X_static_fit),
+            y[fit_idx],
+            sample_weight=sample_weight,
+            validation_data=(model_inputs(X_seq_val, X_static_val), y[val_idx]),
+            epochs=epochs,
+            batch_size=batch_size,
+            callbacks=[keras.callbacks.EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True)],
+            verbose=0,
+        )
 
     y_true = y[test_idx]
     y_pred = predict(model, X_seq_test, X_static_test)

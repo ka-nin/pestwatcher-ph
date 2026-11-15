@@ -6,6 +6,9 @@ interface GapAnalysisChartProps {
   lowMax: number
   highMin: number
   unitLabel: string
+  // The technologist-verified value, drawn as a marker on the report's own
+  // date so both forecast lines can be read against the field truth.
+  verifiedValue?: number | null
 }
 
 const WIDTH = 740
@@ -36,12 +39,14 @@ function polyline(days: GapAnalysisDay[], key: 'historical_value' | 'report_base
   return segments
 }
 
-function GapAnalysisChart({ days, lowMax, highMin, unitLabel }: GapAnalysisChartProps) {
+function GapAnalysisChart({ days, lowMax, highMin, unitLabel, verifiedValue = null }: GapAnalysisChartProps) {
   if (days.length === 0) {
     return <p className="stat-card-loading">Loading comparison…</p>
   }
 
-  const allValues = days.flatMap((d) => [d.historical_value, d.report_based_value]).filter((v): v is number => v !== null)
+  const allValues = [...days.flatMap((d) => [d.historical_value, d.report_based_value]), verifiedValue].filter(
+    (v): v is number => v !== null,
+  )
   const dataMax = allValues.length ? Math.max(...allValues) : 0
   const yMax = niceMax(highMin, dataMax)
 
@@ -93,12 +98,12 @@ function GapAnalysisChart({ days, lowMax, highMin, unitLabel }: GapAnalysisChart
         )
       })}
 
-      {/* historical (weather-only) line — dashed, neutral */}
+      {/* forecast without the report — dashed, neutral */}
       {historicalSegments.map((points, i) => (
         <polyline key={`h-${i}`} points={points} fill="none" stroke="#777" strokeWidth={1.75} strokeDasharray="5 4" />
       ))}
 
-      {/* report-based (anchored) line — solid, accent */}
+      {/* forecast with the report as model input — solid, accent */}
       {reportSegments.map((points, i) => (
         <polyline key={`r-${i}`} points={points} fill="none" stroke="#2f6b32" strokeWidth={2} />
       ))}
@@ -112,6 +117,24 @@ function GapAnalysisChart({ days, lowMax, highMin, unitLabel }: GapAnalysisChart
         d.report_based_value !== null ? (
           <circle key={`rd-${d.date}`} cx={xPixel(i)} cy={yPixel(d.report_based_value)} r={3} fill="#2f6b32" />
         ) : null,
+      )}
+
+      {verifiedValue !== null && (
+        <g>
+          <rect
+            x={xPixel(0) - 5}
+            y={yPixel(verifiedValue) - 5}
+            width={10}
+            height={10}
+            transform={`rotate(45 ${xPixel(0)} ${yPixel(verifiedValue)})`}
+            fill="#c2671c"
+            stroke="#fff"
+            strokeWidth={1.5}
+          />
+          <text x={xPixel(0) + 10} y={yPixel(verifiedValue) - 8} className="trajectory-axis-label" fill="#c2671c">
+            verified
+          </text>
+        </g>
       )}
     </svg>
   )

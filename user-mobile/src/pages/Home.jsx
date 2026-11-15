@@ -132,6 +132,8 @@ export default function Home() {
   // together, on the same interval and the same active pest.
   const [forecasts, setForecasts] = useState({ BPH: null, RSB: null });
   const [trends, setTrends] = useState({ BPH: null, RSB: null });
+  // How fast / how far, from the trajectory response (server-python/app/decision/outlook.py).
+  const [outlooks, setOutlooks] = useState({ BPH: null, RSB: null });
   const [activePest, setActivePest] = useState('BPH');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -222,6 +224,9 @@ export default function Home() {
           BPH: toTrend(bphTrajectory),
           RSB: toTrend(rsbTrajectory),
         });
+        const toOutlook = (trajectory) =>
+          trajectory.status === 'ok' ? { growth: trajectory.outlook ?? null, spread: trajectory.spread ?? null } : null;
+        setOutlooks({ BPH: toOutlook(bphTrajectory), RSB: toOutlook(rsbTrajectory) });
       } catch (err) {
         if (!cancelled) setError(err.message || t('homeForecastError'));
       } finally {
@@ -461,6 +466,40 @@ export default function Home() {
             )}
             {trendData?.length === TREND_DAYS && <span className="trend-week-divider" aria-hidden="true" />}
           </div>
+          {outlooks[activePest]?.growth && (
+            <p className="trend-outlook">
+              <strong>
+                {t(
+                  outlooks[activePest].growth.trend === 'rising'
+                    ? 'homeOutlookRising'
+                    : outlooks[activePest].growth.trend === 'falling'
+                      ? 'homeOutlookFalling'
+                      : 'homeOutlookStable'
+                )}
+              </strong>
+              {outlooks[activePest].growth.doubling_days != null &&
+                ` · ${t('homeOutlookDoubles').replace('{days}', Math.round(outlooks[activePest].growth.doubling_days))}`}
+              {outlooks[activePest].growth.days_to_high === 0
+                ? ` · ${t('homeOutlookAlreadyHigh')}`
+                : outlooks[activePest].growth.days_to_high != null &&
+                  ` · ${t('homeOutlookReachesHigh').replace('{days}', outlooks[activePest].growth.days_to_high)}`}
+            </p>
+          )}
+          {outlooks[activePest]?.spread?.recent_reports > 0 && (
+            <p className="trend-outlook trend-spread">
+              {t('homeSpreadLine')
+                .replace('{ha}', outlooks[activePest].spread.recent_hectares)
+                .replace('{days}', outlooks[activePest].spread.window_days)}
+              {outlooks[activePest].spread.trend &&
+                ` (${t(
+                  outlooks[activePest].spread.trend === 'spreading'
+                    ? 'homeSpreadSpreading'
+                    : outlooks[activePest].spread.trend === 'shrinking'
+                      ? 'homeSpreadShrinking'
+                      : 'homeSpreadSteady'
+                )})`}
+            </p>
+          )}
         </section>
 
         <button className="nearby-alerts-link" onClick={() => navigate('/alerts')}>

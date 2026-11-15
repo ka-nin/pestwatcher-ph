@@ -7,13 +7,12 @@ import {
   type WeatherForecast,
 } from '../../lib/api'
 import { ASSUMED_GROWTH_STAGE } from '../../lib/etl'
-import { GDD_BASE_TEMP_C } from '../../lib/climate'
 import './ClimateDriversPage.css'
 
 interface ClimateMetrics {
-  gdd: number
+  highestTemp: number
   sevenDayRainfall: number
-  humidityPersistence: number
+  averageHumidity: number
 }
 
 interface ClimateDriversPageProps {
@@ -84,13 +83,13 @@ function ChartTooltip({ x, y, children }: { x: number; y: number; children: Reac
   )
 }
 
-function GddLineChart({
+function TemperatureLineChart({
   points,
-  dailyGdd,
+  lows,
   dates,
   hoverDay,
   onHover,
-}: ClimateChartProps & { dailyGdd: number[] }) {
+}: ClimateChartProps & { lows: number[] }) {
   const yMax = niceMax(Math.max(...points, 1))
   const plotW = CHART_WIDTH - PAD_LEFT - PAD_RIGHT
   const plotH = CHART_HEIGHT - PAD_TOP - PAD_BOTTOM
@@ -112,7 +111,7 @@ function GddLineChart({
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
         role="img"
         tabIndex={0}
-        aria-label="Cumulative growing degree days over the 14-day forecast. Use the left and right arrow keys to inspect each day."
+        aria-label="Daily highest temperature over the 14-day forecast. Use the left and right arrow keys to inspect each day."
         onPointerMove={handlePointer}
         onPointerDown={handlePointer}
         onPointerLeave={() => onHover(null)}
@@ -185,15 +184,15 @@ function GddLineChart({
           <strong>
             Day {hoverDay + 1} · {formatDay(dates[hoverDay])}
           </strong>
-          <span>Cumulative: {points[hoverDay].toFixed(0)} °C-days</span>
-          <span>That day: +{(dailyGdd[hoverDay] ?? 0).toFixed(1)}</span>
+          <span>Highest: {points[hoverDay].toFixed(0)} °C</span>
+          <span>Lowest: {(lows[hoverDay] ?? 0).toFixed(0)} °C</span>
         </ChartTooltip>
       )}
     </div>
   )
 }
 
-function CrfBarChart({ points, dates, hoverDay, onHover }: ClimateChartProps) {
+function RainBarChart({ points, dates, hoverDay, onHover }: ClimateChartProps) {
   const yMax = niceMax(Math.max(...points, 1))
   const plotW = CHART_WIDTH - PAD_LEFT - PAD_RIGHT
   const plotH = CHART_HEIGHT - PAD_TOP - PAD_BOTTOM
@@ -325,17 +324,9 @@ function ClimateDriversPage({ user, weather, weatherError, climateMetrics }: Cli
 
   const maxShap = Math.max(1e-6, ...shapFeatures.map((f) => Math.abs(f.value)))
 
-  const dailyGdd = weather
-    ? weather.daily.temperature_2m_max.map((tMax, i) => {
-        const tMin = weather.daily.temperature_2m_min[i]
-        return Math.max((tMax + tMin) / 2 - GDD_BASE_TEMP_C, 0)
-      })
-    : []
-  const cumulativeGdd = dailyGdd.reduce<number[]>((acc, v, i) => {
-    acc.push((acc[i - 1] ?? 0) + v)
-    return acc
-  }, [])
-  const dailyCrf = weather?.daily.precipitation_sum ?? []
+  const dailyHigh = weather?.daily.temperature_2m_max ?? []
+  const dailyLow = weather?.daily.temperature_2m_min ?? []
+  const dailyRain = weather?.daily.precipitation_sum ?? []
 
   return (
     <>
@@ -349,11 +340,11 @@ function ClimateDriversPage({ user, weather, weatherError, climateMetrics }: Cli
           ) : climateMetrics ? (
             <>
               <div className="status-stat-value">
-                {climateMetrics.gdd}
-                <span className="status-stat-unit">°C-days</span>
+                {climateMetrics.highestTemp}
+                <span className="status-stat-unit">°C</span>
               </div>
-              <div className="status-stat-label">Growing Degree Days (GDD)</div>
-              <div className="status-stat-desc">Cumulative over the next 14 days</div>
+              <div className="status-stat-label">Highest Temperature</div>
+              <div className="status-stat-desc">Warmest day in the next 7 days</div>
             </>
           ) : (
             <p className="climate-stat-msg">Loading live weather data…</p>
@@ -373,10 +364,8 @@ function ClimateDriversPage({ user, weather, weatherError, climateMetrics }: Cli
                 {climateMetrics.sevenDayRainfall}
                 <span className="status-stat-unit">mm</span>
               </div>
-              <div className="status-stat-label">Cumulative Rainfall Factor (CRF)</div>
-              <div className="status-stat-desc">
-                7-day accumulated volume — tracks waterlogging / larval habitat risk
-              </div>
+              <div className="status-stat-label">Rainfall</div>
+              <div className="status-stat-desc">Total expected over the next 7 days</div>
             </>
           ) : (
             <p className="climate-stat-msg">Loading live weather data…</p>
@@ -392,13 +381,11 @@ function ClimateDriversPage({ user, weather, weatherError, climateMetrics }: Cli
           ) : climateMetrics ? (
             <>
               <div className="status-stat-value">
-                {climateMetrics.humidityPersistence}
+                {climateMetrics.averageHumidity}
                 <span className="status-stat-unit">%</span>
               </div>
-              <div className="status-stat-label">Humidity Persistence (HP)</div>
-              <div className="status-stat-desc">
-                Sustained hours ≥80% RH — favorable to pest reproduction above 70%
-              </div>
+              <div className="status-stat-label">Average Humidity</div>
+              <div className="status-stat-desc">Relative humidity over the next 7 days</div>
             </>
           ) : (
             <p className="climate-stat-msg">Loading live weather data…</p>
@@ -410,9 +397,9 @@ function ClimateDriversPage({ user, weather, weatherError, climateMetrics }: Cli
         <div className="panel climate-chart-panel">
           <div className="panel-head">
             <div>
-              <div className="panel-title">14-Day Climate Feature Forecast</div>
+              <div className="panel-title">14-Day Weather Outlook</div>
               <div className="panel-subtitle">
-                Daily GDD accumulation and rainfall, live from Open-Meteo for {user.municipality}
+                Daily temperature and rainfall, live from Open-Meteo for {user.municipality}
               </div>
             </div>
           </div>
@@ -424,11 +411,11 @@ function ClimateDriversPage({ user, weather, weatherError, climateMetrics }: Cli
               <div className="climate-chart-block">
                 <div className="climate-chart-block-title">
                   <span className="climate-chart-swatch climate-chart-swatch-line" />
-                  Cumulative GDD (°C-days)
+                  Daily Highest Temperature (°C)
                 </div>
-                <GddLineChart
-                  points={cumulativeGdd}
-                  dailyGdd={dailyGdd}
+                <TemperatureLineChart
+                  points={dailyHigh}
+                  lows={dailyLow}
                   dates={weather.daily.time}
                   hoverDay={hoverDay}
                   onHover={setHoverDay}
@@ -437,10 +424,10 @@ function ClimateDriversPage({ user, weather, weatherError, climateMetrics }: Cli
               <div className="climate-chart-block">
                 <div className="climate-chart-block-title">
                   <span className="climate-chart-swatch climate-chart-swatch-bar" />
-                  Daily Rainfall / CRF (mm)
+                  Daily Rainfall (mm)
                 </div>
-                <CrfBarChart
-                  points={dailyCrf}
+                <RainBarChart
+                  points={dailyRain}
                   dates={weather.daily.time}
                   hoverDay={hoverDay}
                   onHover={setHoverDay}

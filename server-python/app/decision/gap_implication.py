@@ -1,9 +1,18 @@
-"""Turns a gap analysis's two 14-day trajectories (historical vs.
-report-based — see app/schemas/inference.py's GapAnalysisDay) into one
-plain-language sentence a technician can read without doing the comparison
-themselves.
+"""Turns a gap analysis (see app/schemas/inference.py's GapAnalysisDay and
+GapAnalysisResponse) into a short plain-language reading a technician can
+use without doing the comparison themselves.
 
-Deliberately simple and rule-based, not learned — same spirit as
+Two separate statements, because they answer different questions:
+
+  1. The gap itself: the field value the technologist verified vs. what the
+     model forecast for that date WITHOUT any report (the historical line).
+     This is how wrong the weather-and-growth-stage forecast was.
+  2. The system's response: how much the deployed model's forecast changes
+     once this report is fed in as its verified-observation input (the
+     report-based line). This is how far the report actually moves what
+     farmers are shown.
+
+Deliberately simple and rule-based, not learned, in the same spirit as
 app/decision/etl_thresholds.py: an implication should be traceable to a
 fixed rule, not a model's own judgment call.
 """
@@ -13,63 +22,68 @@ from app.schemas.inference import GapAnalysisDay
 RISK_RANK = {"Low": 0, "Medium": 1, "High": 2}
 
 
-def describe_gap(days: list[GapAnalysisDay], pest: str) -> str:
+def describe_gap(
+    days: list[GapAnalysisDay],
+    pest: str,
+    verified_risk_level: str | None,
+    report_is_model_input: bool,
+) -> str:
     """`days` must be in chronological order, starting on the report's own
     date (see app/routers/reports.py's gap-analysis endpoint)."""
     if not days:
         return "No comparable days — the weather history needed for this window isn't available yet."
 
-    anchor_day = days[0]
-    if anchor_day.historical_risk_level is None or anchor_day.report_based_risk_level is None:
+    first = days[0]
+    if first.historical_risk_level is None or verified_risk_level is None:
         return "Not enough weather history to compute a forecast for this report's date."
 
-    historical_rank = RISK_RANK[anchor_day.historical_risk_level]
-    report_rank = RISK_RANK[anchor_day.report_based_risk_level]
-
-    if report_rank == historical_rank:
-        return (
-            f"The report confirms the model: weather alone already predicted "
-            f"{anchor_day.historical_risk_level} risk for {pest} on this date, matching what was verified "
-            f"in the field."
-        )
-
-    direction = "higher" if report_rank > historical_rank else "lower"
-    magnitude = abs(report_rank - historical_rank)
-    severity_word = "sharply" if magnitude >= 2 else "somewhat"
-
-    # How many of the following days still show a gap between the two
-    # trajectories, as a rough sense of how long the discrepancy lingers —
-    # mirrors the same fading window report_anchor.py uses, just read back
-    # out of the two already-computed series instead of recomputed here.
-    lingering_days = sum(
-        1
-        for d in days[1:]
-        if d.historical_risk_level is not None
-        and d.report_based_risk_level is not None
-        and d.historical_risk_level != d.report_based_risk_level
-    )
-
-    base = (
-        f"The verified report was {severity_word} {direction} than what weather alone predicted: "
-        f"the model's weather-only forecast called {anchor_day.historical_risk_level} risk, but the field "
-        f"report puts it at {anchor_day.report_based_risk_level}."
-    )
-
-    if direction == "higher":
-        implication = (
-            " This suggests the model may be underestimating this outbreak — weather conditions alone "
-            "didn't fully capture what's happening in the field."
+    # ---- 1. field vs. the forecast made without the report
+    predicted, observed = first.historical_risk_level, verified_risk_level
+    if RISK_RANK[observed] == RISK_RANK[predicted]:
+        gap = (
+            f"The field report agrees with the model: without any report it forecast {predicted} risk "
+            f"for {pest} on this date, and the technologist verified {observed}."
         )
     else:
-        implication = (
-            " This suggests the model may be overestimating risk here — the field report found less "
-            "pest pressure than the weather-driven forecast expected."
+        direction = "higher" if RISK_RANK[observed] > RISK_RANK[predicted] else "lower"
+        severity = "much" if abs(RISK_RANK[observed] - RISK_RANK[predicted]) >= 2 else "somewhat"
+        reading = (
+            "the model may be underestimating this outbreak"
+            if direction == "higher"
+            else "the model may be overestimating risk here"
+        )
+        gap = (
+            f"The field was {severity} {direction} than forecast: without any report the model called "
+            f"{predicted} risk, but the technologist verified {observed}, so {reading}."
         )
 
-    trailing = (
-        f" The gap is expected to narrow over the next {lingering_days} day(s) as the report's influence fades."
-        if lingering_days
-        else " The two forecasts converge again within a day or two."
+    # ---- 2. how far the report moves the deployed forecast
+    if not report_is_model_input:
+        return gap + " The deployed model does not take verified reports as an input, so this report does not change the forecast."
+
+    comparable = [
+        d for d in days if d.historical_risk_level is not None and d.report_based_risk_level is not None
+    ]
+    changed_days = sum(1 for d in comparable if d.historical_risk_level != d.report_based_risk_level)
+    shift = (
+        first.report_based_value - first.historical_value
+        if first.report_based_value is not None and first.historical_value is not None
+        else None
     )
 
-    return base + implication + trailing
+    if changed_days == 0:
+        response = (
+            f" With this report as an input, the forecast stays at the same risk level on all "
+            f"{len(comparable)} days"
+        )
+        response += f" (it moves by {shift:+.1f} on the report's date)." if shift is not None else "."
+        if RISK_RANK[observed] != RISK_RANK[predicted]:
+            response += " The report is recorded, but it is not enough on its own to change what farmers are shown."
+    else:
+        response = (
+            f" With this report as an input, the forecast's risk level changes on {changed_days} of "
+            f"{len(comparable)} days"
+            + (f", starting at {first.report_based_risk_level} on the report's date." if first.report_based_risk_level else ".")
+        )
+
+    return gap + response

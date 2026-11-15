@@ -74,6 +74,13 @@ class ReportRecord(ReportRequest):
     # yet ("model_not_loaded" is a normal state elsewhere in this API too).
     ai_pest_detected: str | None = None
     ai_confidence: float | None = None
+    # CV-suggested count/coverage/damage % from the same photo (app/models/
+    # resnet_model.py's ResNet50RegressorBank) — a starting point shown to
+    # the technologist during review, never auto-applied to estimated_value/
+    # area_affected. Only the pair relevant to ai_pest_detected is set.
+    ai_suggested_count: float | None = None
+    ai_suggested_coverage_pct: float | None = None
+    ai_suggested_damage_pct: float | None = None
     # Set when an LGU technician deletes the report (soft delete, kept as an
     # audit trail). A deleted report never feeds the forecast or the farmers'
     # feed and is only listed by GET /api/reports/deleted.

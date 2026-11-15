@@ -98,18 +98,42 @@ function GapAnalysisModal({ report, onClose }: GapAnalysisModalProps) {
 
         {result?.status === 'ok' && (
           <>
+            {result.verified_value != null && (
+              <p className="gap-modal-verified">
+                Verified in the field:{' '}
+                <strong>{formatValue(result.verified_value, unitLabel)}</strong>
+                {result.verified_risk_level && (
+                  <span className={`badge badge-${RISK_TONE[result.verified_risk_level]} gap-modal-table-badge`}>
+                    {result.verified_risk_level}
+                  </span>
+                )}
+              </p>
+            )}
+
             <div className="gap-modal-legend">
               <span className="gap-modal-legend-item">
                 <span className="gap-modal-legend-swatch gap-modal-legend-swatch-historical" />
-                14-day prediction (historical / weather-only)
+                Forecast without this report
               </span>
               <span className="gap-modal-legend-item">
                 <span className="gap-modal-legend-swatch gap-modal-legend-swatch-report" />
-                14-day prediction (based on this report)
+                Forecast with this report as input
               </span>
+              {result.verified_value != null && (
+                <span className="gap-modal-legend-item">
+                  <span className="gap-modal-legend-swatch gap-modal-legend-swatch-verified" />
+                  Verified value
+                </span>
+              )}
             </div>
 
-            <GapAnalysisChart days={result.days} lowMax={band.lowMax} highMin={band.highMin} unitLabel={unitLabel} />
+            <GapAnalysisChart
+              days={result.days}
+              lowMax={band.lowMax}
+              highMin={band.highMin}
+              unitLabel={unitLabel}
+              verifiedValue={result.verified_value ?? null}
+            />
 
             <div className="gap-modal-table-wrap">
               <table className="gap-modal-table">
@@ -118,15 +142,13 @@ function GapAnalysisModal({ report, onClose }: GapAnalysisModalProps) {
                   <col />
                   <col />
                   <col className="gap-modal-col-gap" />
-                  <col className="gap-modal-col-weight" />
                 </colgroup>
                 <thead>
                   <tr>
                     <th>Date</th>
-                    <th>Historical</th>
-                    <th>Report-Based</th>
-                    <th>Gap</th>
-                    <th>Weight</th>
+                    <th>Without report</th>
+                    <th>With report</th>
+                    <th>Change</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -156,7 +178,6 @@ function GapAnalysisModal({ report, onClose }: GapAnalysisModalProps) {
                         <td className={`gap-modal-table-gap gap-modal-table-gap-${gapTone}`}>
                           {gap ? gap.label : '—'}
                         </td>
-                        <td className="gap-modal-table-weight">{Math.round(day.report_weight * 100)}%</td>
                       </tr>
                     )
                   })}

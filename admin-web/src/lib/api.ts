@@ -149,11 +149,43 @@ export interface TrajectoryPoint {
   predicted_value: number
   unit: 'hoppers_per_hill' | 'pct_damage'
   risk_level: RiskLevel
+  // 80% confidence band from the ensemble of runs (null when the extra runs are not installed).
+  predicted_low?: number | null
+  predicted_high?: number | null
+  // Projected hectares affected that day (null without a verified area).
+  projected_affected_ha?: number | null
+}
+
+// How fast the forecast says the pest is changing, read off the trajectory
+// (server-python/app/decision/outlook.py's growth_outlook).
+export interface GrowthOutlook {
+  trend: 'rising' | 'falling' | 'stable'
+  change_per_day: number
+  pct_change_per_day: number | null
+  doubling_days: number | null
+  days_to_high: number | null
+  peak_value: number
+  peak_date: string
+  days_covered: number
+}
+
+// Observed extent from technologist-verified reports, not a forecast
+// (outlook.py's spread_summary).
+export interface SpreadSummary {
+  window_days: number
+  recent_reports: number
+  recent_hectares: number
+  previous_reports: number
+  previous_hectares: number
+  trend: 'spreading' | 'shrinking' | 'steady' | null
+  mean_photo_coverage_pct: number | null
 }
 
 export interface TrajectoryResponse {
   status: 'ok' | 'model_not_loaded'
   points: TrajectoryPoint[]
+  outlook?: GrowthOutlook | null
+  spread?: SpreadSummary | null
   message: string
 }
 
@@ -178,13 +210,110 @@ export async function fetchPestForecastTrajectory(
   return res.json()
 }
 
+// ---- Field assessment: severity and spread from a whole-field photo
+// (server-python/app/routers/inference.py's POST /field-assessment). An
+// unverified estimate from a model trained on synthetic data.
+export interface FieldAssessment {
+  status: 'ok' | 'model_not_loaded'
+  pest: PestKey | null
+  target: string | null
+  rows: number
+  cols: number
+  // Per-cell share of the cell covered by damage (0 to 100), row-major.
+  cell_values: number[][]
+  // Which cells the model judges to contain damage.
+  cell_has_damage: boolean[][]
+  // Severity: mean over cells.
+  pct_affected: number | null
+  // Spread: share of cells that contain damage.
+  cells_affected_pct: number | null
+  severity_where_present_pct: number | null
+  field_size_ha: number | null
+  // 'photo_metadata' = read from the photo's drone height + lens; 'entered' = typed by the user.
+  field_size_source: 'entered' | 'photo_metadata' | null
+  // Spread in hectares: cells_affected_pct x field size.
+  affected_hectares: number | null
+  // Area from the photo's own geometry (lens + assumed camera height 1.5 m, tilt 35 deg); low/high = tilt 45 / 30 deg.
+  visible_area_m2: number | null
+  affected_area_m2: number | null
+  affected_area_m2_low: number | null
+  affected_area_m2_high: number | null
+  // 14-day outlook (only present when municipality + growthStage were passed to
+  // assessFieldPhoto): day 0 is this photo's own reading, days 1-13 are a
+  // PROJECTION under the BiLSTM's forecast ratio — see FieldAssessmentDay.
+  daily: FieldAssessmentDay[] | null
+  message: string
+}
+
+// One day of the field-assessment outlook — see server-python's
+// app/schemas/inference.py FieldAssessmentDay for the exact projection rule.
+export interface FieldAssessmentDay {
+  date: string
+  is_measured: boolean
+  pest_level: number
+  risk_level: RiskLevel
+  severity_pct: number | null
+  spread_pct: number | null
+  affected_hectares: number | null
+}
+
+export async function assessFieldPhoto(
+  file: File,
+  pest: PestKey,
+  fieldSizeHa: number | null,
+  municipality?: string,
+  growthStage?: GrowthStage,
+): Promise<FieldAssessment> {
+  const body = new FormData()
+  body.append('file', file)
+  body.append('pest', pest)
+  if (fieldSizeHa != null) body.append('field_size_ha', String(fieldSizeHa))
+  if (municipality) body.append('municipality', municipality)
+  if (growthStage) body.append('growth_stage', growthStage)
+  const res = await fetch(`${API_BASE_URL}/api/inference/field-assessment`, { method: 'POST', body })
+  if (!res.ok) {
+    throw new Error(res.status === 415 ? 'Use a JPEG, PNG or WebP photo.' : 'Field assessment failed.')
+  }
+  return res.json()
+}
+
+// ---- Automatic scan: the pest is identified from the photo (POST /api/inference/image).
+// BPH found -> count + coverage; no insect but stem-borer damage -> RSB with
+// severity and spread (field_assessment); otherwise nothing detected.
+export interface PhotoScan {
+  status: 'ok' | 'model_not_loaded' | 'no_pest_detected' | 'unidentified_pest_detected' | 'damage_detected'
+  pest_detected: PestKey | null
+  confidence: number | null
+  risk_level: string | null
+  message: string
+  estimated_count: number | null
+  estimated_coverage_pct: number | null
+  estimated_damage_pct: number | null
+  field_assessment: FieldAssessment | null
+}
+
+export async function scanFieldPhoto(
+  file: File,
+  fieldSizeHa: number | null,
+  municipality?: string,
+  growthStage?: GrowthStage,
+): Promise<PhotoScan> {
+  const body = new FormData()
+  body.append('file', file)
+  if (fieldSizeHa != null) body.append('field_size_ha', String(fieldSizeHa))
+  if (municipality) body.append('municipality', municipality)
+  if (growthStage) body.append('growth_stage', growthStage)
+  const res = await fetch(`${API_BASE_URL}/api/inference/image`, { method: 'POST', body })
+  if (!res.ok) throw new Error(res.status === 415 ? 'Use a JPEG, PNG or WebP photo.' : 'Photo scan failed.')
+  return res.json()
+}
+
 // ---- Gap Analysis: per-report "Analyze Gap" button on the Farmer Reports
-// tab. For one verified report, shows the 14-day forecast starting on the
-// report's own date two ways — plain weather-only (historical) and what the
-// forecast would look like if this report were allowed to anchor it
-// (report-based) — plus a plain-language implication. Read-only: neither
-// trajectory here is what a farmer/technician sees as a live prediction —
-// see server-python/app/routers/inference.py's _run_forecast docstring.
+// tab. For one verified report, the deployed model's 14-day forecast
+// starting on the report's own date, without any report as input
+// (historical) and with this report as its verified-observation input
+// (report-based, which is what the live forecast does), next to the value
+// the technologist verified. See server-python/app/routers/reports.py.
 
 export interface GapAnalysisDay {
   date: string
@@ -192,7 +321,6 @@ export interface GapAnalysisDay {
   historical_risk_level: RiskLevel | null
   report_based_value: number | null
   report_based_risk_level: RiskLevel | null
-  report_weight: number
 }
 
 export interface GapAnalysisResponse {
@@ -202,6 +330,9 @@ export interface GapAnalysisResponse {
   pest: PestKey
   unit: 'hoppers_per_hill' | 'pct_damage' | null
   days: GapAnalysisDay[]
+  verified_value?: number | null
+  verified_risk_level?: RiskLevel | null
+  report_is_model_input?: boolean
   implication: string
   message: string
 }
@@ -499,6 +630,16 @@ export interface ResnetTestMetrics {
   confusion_matrix: [[number, number], [number, number]]
 }
 
+export interface ResnetRegressionMetrics {
+  rmse: number
+  mae: number
+  r2: number
+  mean_actual_label: number
+  n_test_images: number
+  trained_with_synthetic: boolean
+  test_set_is_synthetic: boolean
+}
+
 export interface EtlClassificationMetrics {
   accuracy: number
   precision_macro: number
@@ -591,6 +732,7 @@ export interface ModelInsightsResponse {
   // Separate bug-vs-no-bug detector (ml/weights/unknown/) — consulted only
   // when neither tracked pest fires, so it has no per-pest variant.
   resnetUnknown: ResnetTestMetrics | null
+  resnetRegression?: Record<string, ResnetRegressionMetrics | null>
   resnetBphComparison: {
     note: string
     rows: { label: string; kind: 'falseAlarm' | 'recall'; n: number; old: number; new: number }[]

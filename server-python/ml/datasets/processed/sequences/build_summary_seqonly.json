@@ -1,0 +1,36 @@
+{
+  "BPH": {
+    "feature_set": "seq_only",
+    "num_sequences": 10825,
+    "window_days": 14,
+    "horizon_days": 14,
+    "X_sequence_shape": [
+      10825,
+      14,
+      10
+    ],
+    "X_static_shape": [
+      10825,
+      0
+    ],
+    "target_mean": 4.02595853805542,
+    "target_std": 7.85405969619751
+  },
+  "RSB": {
+    "feature_set": "seq_only",
+    "num_sequences": 10825,
+    "window_days": 14,
+    "horizon_days": 14,
+    "X_sequence_shape": [
+      10825,
+      14,
+      10
+    ],
+    "X_static_shape": [
+      10825,
+      0
+    ],
+    "target_mean": 0.871911883354187,
+    "target_std": 1.4078842401504517
+  }
+}

@@ -1139,3 +1139,7 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+.mi-regression-table .admin-col-center {
+  text-align: center;
+}

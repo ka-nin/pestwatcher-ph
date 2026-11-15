@@ -1,30 +1,28 @@
-"""Re-anchors a pest's forecast on the latest LGU-verified farmer report.
+"""Finds the LGU-verified farmer report a forecast should take into account.
 
-Replaces the old "bump the Low/Medium/High label" rule. The BiLSTM never
-sees pest counts (it is weather-only), so a report can't be fed into it —
-instead, once a report is verified, every number the model produces for that
-municipality + pest is shifted by a fixed gap for the next ANCHOR_DAYS days:
+The deployed BiLSTM has a verified-observation input (three static
+features: the latest verified value, its age in days, and a has-report
+flag), so a report reaches the forecast as part of what the model reads,
+the same way a weather reading does — not as an adjustment to its output
+afterwards. find_lagged_observation() builds that input for the live
+forecast (app/routers/inference.py); anchor_from_report() resolves one
+specific report for the gap analysis (app/routers/reports.py) and for
+ml/validity_test.py.
 
-    gap = verified report value - what the model predicted for the report day
-    shifted forecast = model forecast + gap x weight   (never below 0)
+History: until 2026-10-20 the model was weather-only and this module
+instead shifted every forecast by the gap between a verified report and
+the model's own prediction, fading over 13 days. That shift was removed
+from the live forecast when the lagged model was deployed, and from the
+gap analysis on 2026-10-21, so its weight()/shifted() helpers are gone.
 
-The weight fades linearly from 1 on the report day to 0 on day ANCHOR_DAYS, so
-the report day equals the report's number, its influence shrinks a little
-each day, and the forecast glides back to the plain weather-driven curve with
-no jump when the window ends. A newer verified report replaces the older one
-and restarts the fade; with no report inside the window the forecast is pure
-weather, unchanged. Note the fade returns to what the weather says, not
-automatically to "Low". The Low/Medium/High label is then derived
-from the shifted number by the normal ETL thresholds
-(app/decision/etl_thresholds.py) — the label itself is never bumped.
-
-Only reports whose pest_code matches are used, so a BPH report never moves
-the RSB forecast (different units, different model).
+Only reports whose pest_code matches are used in either path, so a BPH
+report never affects the RSB forecast or gap analysis (different units,
+different model).
 
 Most farmers can't give an exact count, so a verified report with no number
-still counts: its severity is turned into a value from the same fixed ETL
-bands used for the label (see severity_value). A technician-confirmed number,
-when there is one, always wins.
+still counts in both paths: its severity is turned into a value from the
+same fixed ETL bands used for the label (see severity_value). A
+technician-confirmed number, when there is one, always wins.
 """
 
 from dataclasses import dataclass
@@ -35,7 +33,8 @@ from app.decision.etl_thresholds import PEST_THRESHOLDS, GrowthStageBucket
 from app.decision.pest_matching import derive_pest_code
 from app.schemas.reports import ReportRecord
 
-# A report's influence fades linearly to zero over this many days.
+# find_anchor()'s default lookback (days). The live forecast passes the
+# model's own trained cutoff instead — see find_lagged_observation().
 ANCHOR_DAYS = 13
 
 
@@ -75,8 +74,16 @@ def _report_date(verified_at: str | None, submitted_at: str | None) -> date | No
 
 
 def find_anchor(
-    municipality: str, pest_code: str, today: date, growth_stage_bucket: GrowthStageBucket
+    municipality: str,
+    pest_code: str,
+    today: date,
+    growth_stage_bucket: GrowthStageBucket,
+    max_age_days: int = ANCHOR_DAYS,
 ) -> ReportAnchor | None:
+    """`max_age_days` defaults to ANCHOR_DAYS (this function's original use:
+    the now-removed forecast-shifting fade, gap-analysis's anchor_from_report
+    below). find_lagged_observation passes a wider window instead — see its
+    own docstring for why the two callers need different cutoffs."""
     best_date: date | None = None
     values_on_best_date: list[float] = []
 
@@ -93,7 +100,7 @@ def find_anchor(
         if report_date is None:
             continue
         age_days = (today - report_date).days
-        if age_days < 0 or age_days >= ANCHOR_DAYS:
+        if age_days < 0 or age_days >= max_age_days:
             continue
 
         if best_date is None or report_date > best_date:
@@ -111,17 +118,34 @@ def find_anchor(
     )
 
 
-def weight(anchor: ReportAnchor, target_date: date) -> float:
-    """1.0 on the report day, falling evenly to 0.0 at ANCHOR_DAYS; 0.0 for
-    any date before the report or past the window."""
-    days_after = (target_date - anchor.anchor_date).days
-    if days_after < 0 or days_after >= ANCHOR_DAYS:
-        return 0.0
-    return 1.0 - days_after / ANCHOR_DAYS
+# Must match ml/bilstm/build_sequences.py's MAX_OBSERVATION_AGE_DAYS exactly —
+# that's the cutoff the deployed "lagged" model was TRAINED with, so serving
+# a different one here would feed it a feature distribution it never saw.
+from ml.bilstm.build_sequences import MAX_OBSERVATION_AGE_DAYS  # noqa: E402
 
 
-def shifted(predicted_value: float, gap: float, weight_on_day: float) -> float:
-    return max(0.0, predicted_value + gap * weight_on_day)
+def find_lagged_observation(
+    municipality: str, pest_code: str, today: date, growth_stage_bucket: GrowthStageBucket
+) -> tuple[float, float, float]:
+    """Live counterpart to ml/bilstm/build_sequences.py's build_lagged_features():
+    (last_observed_value, days_since_observation, has_recent_observation) for
+    the CURRENT most recent verified report, in the pest's ETL units — the
+    same "lagged verified observation" the model trains on, computed from
+    today's real report data instead of the historical/simulated CSV.
+
+    This is what makes a verified report (now including one a technologist
+    confirmed with a CV-suggested count/coverage/damage % in front of them —
+    see app/routers/reports.py's review endpoint) an actual input to the
+    live forecast, not just a post-hoc comparison — the panel's requested
+    redesign, and the resolution of the old Chapter 1 inconsistency where
+    "Lagged Verified Pest Observation" was listed as a model input that the
+    deployed model never actually used.
+    """
+    anchor = find_anchor(municipality, pest_code, today, growth_stage_bucket, max_age_days=MAX_OBSERVATION_AGE_DAYS)
+    if anchor is None:
+        return 0.0, float(MAX_OBSERVATION_AGE_DAYS), 0.0
+    age_days = (today - anchor.anchor_date).days
+    return float(anchor.verified_value), float(age_days), 1.0
 
 
 def anchor_from_report(record: ReportRecord, growth_stage_bucket: GrowthStageBucket) -> ReportAnchor | None:

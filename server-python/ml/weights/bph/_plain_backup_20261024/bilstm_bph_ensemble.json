@@ -1,0 +1,12 @@
+{
+  "pest": "BPH",
+  "members": 5,
+  "target_coverage": 0.8,
+  "band_width_factor": 7.651406288146973,
+  "disagreement_floor": 0.05370748043060303,
+  "coverage_on_validation": 0.799617102744097,
+  "coverage_on_test": 0.8227927363807138,
+  "mean_band_half_width_test": 4.154513835906982,
+  "test_rmse_single_deployed": 6.702962875366211,
+  "test_rmse_ensemble_mean": 6.6932373046875
+}

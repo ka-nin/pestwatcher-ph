@@ -1,0 +1,57 @@
+{
+  "pest": "BPH",
+  "windows_train": 7549,
+  "windows_test": 1597,
+  "hidden_values_per_window": 32,
+  "scores_are": "R-squared of a linear probe on windows the model never saw (chronological test split)",
+  "results": {
+    "gdd": {
+      "label": "Growing degree days (accumulated heat)",
+      "trained_bilstm": 0.8115931368206706,
+      "untrained_bilstm": 0.9029010243212524,
+      "raw_means_only": 0.9999999999953022
+    },
+    "crf": {
+      "label": "Cumulative rainfall",
+      "trained_bilstm": 0.6033404176804256,
+      "untrained_bilstm": 0.6497839241568726,
+      "raw_means_only": 0.9999999999999429
+    },
+    "hp": {
+      "label": "Humidity persistence",
+      "trained_bilstm": 0.7141825900182134,
+      "untrained_bilstm": 0.71510208758648,
+      "raw_means_only": 0.7315272948455764
+    },
+    "wsi": {
+      "label": "Water stress index",
+      "trained_bilstm": 0.7071155089393306,
+      "untrained_bilstm": 0.729460851020197,
+      "raw_means_only": 0.792311596856119
+    },
+    "rainfall_trend": {
+      "label": "Rainfall trend",
+      "trained_bilstm": 0.23277898508298123,
+      "untrained_bilstm": 0.48373925414551067,
+      "raw_means_only": -6.582853607328687e-06
+    },
+    "temp_trend": {
+      "label": "Temperature trend",
+      "trained_bilstm": 0.5088760796121883,
+      "untrained_bilstm": 0.8109142389727486,
+      "raw_means_only": 0.0065868520675969044
+    },
+    "vpd": {
+      "label": "Mean vapor pressure deficit",
+      "trained_bilstm": 0.8998122238343604,
+      "untrained_bilstm": 0.9095733392897888,
+      "raw_means_only": 0.999400567092967
+    },
+    "diurnal": {
+      "label": "Mean diurnal temperature range",
+      "trained_bilstm": 0.7931295580917074,
+      "untrained_bilstm": 0.9076473456104901,
+      "raw_means_only": 0.999999999996206
+    }
+  }
+}

@@ -34,6 +34,63 @@ function formatDateLabel(iso: string) {
   return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
+// Monotone cubic (Fritsch–Carlson) interpolation — the same family of curve
+// recharts' `type="monotone"` draws for the mobile trend chart. A plain
+// Catmull-Rom spline can overshoot past the real data values on sharp rises
+// (e.g. a line dipping below 0 between two low points); this variant clamps
+// each segment's tangent so the curve never overshoots its neighboring
+// points, matching mobile's look without inventing dips/bumps that aren't
+// in the data.
+function monotonePath(pts: { x: number; y: number }[]): string {
+  const n = pts.length
+  if (n === 0) return ''
+  if (n === 1) return `M ${pts[0].x} ${pts[0].y}`
+
+  const dx: number[] = []
+  const secant: number[] = []
+  for (let i = 0; i < n - 1; i++) {
+    dx.push(pts[i + 1].x - pts[i].x)
+    secant.push((pts[i + 1].y - pts[i].y) / (dx[i] || 1))
+  }
+
+  const tangent: number[] = new Array(n)
+  tangent[0] = secant[0]
+  tangent[n - 1] = secant[n - 2]
+  for (let i = 1; i < n - 1; i++) {
+    tangent[i] = secant[i - 1] === 0 || secant[i] === 0 || secant[i - 1] < 0 !== secant[i] < 0
+      ? 0
+      : (secant[i - 1] + secant[i]) / 2
+  }
+
+  for (let i = 0; i < n - 1; i++) {
+    if (secant[i] === 0) {
+      tangent[i] = 0
+      tangent[i + 1] = 0
+      continue
+    }
+    const alpha = tangent[i] / secant[i]
+    const beta = tangent[i + 1] / secant[i]
+    if (alpha < 0) tangent[i] = 0
+    if (beta < 0) tangent[i + 1] = 0
+    const magnitude = alpha * alpha + beta * beta
+    if (magnitude > 9) {
+      const tau = 3 / Math.sqrt(magnitude)
+      tangent[i] = tau * alpha * secant[i]
+      tangent[i + 1] = tau * beta * secant[i]
+    }
+  }
+
+  let path = `M ${pts[0].x} ${pts[0].y}`
+  for (let i = 0; i < n - 1; i++) {
+    const cp1x = pts[i].x + dx[i] / 3
+    const cp1y = pts[i].y + (tangent[i] * dx[i]) / 3
+    const cp2x = pts[i + 1].x - dx[i] / 3
+    const cp2y = pts[i + 1].y - (tangent[i + 1] * dx[i]) / 3
+    path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${pts[i + 1].x} ${pts[i + 1].y}`
+  }
+  return path
+}
+
 function TrajectoryChart({
   points,
   lowMax,
@@ -57,9 +114,15 @@ function TrajectoryChart({
   const yTicks = Array.from(new Set([0, lowMax, highMin, yMax])).sort((a, b) => a - b)
   const labelEvery = Math.max(1, Math.ceil(points.length / 7))
 
-  const linePath = points
-    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${xPixel(i)} ${yPixel(p.predicted_value)}`)
-    .join(' ')
+  const linePath = monotonePath(points.map((p, i) => ({ x: xPixel(i), y: yPixel(p.predicted_value) })))
+
+  // 80% confidence band: the upper edge left to right, then the lower edge back.
+  const hasBand = points.length > 1 && points.every((p) => p.predicted_low != null && p.predicted_high != null)
+  const bandPath = hasBand
+    ? `${monotonePath(points.map((p, i) => ({ x: xPixel(i), y: yPixel(p.predicted_high as number) })))} L ${xPixel(points.length - 1)} ${yPixel(points[points.length - 1].predicted_low as number)} ${monotonePath(
+        points.map((_, i) => ({ x: xPixel(points.length - 1 - i), y: yPixel(points[points.length - 1 - i].predicted_low as number) })),
+      ).replace(/^M [\d.\-]+ [\d.\-]+/, '')} Z`
+    : null
 
   const handlePointer = (e: React.PointerEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -178,6 +241,16 @@ function TrajectoryChart({
           />
         )}
 
+        {/* confidence band, clipped to the plot area */}
+        {bandPath && (
+          <>
+            <clipPath id="trajectory-plot-clip">
+              <rect x={MARGIN.left} y={MARGIN.top} width={PLOT_W} height={PLOT_H} />
+            </clipPath>
+            <path d={bandPath} className="trajectory-band" clipPath="url(#trajectory-plot-clip)" />
+          </>
+        )}
+
         {/* faint connecting line */}
         <path d={linePath} className="trajectory-line" />
 
@@ -201,6 +274,11 @@ function TrajectoryChart({
         >
           <strong>{formatDateLabel(active.date)}</strong>
           <span>{valueText(active.predicted_value)}</span>
+          {active.predicted_low != null && active.predicted_high != null && (
+            <span className="trajectory-tooltip-range">
+              Likely range {valueText(active.predicted_low)} to {valueText(active.predicted_high)}
+            </span>
+          )}
           <span className="trajectory-tooltip-risk">
             <i style={{ background: riskFill[active.risk_level] }} />
             {active.risk_level} risk · {etlPercent}% of ETL

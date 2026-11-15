@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { X, RotateCcw, Sprout, HelpCircle } from 'lucide-react';
+import { X, RotateCcw, Sprout, HelpCircle, AlertTriangle } from 'lucide-react';
 import RiskBadge from '../components/RiskBadge';
+import FieldAssessmentCard from '../components/FieldAssessmentCard';
+import DetectionOverlay from '../components/DetectionOverlay';
 import { pestGuide, etlThresholds } from '../data/mockData';
 import { PestHeroMedia } from '../data/pestIcons';
 import { fetchPestForecast, fetchPestForecastTrajectory } from '../api/client';
@@ -61,6 +63,7 @@ export default function ScanResult() {
   // Real result from the just-completed /api/inference/image call, passed
   // via navigation state from ScanCapture.
   const inference = location.state?.inference;
+  const photo = location.state?.photo;
 
   const [forecast, setForecast] = useState(null);
   const [trajectory, setTrajectory] = useState(null);
@@ -68,12 +71,15 @@ export default function ScanResult() {
   const [loadingForecast, setLoadingForecast] = useState(true);
   const [forecastError, setForecastError] = useState('');
 
-  // The photo classification (what the camera saw) and the weather-based
-  // forecast (what the model expects over the next 14 days) are two
-  // genuinely separate signals — this app doesn't have a model that turns
-  // a photo into a pest count, and the BiLSTM forecast never takes a photo
-  // as input (see the ml/resnet vs ml/bilstm pipelines). Both are shown
-  // honestly side by side rather than merged into one fabricated number.
+  // Three genuinely separate signals, shown separately rather than merged:
+  // what the photo itself shows (identity + the AI's own unverified count/
+  // coverage/damage estimate — real model outputs now, see
+  // app/models/resnet_model.py's ResNet50RegressorBank), and the weather-
+  // based forecast (what the model expects over the next 14 days). The
+  // photo's estimate does NOT feed the forecast below — that only happens
+  // once a technologist confirms a submitted report (see
+  // app/decision/report_anchor.py's find_lagged_observation()) — so an
+  // unverified scan can't be gamed into moving the forecast it's shown next to.
   useEffect(() => {
     if (!inference || inference.status !== 'ok' || !user) return;
     let cancelled = false;
@@ -142,18 +148,40 @@ export default function ScanResult() {
   if (!inference || inference.status !== 'ok') {
     const status = inference?.status;
     const isHealthy = status === 'no_pest_detected';
-    const isOtherPest = status === 'other_pest_detected';
-    const tone = isHealthy ? 'tone-ok' : isOtherPest ? 'tone-warn' : 'tone-neutral';
+    const isOtherPest = status === 'unidentified_pest_detected';
+    // No insect in frame, but the field-level model sees stem borer damage (whiteheads).
+    const isDamage = status === 'damage_detected' && inference?.field_assessment;
+    // Hopperburn (brown planthopper) and stem borer damage get their own wording and advice.
+    const damageSuffix = isDamage && inference.pest_detected === 'BPH' ? 'Bph' : '';
+    const tone = isHealthy ? 'tone-ok' : isOtherPest || isDamage ? 'tone-warn' : 'tone-neutral';
+    // A farmer needs "what was found, how worried to be, what to do", not percentages and grids:
+    // those stay available under "Show details". The worry level is the forecast's own risk (the
+    // worst day in the next two weeks); the photo's damage numbers are never turned into a level.
+    const flags = isDamage ? inference.field_assessment.cell_has_damage.flat() : [];
+    const damagedParts = flags.filter(Boolean).length;
+    const totalParts = flags.length;
+    const RISK_ORDER = ['Low', 'Medium', 'High'];
+    const worstRisk = isDamage
+      ? (inference.forecast?.points || []).reduce(
+          (worst, p) => (RISK_ORDER.indexOf(p.risk_level) > RISK_ORDER.indexOf(worst) ? p.risk_level : worst),
+          'Low'
+        )
+      : null;
+    const hasForecast = isDamage && inference.forecast?.points?.length > 0;
     const title = isHealthy
       ? t('scanResultHealthyTitle')
-      : isOtherPest
-        ? t('scanResultOtherPestTitle')
-        : t('scanResultModelNotReady');
+      : isDamage
+        ? t('scanResultDamageTitle' + damageSuffix)
+        : isOtherPest
+          ? t('scanResultOtherPestTitle')
+          : t('scanResultModelNotReady');
     const body = isHealthy
       ? t('scanResultHealthyBody')
-      : isOtherPest
-        ? t('scanResultOtherPestBody')
-        : inference?.message || t('scanResultModelNotReadyBody');
+      : isDamage
+        ? t('scanResultDamageSimple' + damageSuffix).replace('{n}', damagedParts).replace('{total}', totalParts)
+        : isOtherPest
+          ? t('scanResultOtherPestBody')
+          : inference?.message || t('scanResultModelNotReadyBody');
 
     return (
       <div className="guide-detail-screen scan-result-unavailable">
@@ -162,13 +190,62 @@ export default function ScanResult() {
         </button>
         <div className="scan-result-unavailable-body">
           <span className={`scan-result-unavailable-icon ${tone}`}>
-            {isHealthy ? <Sprout size={28} /> : isOtherPest ? <HelpCircle size={28} /> : null}
+            {isHealthy ? <Sprout size={28} /> : isDamage ? <AlertTriangle size={28} /> : isOtherPest ? <HelpCircle size={28} /> : null}
           </span>
           <h1>{title}</h1>
           <p>{body}</p>
+          {hasForecast && (
+            <div className={`scan-result-next risk-${worstRisk.toLowerCase()}`}>
+              <RiskBadge level={worstRisk.toLowerCase()} label={RISK_LABEL[worstRisk.toLowerCase()][language]} />
+              <p>{t('scanResultDamageNext' + damageSuffix)}</p>
+            </div>
+          )}
+          {isDamage && (
+            <div className="scan-result-todo">
+              <h2>{t('scanResultTodoTitle')}</h2>
+              <ul>
+                <li>{t('scanResultTodo' + damageSuffix + '1')}</li>
+                <li>{t('scanResultTodo' + damageSuffix + '2')}</li>
+                <li>{t('scanResultTodo' + damageSuffix + '3')}</li>
+              </ul>
+            </div>
+          )}
+          {isDamage && photo && (
+            <button className="scan-result-rescan-btn" onClick={() => navigate('/report', { state: { photo } })}>
+              {t('scanResultReportThis')}
+            </button>
+          )}
           <button className="scan-result-rescan-btn" onClick={() => navigate('/scan')}>
             {t('scanResultRescan')}
           </button>
+          {isDamage && (
+            <details className="scan-result-details">
+              <summary>{t('scanResultShowDetails')}</summary>
+              <FieldAssessmentCard assessment={inference.field_assessment} t={t} showDisclaimer={false} />
+              {hasForecast && (
+                <section>
+                  <h2>{t('scanResultTrajectoryTitle')}</h2>
+                  <div className="forecast-grid">
+                    {inference.forecast.points.map((day) => {
+                      const d = new Date(day.date);
+                      const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+                      return (
+                        <div key={day.date} className={`forecast-day risk-${day.risk_level.toLowerCase()}`}>
+                          <span className="forecast-day-name">{isEn ? weekday : DAY_NAMES_FIL[weekday]}</span>
+                          <span className="forecast-day-date">{d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="forecast-legend">
+                    <span><i className="risk-low" /> {t('scanResultLegendLow')}</span>
+                    <span><i className="risk-medium" /> {t('scanResultLegendMedium')}</span>
+                    <span><i className="risk-high" /> {t('scanResultLegendHigh')}</span>
+                  </div>
+                </section>
+              )}
+            </details>
+          )}
         </div>
       </div>
     );
@@ -238,6 +315,45 @@ export default function ScanResult() {
             </p>
           )}
         </section>
+
+        <DetectionOverlay
+          photo={photo}
+          detections={inference.detections}
+          width={inference.image_width}
+          height={inference.image_height}
+          t={t}
+        />
+
+        {/* Signal 2: the AI's own quantitative read of this same photo —
+            unverified, shown before the weather-based forecast rather than
+            folded into it (see the effect above's comment on why). */}
+        {(inference.estimated_count != null ||
+          inference.estimated_coverage_pct != null ||
+          inference.estimated_damage_pct != null) && (
+          <section className="scan-result-signal">
+            <span className="scan-result-signal-label">{t('scanResultEstimatedExtent')}</span>
+            <div className="scan-result-confidence">
+              {inference.estimated_count != null && (
+                <span className="scan-result-photo-chip">
+                  {t('scanResultEstimatedCount').replace('{count}', Math.round(inference.estimated_count))}
+                </span>
+              )}
+              {inference.estimated_coverage_pct != null && (
+                <span className="scan-result-photo-chip">
+                  {t('scanResultEstimatedCoverage').replace('{pct}', inference.estimated_coverage_pct.toFixed(1))}
+                </span>
+              )}
+              {inference.estimated_damage_pct != null && (
+                <span className="scan-result-photo-chip">
+                  {t('scanResultEstimatedDamage').replace('{pct}', inference.estimated_damage_pct.toFixed(1))}
+                </span>
+              )}
+            </div>
+            <p className="scan-result-summary">{t('scanResultEstimatedDisclaimer')}</p>
+          </section>
+        )}
+
+        <FieldAssessmentCard assessment={inference.field_assessment} t={t} />
 
         <h1>{displayName}</h1>
         <p className="guide-detail-fil">

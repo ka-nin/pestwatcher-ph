@@ -40,6 +40,9 @@ def _to_schema(row: ReportDB) -> ReportRecord:
         "photo_path": row.photo_path,
         "ai_pest_detected": row.ai_pest_detected,
         "ai_confidence": row.ai_confidence,
+        "ai_suggested_count": row.ai_suggested_count,
+        "ai_suggested_coverage_pct": row.ai_suggested_coverage_pct,
+        "ai_suggested_damage_pct": row.ai_suggested_damage_pct,
         "deleted_at": row.deleted_at,
         "deleted_by": row.deleted_by,
     }

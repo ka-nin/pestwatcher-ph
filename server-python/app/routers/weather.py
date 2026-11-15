@@ -140,7 +140,7 @@ def fetch_daily_weather_range(latitude: float, longitude: float, start: date_typ
     end_date makes it reject the request outright, past dates included).
 
     Used by GET /api/reports/{report_id}/gap-analysis, where a report
-    verified recently needs a window reaching ANCHOR_DAYS into the future
+    verified recently needs a 14-day window reaching into the future
     relative to the report's own (near-today) date — exactly the case the
     plain archive range-fetch can't handle. Splits the request at today:
     the past/today portion comes from the forecast API's `past_days`

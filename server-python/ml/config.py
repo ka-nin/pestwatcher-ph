@@ -2,7 +2,7 @@
 
 This is the single source of truth for the "finalized parameters" table in
 the thesis. ml/bilstm/build_sequences.py (training) and
-app/preprocessing/features.py (inference) should both read from here rather
+the live forecaster (app/models/bilstm_model.py) should both read from here rather
 than hardcoding T_base/window/threshold values in two places.
 
 Values marked with a comment are literature defaults picked to unblock the

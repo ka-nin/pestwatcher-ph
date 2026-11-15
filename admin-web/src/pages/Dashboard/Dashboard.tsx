@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import logo from '../../assets/logo.png'
 import { fetchWeatherForecast, type LguUser, type WeatherForecast } from '../../lib/api'
 import StatusPage from './StatusPage'
+import FieldAssessmentPage from './FieldAssessmentPage'
 import PestForecastPage from './PestForecastPage'
 import IpmPage from './IpmPage'
 import ClimateDriversPage from './ClimateDriversPage'
 import ReportsPage from './ReportsPage'
 import SmsPage from './SmsPage'
-import { GDD_BASE_TEMP_C, HUMIDITY_PERSISTENCE_THRESHOLD, OUTLOOK_DAYS } from '../../lib/climate'
+import { OUTLOOK_DAYS } from '../../lib/climate'
 import './Dashboard.css'
 
 interface DashboardProps {
@@ -17,37 +18,29 @@ interface DashboardProps {
 }
 
 
-// The dashboard's forward-looking weather outlook — deliberately NOT the
-// model's input features. See src/lib/climate.ts for how the two differ.
+// The dashboard's forward-looking weather outlook: plain readings from the
+// forecast, no computed indices (the model learns those itself).
 function deriveClimateMetrics(weather: WeatherForecast) {
-  const gdd = weather.daily.temperature_2m_max.reduce((total, tMax, i) => {
-    const tMin = weather.daily.temperature_2m_min[i]
-    const meanTemp = (tMax + tMin) / 2
-    return total + Math.max(meanTemp - GDD_BASE_TEMP_C, 0)
-  }, 0)
-
   const sevenDayRainfall = weather.daily.precipitation_sum
     .slice(0, OUTLOOK_DAYS)
     .reduce((total, mm) => total + mm, 0)
 
   const nextWeekHumidity = weather.hourly.relative_humidity_2m.slice(0, 24 * OUTLOOK_DAYS)
-  const humidityPersistence =
-    (nextWeekHumidity.filter((rh) => rh >= HUMIDITY_PERSISTENCE_THRESHOLD).length /
-      nextWeekHumidity.length) *
-    100
+  const averageHumidity = nextWeekHumidity.reduce((total, rh) => total + rh, 0) / Math.max(nextWeekHumidity.length, 1)
 
   return {
-    gdd: Math.round(gdd),
+    highestTemp: Math.round(Math.max(...weather.daily.temperature_2m_max.slice(0, OUTLOOK_DAYS))),
     sevenDayRainfall: Math.round(sevenDayRainfall),
-    humidityPersistence: Math.round(humidityPersistence),
+    averageHumidity: Math.round(averageHumidity),
   }
 }
 
-type PageKey = 'status' | 'forecast' | 'ipm' | 'climate' | 'reports' | 'sms'
+type PageKey = 'status' | 'forecast' | 'field' | 'ipm' | 'climate' | 'reports' | 'sms'
 
 const navItems: { key: PageKey; label: string }[] = [
   { key: 'status', label: 'Status' },
   { key: 'forecast', label: 'Pest Forecast' },
+  { key: 'field', label: 'Field Assessment' },
   { key: 'ipm', label: 'IPM Recommendation' },
   { key: 'climate', label: 'Climate Drivers' },
   { key: 'reports', label: 'Farmer Reports' },
@@ -62,6 +55,9 @@ const navIcons: Record<PageKey, React.ReactNode> = {
     <>
       <path d="M4 20V10M10 20V4M16 20v-7M22 20V8" strokeLinecap="round" />
     </>
+  ),
+  field: (
+    <path d="M3 7h18M3 12h18M3 17h18M8 3v18M16 3v18" strokeLinecap="round" />
   ),
   ipm: <circle cx="12" cy="12" r="8" />,
   climate: (
@@ -200,6 +196,8 @@ function Dashboard({ user, accessToken, onLogout }: DashboardProps) {
           )}
 
           {activePage === 'forecast' && <PestForecastPage user={user} />}
+
+          {activePage === 'field' && <FieldAssessmentPage user={user} />}
 
           {activePage === 'reports' && <ReportsPage user={user} accessToken={accessToken} />}
           {activePage === 'sms' && <SmsPage user={user} accessToken={accessToken} />}

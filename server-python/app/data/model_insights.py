@@ -13,9 +13,11 @@ from typing import Any
 
 from app.models.bilstm_model import bilstm_forecaster
 from app.models.resnet_model import (
+    REGRESSION_TARGETS,
     UNKNOWN_PEST_KEY,
     UNKNOWN_WEIGHTS_PATH,
     resnet_classifier,
+    resnet_regressors,
 )
 from app.preprocessing.tiling import MIN_GROUP_TILES, TILE_HIT_THRESHOLD
 from ml.config import PEST_PARAMS
@@ -56,6 +58,20 @@ def build_model_insights() -> dict[str, Any]:
             }
         )
 
+    # Photo regressors. Their weights are git-ignored, so on a machine that
+    # didn't train them the files are simply absent and photo estimates come
+    # back empty with no other sign of why; a card per model makes that visible.
+    for (pest, target), path in REGRESSION_TARGETS.items():
+        models.append(
+            {
+                "name": f"ResNet-50 · {pest}",
+                "detail": {"count": "count estimate", "coverage_pct": "coverage % estimate", "damage_pct": "damage % estimate", "field_damage_pct": "field damage % (whole-field photo)"}[target]
+                + ("" if path.exists() else " · file missing on this server"),
+                "loaded": resnet_regressors.is_loaded(pest, target),
+                "updated": _modified_date(path),
+            }
+        )
+
     models.append(
         {
             "name": "ResNet-50 · Unknown",
@@ -83,6 +99,15 @@ def build_model_insights() -> dict[str, Any]:
         "models": models,
         "resnet": resnet,
         "bilstm": bilstm,
+        # The photo regressors (count / coverage / damage). Each file records
+        # whether its test set is real or synthetic, which the page shows.
+        "resnetRegression": {
+            "BPH count": _read_json(bph_folder / "resnet50_bph_count_test_metrics.json"),
+            "BPH coverage": _read_json(bph_folder / "resnet50_bph_coverage_pct_test_metrics.json"),
+            "RSB damage": _read_json(
+                PEST_PARAMS["RSB"].bilstm_weights_path.parent / "resnet50_rsb_damage_pct_test_metrics.json"
+            ),
+        },
         "resnetUnknown": _read_json(
             UNKNOWN_WEIGHTS_PATH.parent / "resnet50_unknown_test_metrics.json"
         ),

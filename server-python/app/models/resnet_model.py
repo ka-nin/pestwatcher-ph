@@ -40,6 +40,7 @@ from PIL import Image
 from tensorflow import keras
 
 from app.preprocessing.tiling import (
+    TILE_HIT_THRESHOLD,
     group_hits,
     make_tiles,
     needs_grid,
@@ -48,6 +49,10 @@ from app.preprocessing.tiling import (
 from ml.config import PEST_PARAMS, WEIGHTS_DIR
 
 IMAGE_SIZE = (224, 224)
+RETRY_SCALE = 2.0  # enlargement for the second BPH grid pass (see _score_pest)
+# Strong tiles needed before that second pass: one lone tile is the false hit the grouping
+# rule exists to discard (a stem-borer larva fired exactly one), a crowd of planthoppers fires several.
+RETRY_MIN_STRONG_TILES = 2
 POSITIVE_THRESHOLD = 0.5  # matches the 0.5 cutoff used at training-time evaluation (ml/resnet/train.py)
 
 # Separate bug-vs-no-bug detector consulted only when neither tracked pest
@@ -158,12 +163,26 @@ class ResNet50PestClassifier:
             return confidence, confidence >= POSITIVE_THRESHOLD, None, None
 
         work = prepare_for_grid(img)
+        tiles, scores, groups = self._grid_pass(pest, work)
+        # Insects that are small in the frame (a mid-distance shot of stems covered in
+        # nymphs) fill too few tiles to form a group. If several tiles already fired strongly,
+        # look again with the photo enlarged so each insect is bigger. Gated on that
+        # evidence so photos with no insect signal are not scored twice.
+        if not groups and sum(score >= TILE_HIT_THRESHOLD for score in scores) >= RETRY_MIN_STRONG_TILES:
+            enlarged = work.resize(
+                (round(work.width * RETRY_SCALE), round(work.height * RETRY_SCALE)), Image.LANCZOS
+            )
+            retry_tiles, retry_scores, retry_groups = self._grid_pass(pest, enlarged)
+            if retry_groups:
+                return max(retry_scores), True, len(retry_tiles), len(retry_groups)
+        return max(scores), bool(groups), len(tiles), len(groups)
+
+    def _grid_pass(self, pest: str, work: Image.Image):
         tiles = make_tiles(*work.size)
         scores = self._positive_scores(
             pest, [work.crop((t.x, t.y, t.x + t.side, t.y + t.side)) for t in tiles]
         )
-        groups = group_hits(tiles, scores)
-        return max(scores), bool(groups), len(tiles), len(groups)
+        return tiles, scores, group_hits(tiles, scores)
 
     def predict(self, image_path: Path) -> Optional[ResnetPrediction]:
         """Returns None only if NEITHER tracked-pest model is loaded yet
@@ -222,3 +241,98 @@ class ResNet50PestClassifier:
 
 
 resnet_classifier = ResNet50PestClassifier()
+
+
+# (pest, target) -> trained file, from ml/resnet/train_regression.py. Separate
+# from ResNet50PestClassifier because these are regressors (one continuous
+# output) answering a different question — "how many / how much" — not the
+# yes/no presence classifiers above; see that script's module docstring for
+# why each needed its own training run (real counts for BPH, synthetic-only
+# for coverage_pct/damage_pct).
+REGRESSION_TARGETS: dict[tuple[str, str], Path] = {
+    ("BPH", "count"): WEIGHTS_DIR / "bph" / "resnet50_bph_count.keras",
+    ("BPH", "coverage_pct"): WEIGHTS_DIR / "bph" / "resnet50_bph_coverage_pct.keras",
+    ("RSB", "damage_pct"): WEIGHTS_DIR / "rsb" / "resnet50_rsb_damage_pct.keras",
+    # Field-level damage: trained on whole-field photos (ml/resnet/train_field_damage.py),
+    # unlike the patch-level models above. RSB only; there is no BPH field model.
+    ("RSB", "field_damage_pct"): WEIGHTS_DIR / "rsb" / "resnet50_rsb_field_damage_pct.keras",
+}
+
+
+class ResNet50RegressorBank:
+    """Loads and runs the photo-derived regressors the panel's redesign
+    asked for: BPH hoppers-per-hill count + hectares-affected coverage %,
+    RSB damage %, and the field-level damage models. Each (pest, target) pair
+    is an independent model, loaded only if its weights file exists, so a
+    deployment missing one of these still serves pest detection and the other
+    regressors normally (same partial-availability principle as
+    ResNet50PestClassifier.predict()).
+
+    A field-level model has a sidecar "<weights>.meta.json" written by
+    ml/resnet/train_field_damage.py: backbone (for preprocessing), input size,
+    the grid it was trained on, and the threshold for "this cell has damage"."""
+
+    def __init__(self) -> None:
+        self._models: dict[tuple[str, str], keras.Model] = {}
+        self._meta: dict[tuple[str, str], dict] = {}
+
+    def load(self, pest: str, target: str) -> None:
+        path = REGRESSION_TARGETS[(pest, target)]
+        self._models[(pest, target)] = keras.models.load_model(path)
+        meta_path = path.with_name(path.stem + ".meta.json")
+        if meta_path.exists():
+            import json
+
+            self._meta[(pest, target)] = json.loads(meta_path.read_text())
+
+    def is_loaded(self, pest: str, target: str) -> bool:
+        return (pest, target) in self._models
+
+    def meta(self, pest: str, target: str) -> dict:
+        return self._meta.get((pest, target), {})
+
+    def predict(self, pest: str, target: str, image_path: Path) -> float | None:
+        if not self.is_loaded(pest, target):
+            return None
+
+        from tensorflow.keras.applications import resnet50
+
+        with Image.open(image_path) as opened:
+            img = opened.convert("RGB").resize(IMAGE_SIZE)
+        batch = np.expand_dims(np.array(img, dtype=np.float32), axis=0)
+        prediction = self._models[(pest, target)].predict(resnet50.preprocess_input(batch), verbose=0)
+        return max(0.0, float(prediction.flatten()[0]))  # count/coverage/% can't be negative
+
+    def predict_grid(self, pest: str, target: str, image_path: Path) -> list[list[float]] | None:
+        """Per-cell values for a whole-field photo, as a grid (row-major).
+
+        The photo is resized to the square the model was trained on (448 px),
+        cut into the model's N x N grid, and each cell is enlarged to the
+        model's input size and estimated on its own. Cells get the same
+        backbone preprocessing the model was trained with.
+        """
+        if not self.is_loaded(pest, target):
+            return None
+
+        meta = self._meta.get((pest, target), {})
+        model = self._models[(pest, target)]
+        grid = int(meta.get("grid", 3))
+        size = int(meta.get("input_size", model.input_shape[1]))
+        with Image.open(image_path) as opened:
+            img = opened.convert("RGB").resize((448, 448), Image.LANCZOS)
+        step = 448 // grid
+        cells = [
+            np.array(img.crop((c * step, r * step, (c + 1) * step, (r + 1) * step)).resize((size, size), Image.LANCZOS), dtype=np.float32)
+            for r in range(grid)
+            for c in range(grid)
+        ]
+        batch = np.stack(cells)
+        if meta.get("backbone", "resnet50") == "resnet50":
+            from tensorflow.keras.applications import resnet50
+
+            batch = resnet50.preprocess_input(batch)
+        values = [max(0.0, float(v)) for v in model.predict(batch, verbose=0).flatten()]
+        return [values[r * grid:(r + 1) * grid] for r in range(grid)]
+
+
+resnet_regressors = ResNet50RegressorBank()

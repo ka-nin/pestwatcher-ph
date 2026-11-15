@@ -4,6 +4,7 @@ import {
   type FeatureComparisonResponse,
   type ModelInsightsResponse,
   type PredictionPointDto,
+  type ResnetRegressionMetrics,
   type ResnetTestMetrics,
   type ShapFeatureDto,
 } from '../../lib/api'
@@ -175,19 +176,18 @@ function StepArt({ id }: { id: string }) {
       return (
         <svg viewBox="0 0 220 130">
           {[
-            ['GDD', 22, 22],
-            ['CRF', 84, 22],
-            ['HP', 146, 22],
-            ['VPD', 22, 62],
-            ['WSI', 84, 62],
-            ['Trends', 146, 62],
+            ['Tmax', 22, 22],
+            ['Tmin', 84, 22],
+            ['Humidity', 146, 22],
+            ['Rain', 22, 62],
+            ['Stage', 84, 62],
           ].map(([text, x, y]) => (
             <g key={text as string}>
               <rect x={x as number} y={y as number} width="52" height="28" rx="14" fill={GREEN_SOFT} stroke={GREEN} strokeWidth="1.2" className="mi-pulse" />
               <text x={(x as number) + 26} y={(y as number) + 18} textAnchor="middle" fontSize="10.5" fontWeight="800" fill={GREEN}>{text}</text>
             </g>
           ))}
-          <text x="110" y="118" textAnchor="middle" fontSize="8.5" fill="#777">computed from biology, not guessed by the network</text>
+          <text x="110" y="118" textAnchor="middle" fontSize="8.5" fill="#777">raw readings in, learned features inside, no formulas</text>
         </svg>
       )
     case 'bilstm':
@@ -224,13 +224,15 @@ function StepArt({ id }: { id: string }) {
     case 'anchor':
       return (
         <svg viewBox="0 0 220 130">
-          <path d="M16 92 L60 88 L104 80 L148 72 L204 62" stroke={GREY} strokeWidth="2" strokeDasharray="5 4" fill="none" />
-          <path className="mi-draw" d="M16 46 L60 56 L104 66 L148 70 L204 62" stroke={GREEN} strokeWidth="2.6" fill="none" />
-          <path d="M16 20 V108" stroke={ORANGE} strokeWidth="1.5" strokeDasharray="3 3" />
-          <circle cx="16" cy="46" r="4" fill={ORANGE} className="mi-pulse" />
-          <text x="24" y="20" fontSize="8.5" fill={ORANGE} fontWeight="700">verified report</text>
-          <text x="110" y="122" textAnchor="middle" fontSize="8.5" fill="#777">shift fades to zero over 13 days</text>
-          <text x="204" y="54" textAnchor="end" fontSize="8" fill="#777">weather only</text>
+          <rect x="14" y="22" width="92" height="30" rx="6" fill="#fdf1e3" stroke={ORANGE} strokeWidth="1.4" />
+          <text x="60" y="41" textAnchor="middle" fontSize="9" fill={ORANGE} fontWeight="700">verified report</text>
+          <rect x="14" y="78" width="92" height="30" rx="6" fill="#eef4ea" stroke={GREEN} strokeWidth="1.4" />
+          <text x="60" y="97" textAnchor="middle" fontSize="9" fill={GREEN} fontWeight="700">weather + stage</text>
+          <path className="mi-draw" d="M106 37 C140 37 140 65 160 65" stroke={ORANGE} strokeWidth="2" fill="none" />
+          <path className="mi-draw" d="M106 93 C140 93 140 65 160 65" stroke={GREEN} strokeWidth="2" fill="none" />
+          <rect x="160" y="50" width="48" height="30" rx="6" fill="#e8f0fa" stroke="#2b5d9a" strokeWidth="1.4" />
+          <text x="184" y="69" textAnchor="middle" fontSize="9" fill="#2b5d9a" fontWeight="700">BiLSTM</text>
+          <text x="110" y="124" textAnchor="middle" fontSize="8.5" fill="#777">an input to the model, not a shift afterwards</text>
         </svg>
       )
     case 'etl':
@@ -600,6 +602,62 @@ function UnknownInsectPanel({ metrics }: { metrics: ResnetTestMetrics | null }) 
   )
 }
 
+/** Held-out results of the photo regressors that turn a detected pest into a
+ * number (hoppers per hill, % coverage, % damage). The test-set badge matters:
+ * only the count target is scored on real photos; coverage and damage are
+ * scored on synthetic composites, so their R² shows the model recovers what
+ * the generator drew, not accuracy on a real field. */
+function RegressionPanel({ metrics }: { metrics?: Record<string, ResnetRegressionMetrics | null> }) {
+  const rows = Object.entries(metrics ?? {}).filter((entry): entry is [string, ResnetRegressionMetrics] => entry[1] != null)
+  if (rows.length === 0) return null
+  return (
+    <section className="panel mi-panel">
+      <div className="panel-head">
+        <div>
+          <div className="panel-title">Quantitative estimates from a photo</div>
+          <div className="panel-subtitle">ResNet-50 regressors · how many, how much is covered, how much is damaged</div>
+        </div>
+      </div>
+      <div className="admin-table-wrap">
+        <table className="admin-table mi-regression-table">
+          <thead>
+            <tr>
+              <th>Estimate</th>
+              <th className="admin-col-center">R²</th>
+              <th className="admin-col-center">RMSE</th>
+              <th className="admin-col-center">MAE</th>
+              <th className="admin-col-center">Average actual</th>
+              <th className="admin-col-center">Test images</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(([label, m]) => (
+              <tr key={label}>
+                <td>{label}</td>
+                <td className="admin-col-center">{m.r2.toFixed(2)}</td>
+                <td className="admin-col-center">{m.rmse.toFixed(1)}</td>
+                <td className="admin-col-center">{m.mae.toFixed(1)}</td>
+                <td className="admin-col-center">{m.mean_actual_label.toFixed(1)}</td>
+                <td className="admin-col-center">
+                  {m.n_test_images}{' '}
+                  <span className={`badge ${m.test_set_is_synthetic ? 'badge-neutral' : 'badge-green'}`}>
+                    {m.test_set_is_synthetic ? 'synthetic' : 'real photos'}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mi-note">
+        Only estimates tested on real photos say how the model does in the field. A synthetic test set shows the
+        model can recover the value an image generator drew, which is a consistency check, not field accuracy. Every
+        estimate is shown to the technologist as a suggestion and counts only after they confirm it.
+      </p>
+    </section>
+  )
+}
+
 function ResnetTab({ data }: { data: ModelInsightsResponse }) {
   const [pest, setPest] = useState<PestCode>('BPH')
   const m = data.resnet[pest]
@@ -716,6 +774,8 @@ function ResnetTab({ data }: { data: ModelInsightsResponse }) {
       </section>
 
       <UnknownInsectPanel metrics={data.resnetUnknown} />
+
+      <RegressionPanel metrics={data.resnetRegression} />
 
       {pest === 'BPH' && (
         <section className="panel mi-panel">
@@ -894,8 +954,8 @@ function FeatureComparisonSection({ data, unit }: { data: FeatureComparisonRespo
       <section className="panel mi-panel">
         <div className="panel-head">
           <div>
-            <div className="panel-title">Baseline: engineered vs. raw climate features</div>
-            <div className="panel-subtitle">Engineered features vs. the raw-variable control</div>
+            <div className="panel-title">Baseline: framework vs. raw climate inputs</div>
+            <div className="panel-subtitle">The framework (raw weather + growth stage + verified report) vs. the raw-weather control</div>
           </div>
         </div>
         <p className="mi-note">
@@ -911,10 +971,10 @@ function FeatureComparisonSection({ data, unit }: { data: FeatureComparisonRespo
     <section className="panel mi-panel">
       <div className="panel-head">
         <div>
-          <div className="panel-title">Baseline: engineered vs. raw climate features</div>
+          <div className="panel-title">Baseline: framework vs. raw climate inputs</div>
           <div className="panel-subtitle">
-            Same BiLSTM architecture, same {data.n_folds}-fold expanding-window CV splits · engineered =
-            GDD/CRF/HP/VPD/WSI/trends · raw = Tmax/Tmin/RH/rainfall only
+            Same BiLSTM architecture, same {data.n_folds}-fold expanding-window CV splits · framework =
+            weather + growth stage + latest verified report · raw = Tmax/Tmin/RH/rainfall only
           </div>
         </div>
       </div>
@@ -924,7 +984,7 @@ function FeatureComparisonSection({ data, unit }: { data: FeatureComparisonRespo
           <thead>
             <tr>
               <th>Metric</th>
-              <th>Engineered</th>
+              <th>Framework</th>
               <th>Raw (baseline)</th>
               <th>Winner</th>
               <th>Test</th>
@@ -943,7 +1003,7 @@ function FeatureComparisonSection({ data, unit }: { data: FeatureComparisonRespo
                   <td>{formatMetricValue(result.mean_raw, meta.pct)}</td>
                   <td>
                     <span className={`badge ${result.better_configuration === 'engineered' ? 'badge-green' : 'badge-yellow'}`}>
-                      {result.better_configuration}
+                      {result.better_configuration === 'engineered' ? 'framework' : result.better_configuration}
                     </span>
                   </td>
                   <td>{result.test}</td>
@@ -956,7 +1016,7 @@ function FeatureComparisonSection({ data, unit }: { data: FeatureComparisonRespo
         </table>
       </div>
       <p className="mi-note">
-        Engineered and raw configurations were trained and evaluated on the exact same {data.n_folds} chronological
+        The framework and the raw baseline were trained and evaluated on the exact same {data.n_folds} chronological
         test folds, so each metric's 5 paired differences were checked for normality (Shapiro-Wilk) before choosing a
         paired t-test or a Wilcoxon signed-rank test, whichever the normality check called for.
       </p>
@@ -1186,7 +1246,7 @@ function macroMetricsFromMatrix(matrix: number[][], labels: string[]) {
 
 /** Both pests' SHAP summaries merged by feature label, ranked by the
  * average of the two normalized shares. Each pest's own `share` column
- * already sums to 1.0 across its 21 features, so the average of two such
+ * already sums to 1.0 across all of its features, so the average of two such
  * columns also sums to 1.0 — no renormalization needed. This is a system-
  * wide explanation (which features matter across the whole deployed
  * system) rather than the per-forecast SHAP on the Climate Drivers page,
@@ -1477,8 +1537,8 @@ function SystemPerformanceSection({ data }: { data: ModelInsightsResponse }) {
                     {pct(rsbResnet.accuracy)} — both classifiers are close, unlike the forecast side above.
                   </p>
                   <p className="mi-note mi-syswide-callout">
-                    <strong>No SHAP here, honestly.</strong> SHAP in this system explains the BiLSTM's engineered
-                    climate features — it was never applied to ResNet's convolutional layers, which would need a
+                    <strong>No SHAP here, honestly.</strong> SHAP in this system explains the BiLSTM's weather
+                    and growth-stage inputs — it was never applied to ResNet's convolutional layers, which would need a
                     different method (e.g. Grad-CAM) to show which pixels drove a call. That explainability layer
                     doesn't exist yet; this card can't manufacture one.
                   </p>
