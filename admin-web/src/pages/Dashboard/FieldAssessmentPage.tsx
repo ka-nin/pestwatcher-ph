@@ -316,9 +316,11 @@ function FieldAssessmentPage({ user }: FieldAssessmentPageProps) {
             </div>
           </div>
           <p className="fa-caveat">
-            The forecast comes from the weather and growth stage
-            {scan?.forecast_reflects_this_photo ? ", with this photo's estimated count as the verified-observation input" : ''}. It is an estimate:
-            a technologist must confirm it.
+            The forecast comes from the weather of the 14 days before each date and the growth stage
+            {scan?.forecast_reflects_this_photo ? ", with this photo's estimated count as its latest observation" : ''}. It is
+            the model's estimate, not a copy of the photo
+            {scan?.estimated_count != null ? ` (which counted ${scan.estimated_count.toFixed(1)} hoppers per hill)` : ''}, so
+            today's value can differ from the count. A technologist must confirm it.
           </p>
         </section>
       )}
