@@ -19,11 +19,18 @@ function FieldAssessmentCard({ assessment, t, showDisclaimer = true }) {
   const hasTyped = fieldSize.trim() !== '' && Number.isFinite(typed) && typed > 0;
   const size = hasTyped ? (unit === 'm2' ? typed / 10000 : typed) : detectedSize; // hectares
   const hasSize = Number.isFinite(size) && size > 0;
-  // The damaged share of the photo applied to the field size. A photo has no scale of its own,
-  // so there is no area without a size (drone photos supply one).
+  // The damaged share of the photo applied to the field size. A photo has no scale of its own, so with
+  // no size (typed or from drone data) the server estimates the ground area from the lens and an
+  // assumed camera height and tilt: a rough range in m², replaced as soon as a size is typed.
   const damagedHa = hasSize ? (assessment.pct_affected / 100) * size : null;
-  const areaText =
-    damagedHa == null ? '-' : unit === 'm2' && hasTyped ? `${formatM2(damagedHa * 10000)} m²` : `${Number(damagedHa.toFixed(4))} ha`;
+  const photoArea = !hasSize && assessment.affected_area_m2 != null;
+  const areaText = photoArea
+    ? `~${formatM2(assessment.affected_area_m2)} m²`
+    : damagedHa == null
+      ? '-'
+      : unit === 'm2' && hasTyped
+        ? `${formatM2(damagedHa * 10000)} m²`
+        : `${Number(damagedHa.toFixed(4))} ha`;
 
   return (
     <section className="scan-result-signal field-assessment-card">
@@ -76,7 +83,17 @@ function FieldAssessmentCard({ assessment, t, showDisclaimer = true }) {
         </select>
       </label>
       {!hasTyped && detectedSize ? <p className="field-assessment-note">{t('scanResultFieldSizeAuto').replace('{ha}', detectedSize)}</p> : null}
-      {!hasSize ? <p className="field-assessment-note">{t('scanResultFieldNeedSize')}</p> : null}
+      {photoArea ? (
+        <p className="field-assessment-note">
+          {t('scanResultFieldAreaFromPhoto')
+            .replace('{visible}', formatM2(assessment.visible_area_m2 ?? 0))
+            .replace('{low}', formatM2(assessment.affected_area_m2_low ?? 0))
+            .replace('{high}', formatM2(assessment.affected_area_m2_high ?? 0))}{' '}
+          {t('scanResultFieldCorrectSize')}
+        </p>
+      ) : !hasSize ? (
+        <p className="field-assessment-note">{t('scanResultFieldNeedSize')}</p>
+      ) : null}
       {showDisclaimer ? <p className="field-assessment-note">{t('scanResultFieldDisclaimer')}</p> : null}
     </section>
   );

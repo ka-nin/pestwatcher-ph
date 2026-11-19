@@ -255,6 +255,8 @@ export interface FieldAssessmentDay {
   severity_pct: number | null
   spread_pct: number | null
   affected_hectares: number | null
+  // Photo-geometry estimate scaled like affected_hectares; used when no field size is known.
+  affected_area_m2: number | null
 }
 
 export async function assessFieldPhoto(
@@ -290,6 +292,10 @@ export interface PhotoScan {
   estimated_coverage_pct: number | null
   estimated_damage_pct: number | null
   field_assessment: FieldAssessment | null
+  // 14-day BiLSTM forecast for the farm's municipality (null without municipality + growth stage).
+  // A planthopper-insect photo has no field assessment, so this is its only source of a daily outlook.
+  forecast?: TrajectoryResponse | null
+  forecast_reflects_this_photo?: boolean
 }
 
 export async function scanFieldPhoto(

@@ -111,6 +111,7 @@ class FieldAssessmentDay(BaseModel):
     severity_pct: float | None = None  # share of the photo covered by damage
     spread_pct: float | None = None  # share of grid cells containing damage
     affected_hectares: float | None = None  # only with a field size on record
+    affected_area_m2: float | None = None  # estimated from the photo's own geometry, scaled like affected_hectares
 
 
 class FieldAssessmentResponse(BaseModel):

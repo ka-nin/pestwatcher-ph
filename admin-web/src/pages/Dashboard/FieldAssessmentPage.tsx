@@ -18,8 +18,9 @@ function cellColour(value: number, hasDamage: boolean) {
 type SizeUnit = 'ha' | 'm2'
 const M2_PER_HA = 10_000
 
-// Area is shown in the unit the field size was entered in. The photo alone has no scale
-// (a close-up and a wide shot look alike), so there is no area without a field size.
+// With a field size (typed, or read from drone data) the area is that size x the damaged share, shown in
+// the unit it was entered in. Without one, a photo has no scale of its own, so the server estimates the
+// ground area from the lens and an ASSUMED camera height and tilt: a rough range, in m². A typed size replaces it.
 function formatArea(ha: number, unit: SizeUnit) {
   if (unit === 'm2') {
     const m2 = ha * M2_PER_HA
@@ -28,13 +29,27 @@ function formatArea(ha: number, unit: SizeUnit) {
   return `${Number(ha.toFixed(4))} ha`
 }
 
-function areaValue(ha: number | null, unit: SizeUnit) {
-  return ha != null ? formatArea(ha, unit) : 'n/a'
+function formatM2(m2: number) {
+  return `${(m2 < 10 ? Number(m2.toFixed(1)) : Math.round(m2)).toLocaleString()} m²`
+}
+
+function areaValue(r: FieldAssessment, selectedDay: FieldAssessmentDay | null, unit: SizeUnit) {
+  const ha = selectedDay?.affected_hectares ?? r.affected_hectares
+  if (ha != null) return formatArea(ha, unit)
+  const m2 = selectedDay?.affected_area_m2 ?? r.affected_area_m2
+  return m2 != null ? `~${formatM2(m2)}` : 'n/a'
 }
 
 function areaNote(r: FieldAssessment, selectedDay: FieldAssessmentDay | null, unit: SizeUnit) {
-  if (selectedDay?.affected_hectares != null && r.field_size_ha != null) {
-    return `of ${formatArea(r.field_size_ha, unit)}${r.field_size_source === 'photo_metadata' ? ' (from drone data)' : ''}`
+  if ((selectedDay?.affected_hectares ?? r.affected_hectares) != null && r.field_size_ha != null) {
+    return `of ${formatArea(r.field_size_ha, unit)}${r.field_size_source === 'photo_metadata' ? ' (from drone data)' : ' (entered)'}`
+  }
+  if (r.affected_area_m2 != null) {
+    const range =
+      !selectedDay || selectedDay.is_measured
+        ? `Between ${formatM2(r.affected_area_m2_low ?? 0)} and ${formatM2(r.affected_area_m2_high ?? 0)} of the ~${formatM2(r.visible_area_m2 ?? 0)} seen in the photo`
+        : 'Projected from the photo estimate'
+    return `${range}. Assumes the camera height and tilt; enter the actual field size to correct it`
   }
   return 'Enter the field size to get the affected area'
 }
@@ -93,8 +108,26 @@ function FieldAssessmentPage({ user }: FieldAssessmentPageProps) {
   const result: FieldAssessment | null = scan?.field_assessment ?? null
   const ok = result?.status === 'ok'
   const pestName = scan?.pest_detected === 'BPH' ? 'Brown Planthopper (BPH)' : scan?.pest_detected === 'RSB' ? 'Rice Stem Borer (RSB)' : null
-  const daily = result?.daily ?? null
+  // Damage photos (stem borer, hopperburn) carry a per-day projection of their own reading. A photo with
+  // insects in it has no damage reading, so its outlook is the BiLSTM forecast alone.
+  const forecastPoints = scan?.forecast?.status === 'ok' ? scan.forecast.points : []
+  const daily: FieldAssessmentDay[] | null =
+    result?.daily ??
+    (forecastPoints.length
+      ? forecastPoints.map((p, i) => ({
+          date: p.date,
+          is_measured: i === 0,
+          pest_level: p.predicted_value,
+          risk_level: p.risk_level,
+          severity_pct: null,
+          spread_pct: null,
+          affected_hectares: null,
+          affected_area_m2: null,
+        }))
+      : null)
+  const forecastOnly = !result?.daily && daily !== null
   const selectedDay: FieldAssessmentDay | null = daily?.[selectedDayIndex] ?? null
+  const selectedPoint = forecastOnly ? forecastPoints[selectedDayIndex] ?? null : null
   return (
     <>
       <section className="panel forecast-summary-panel">
@@ -141,7 +174,7 @@ function FieldAssessmentPage({ user }: FieldAssessmentPageProps) {
                 <option value="m2">m²</option>
               </select>
             </div>
-            <span className="fa-hint">Needed for the affected area: a photo has no scale of its own, except drone photos that record their height.</span>
+            <span className="fa-hint">Optional. Without it the area is estimated from the photo (a rough range that assumes the camera height and tilt). Enter the actual size to correct it.</span>
             {sizeInvalid && <span className="fa-error">Enter a size above 0.</span>}
           </div>
           <div className="fa-field">
@@ -209,14 +242,14 @@ function FieldAssessmentPage({ user }: FieldAssessmentPageProps) {
         </section>
       )}
 
-      {ok && daily && (
+      {daily && (
         <section className="panel fa-panel">
           <div className="fa-day-head">
             <div>
               <div className="panel-title">14-day outlook</div>
               <div className="fa-day-range">{dateRangeLabel(daily)}</div>
             </div>
-            {!selectedDay?.is_measured && <span className="badge badge-yellow">Projected from today's photo</span>}
+            {!selectedDay?.is_measured && <span className="badge badge-yellow">{forecastOnly ? 'BiLSTM forecast' : "Projected from today's photo"}</span>}
           </div>
           <div className="fa-day-strip">
             {daily.map((d, i) => (
@@ -231,6 +264,32 @@ function FieldAssessmentPage({ user }: FieldAssessmentPageProps) {
               </button>
             ))}
           </div>
+        </section>
+      )}
+
+      {forecastOnly && selectedDay && (
+        <section className="panel fa-panel">
+          <div className="fa-metrics">
+            <div className="fa-metric">
+              <div className="fa-metric-label">Forecast pest level</div>
+              <div className="fa-metric-value">{selectedDay.pest_level.toFixed(2)}</div>
+              <div className="fa-metric-note">
+                {selectedPoint?.predicted_low != null && selectedPoint?.predicted_high != null
+                  ? `hoppers/hill, 80% band ${selectedPoint.predicted_low.toFixed(1)} to ${selectedPoint.predicted_high.toFixed(1)}`
+                  : 'hoppers/hill (BiLSTM forecast)'}
+              </div>
+            </div>
+            <div className="fa-metric">
+              <div className="fa-metric-label">Risk</div>
+              <div className={`fa-metric-value fa-risk-${RISK_TONE[selectedDay.risk_level]}`}>{selectedDay.risk_level}</div>
+              <div className="fa-metric-note">{selectedDay.is_measured ? "today's forecast" : 'forecast for this day'}</div>
+            </div>
+          </div>
+          <p className="fa-caveat">
+            The forecast comes from the weather and growth stage
+            {scan?.forecast_reflects_this_photo ? ", with this photo's estimated count as the verified-observation input" : ''}. It is an estimate:
+            a technologist must confirm it.
+          </p>
         </section>
       )}
 
@@ -249,7 +308,7 @@ function FieldAssessmentPage({ user }: FieldAssessmentPageProps) {
             </div>
             <div className="fa-metric">
               <div className="fa-metric-label">Affected area</div>
-              <div className="fa-metric-value">{areaValue(selectedDay?.affected_hectares ?? result!.affected_hectares, unit)}</div>
+              <div className="fa-metric-value">{areaValue(result!, selectedDay, unit)}</div>
               <div className="fa-metric-note">{areaNote(result!, selectedDay, unit)}</div>
             </div>
             <div className="fa-metric">

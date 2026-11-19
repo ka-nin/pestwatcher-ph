@@ -136,6 +136,7 @@ def _project_field_assessment_days(result: FieldAssessmentResponse, trajectory: 
     severity_series = project_by_forecast_ratio(trajectory.points, result.pct_affected, max_growth_factor=100.0)
     spread_series = project_by_forecast_ratio(trajectory.points, result.cells_affected_pct, max_growth_factor=100.0)
     hectares_series = project_by_forecast_ratio(trajectory.points, result.affected_hectares, round_digits=6)
+    area_m2_series = project_by_forecast_ratio(trajectory.points, result.affected_area_m2, round_digits=1)
 
     # Percentages can't exceed 100 regardless of the forecast ratio — the cap
     # above only bounds the multiplier, not the final value.
@@ -153,6 +154,7 @@ def _project_field_assessment_days(result: FieldAssessmentResponse, trajectory: 
                 severity_pct=severity_series[i] if i > 0 else result.pct_affected,
                 spread_pct=spread_series[i] if i > 0 else result.cells_affected_pct,
                 affected_hectares=hectares_series[i] if i > 0 else result.affected_hectares,
+                affected_area_m2=area_m2_series[i] if i > 0 else result.affected_area_m2,
             )
         )
     return days
@@ -258,10 +260,13 @@ async def assess_field(
         if pest == "BPH":
             # No trained BPH field model exists (no field-level BPH data): hopperburn is read from
             # the photo's colours and shape (app/preprocessing/damage_pattern.py).
-            result = _hopperburn_result(
-                read_photo(destination),
-                field_size_ha if field_size_ha is not None else detected_ha,
-                "entered" if field_size_ha is not None else "photo_metadata",
+            result = _with_photo_area(
+                _hopperburn_result(
+                    read_photo(destination),
+                    field_size_ha if field_size_ha is not None else detected_ha,
+                    "entered" if field_size_ha is not None else "photo_metadata",
+                ),
+                destination,
             )
             cells = result.cell_values
         else:
@@ -419,9 +424,12 @@ def _no_tracked_pest_response(
     # the stem-borer model would also fire on it, so the pattern is checked first.
     reading = None if bph_signal else read_photo(photo)
     if reading is not None and reading.hopperburn:
-        burn = _hopperburn_result(
-            reading, field_size_ha if field_size_ha is not None else estimate_field_size_ha(photo),
-            "entered" if field_size_ha is not None else "photo_metadata",
+        burn = _with_photo_area(
+            _hopperburn_result(
+                reading, field_size_ha if field_size_ha is not None else estimate_field_size_ha(photo),
+                "entered" if field_size_ha is not None else "photo_metadata",
+            ),
+            photo,
         )
         forecast = _build_trajectory(municipality, "BPH", growth_stage, days=14) if municipality and growth_stage else None
         if forecast is not None:

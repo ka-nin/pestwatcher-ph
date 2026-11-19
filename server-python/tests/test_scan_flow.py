@@ -290,3 +290,15 @@ def test_field_assessment_accepts_bph(client):
         data={"pest": "BPH", "field_size_ha": "1"},
     ).json()
     assert res["status"] == "ok" and res["pest"] == "BPH" and "Hopperburn pattern" in res["message"]
+
+
+def test_hopperburn_area_comes_from_the_photo_until_a_size_is_entered(client):
+    photo = ("a.jpg", _field_photo("hopperburn"), "image/jpeg")
+    auto = client.post("/api/inference/field-assessment", files={"file": photo}, data={"pest": "BPH"}).json()
+    assert auto["affected_hectares"] is None and auto["affected_area_m2"] > 0
+    assert auto["affected_area_m2_low"] <= auto["affected_area_m2"] <= auto["affected_area_m2_high"]
+
+    typed = client.post(
+        "/api/inference/field-assessment", files={"file": photo}, data={"pest": "BPH", "field_size_ha": "2"}
+    ).json()
+    assert typed["field_size_source"] == "entered" and typed["affected_hectares"] > 0
