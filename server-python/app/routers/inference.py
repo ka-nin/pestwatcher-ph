@@ -52,6 +52,15 @@ ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 # (see ml/weights/rsb/field_damage_rsb_*_synthetic_test_metrics.json).
 DAMAGE_RULES = {  # pest -> (min share of cells damaged, min severity in %)
     "RSB": (33.0, 0.8),
+    # UNTUNED PLACEHOLDER (2026-10-24): resnet50_bph_field_damage_pct.keras was
+    # just trained (ml/weights/bph/field_damage_bph_resnet50_synthetic_test_metrics.json)
+    # and has no held-out real-photo evaluation yet, unlike RSB's pair above —
+    # see ml/resnet/evaluate_real_photos.py for that process. Deliberately set
+    # higher than RSB's bar (its own cell_has_damage.threshold of 1.0 is ~20x
+    # RSB's 0.05, and the baseline-mean severity MAE was 8.2%) so this
+    # under-flags rather than risks false-flagging healthy BPH fields as
+    # hopperburn-damaged. Re-tune once real photos are evaluated.
+    "BPH": (40.0, 5.0),
 }
 
 
@@ -524,8 +533,14 @@ def _pest_found_response(
 ) -> ImageInferenceResponse:
     pest = result.label
     # The estimate is computed BEFORE the forecast so this photo's own number can feed
-    # the trajectory below. The photo also gets the field-level severity and spread.
-    field_assessment = _assess_photo(pest, photo, field_size_ha) if pest in DAMAGE_RULES else None
+    # the trajectory below. The photo also gets the field-level severity and spread, but only
+    # when it shows a field: the field-damage models were trained on whole-field views, so their
+    # reading of an insect close-up (the usual photo on this path) means nothing.
+    field_assessment = (
+        _assess_photo(pest, photo, field_size_ha)
+        if pest in DAMAGE_RULES and read_photo(photo).field_scale
+        else None
+    )
     estimates = _quantity_estimates(pest, photo, detections)
     photo_features = _photo_lagged_features(pest, estimates)
 

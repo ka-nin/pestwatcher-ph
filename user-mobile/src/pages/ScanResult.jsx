@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { X, RotateCcw, Sprout, HelpCircle, AlertTriangle } from 'lucide-react';
+import { X, RotateCcw, Sprout, HelpCircle, AlertTriangle, AlertCircle } from 'lucide-react';
 import RiskBadge from '../components/RiskBadge';
 import FieldAssessmentCard from '../components/FieldAssessmentCard';
 import DetectionOverlay from '../components/DetectionOverlay';
@@ -183,17 +183,46 @@ export default function ScanResult() {
           ? t('scanResultOtherPestBody')
           : inference?.message || t('scanResultModelNotReadyBody');
 
+    const badgeLabel = isHealthy
+      ? t('scanResultAllClearBadge')
+      : isDamage
+        ? t('scanResultNeedsCheckingBadge')
+        : isOtherPest
+          ? t('scanResultUnknownInsectBadge')
+          : t('scanResultNotReadyBadge');
+    const now = new Date();
+    const timestamp = now.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · ' +
+      now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+
     return (
-      <div className="guide-detail-screen scan-result-unavailable">
-        <button className="guide-detail-close scan-result-unavailable-close" onClick={() => navigate('/home')} aria-label="Close">
-          <X size={18} />
-        </button>
-        <div className="scan-result-unavailable-body">
-          <span className={`scan-result-unavailable-icon ${tone}`}>
-            {isHealthy ? <Sprout size={28} /> : isDamage ? <AlertTriangle size={28} /> : isOtherPest ? <HelpCircle size={28} /> : null}
-          </span>
-          <h1>{title}</h1>
-          <p>{body}</p>
+      <div className="scan-result-unavailable">
+        <header className="scan-result-unavailable-header">
+          <h1>{t('scanResultHeaderTitle')}</h1>
+          <span className="scan-result-unavailable-timestamp">{timestamp}</span>
+          <button className="scan-result-unavailable-close" onClick={() => navigate('/home')} aria-label="Close">
+            <X size={18} />
+          </button>
+        </header>
+
+        <div className="scan-result-unavailable-scroll">
+          <div className={`scan-result-status-banner ${tone}`}>
+            <span className="scan-result-status-badge">
+              {isHealthy ? <Sprout size={13} /> : isDamage ? <AlertTriangle size={13} /> : isOtherPest ? <HelpCircle size={13} /> : null}
+              {badgeLabel}
+            </span>
+            <h2>{title}</h2>
+            <p>{body}</p>
+            {isDamage && (
+              <p className="scan-result-status-note">
+                <AlertCircle size={13} /> {t('scanResultFieldDisclaimer')}
+              </p>
+            )}
+          </div>
+
+          {/* A farmer needs "what was found, how worried to be, what to do", not percentages
+              and grids: those stay available under "Show details" below. The worry level is
+              the forecast's own risk (the worst day in the next two weeks), not the photo's
+              raw damage numbers. */}
           {hasForecast && (
             <div className={`scan-result-next risk-${worstRisk.toLowerCase()}`}>
               <RiskBadge level={worstRisk.toLowerCase()} label={RISK_LABEL[worstRisk.toLowerCase()][language]} />
@@ -210,19 +239,14 @@ export default function ScanResult() {
               </ul>
             </div>
           )}
-          {isDamage && photo && (
-            <button className="scan-result-rescan-btn" onClick={() => navigate('/report', { state: { photo } })}>
-              {t('scanResultReportThis')}
-            </button>
-          )}
-          <button className="scan-result-rescan-btn" onClick={() => navigate('/scan')}>
-            {t('scanResultRescan')}
-          </button>
+
           {isDamage && (
             <details className="scan-result-details">
               <summary>{t('scanResultShowDetails')}</summary>
-              <FieldAssessmentCard assessment={inference.field_assessment} t={t} showDisclaimer={false} />
-              {hasForecast && (
+              <FieldAssessmentCard assessment={inference.field_assessment} t={t} showDisclaimer={false} photo={photo} />
+              {/* FieldAssessmentCard's own day picker already covers this once
+                  field_assessment.daily exists — only shown as a fallback without it. */}
+              {!inference.field_assessment?.daily && hasForecast && (
                 <section>
                   <h2>{t('scanResultTrajectoryTitle')}</h2>
                   <div className="forecast-grid">
@@ -246,6 +270,17 @@ export default function ScanResult() {
               )}
             </details>
           )}
+        </div>
+
+        <div className="scan-result-unavailable-actions">
+          {isDamage && photo && (
+            <button className="scan-result-rescan-btn scan-result-rescan-btn-primary" onClick={() => navigate('/report', { state: { photo } })}>
+              {t('scanResultReportThis')}
+            </button>
+          )}
+          <button className="scan-result-rescan-btn scan-result-rescan-btn-secondary" onClick={() => navigate('/scan')}>
+            {t('scanResultRescan')}
+          </button>
         </div>
       </div>
     );
@@ -353,7 +388,7 @@ export default function ScanResult() {
           </section>
         )}
 
-        <FieldAssessmentCard assessment={inference.field_assessment} t={t} />
+        <FieldAssessmentCard assessment={inference.field_assessment} t={t} photo={photo} />
 
         <h1>{displayName}</h1>
         <p className="guide-detail-fil">
@@ -392,7 +427,11 @@ export default function ScanResult() {
           )}
         </section>
 
-        {trajectory && trajectory.length > 0 && (
+        {/* Only the weather-only fallback: once field_assessment.daily is present (RSB
+            damage detected in the field grid), FieldAssessmentCard above already shows
+            a day picker with the same 14-day risk PLUS severity/spread/area/pest count
+            per day — showing this plain risk-only strip too would just duplicate it. */}
+        {!inference.field_assessment?.daily && trajectory && trajectory.length > 0 && (
           <section>
             <h2>{t('scanResultTrajectoryTitle')}</h2>
             <div className="forecast-grid">

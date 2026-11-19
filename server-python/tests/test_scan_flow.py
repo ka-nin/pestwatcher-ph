@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
-from PIL import Image
+from PIL import Image, ImageFilter
 
 from app.preprocessing.photo_footprint import estimate_field_size_ha, ground_area_by_cell
 from app.routers import inference as inf
@@ -302,3 +302,16 @@ def test_hopperburn_area_comes_from_the_photo_until_a_size_is_entered(client):
         "/api/inference/field-assessment", files={"file": photo}, data={"pest": "BPH", "field_size_ha": "2"}
     ).json()
     assert typed["field_size_source"] == "entered" and typed["affected_hectares"] > 0
+
+
+def test_insect_close_up_gets_no_field_damage_map_but_a_field_view_does(client, stub):
+    # The field-damage models were trained on whole-field views: an insect close-up must not get a damage map.
+    stub("BPH", DAMAGED)
+    close_up = Image.open(io.BytesIO(_field_photo("hopperburn", sky=False))).filter(ImageFilter.GaussianBlur(7))
+    buf = io.BytesIO()
+    close_up.save(buf, "JPEG")
+    body = client.post("/api/inference/image", files={"file": ("a.jpg", buf.getvalue(), "image/jpeg")}).json()
+    assert body["pest_detected"] == "BPH" and body["field_assessment"] is None
+
+    field = client.post("/api/inference/image", files={"file": ("a.jpg", _field_photo("hopperburn"), "image/jpeg")}).json()
+    assert field["pest_detected"] == "BPH" and field["field_assessment"]["status"] == "ok"

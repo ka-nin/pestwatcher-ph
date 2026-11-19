@@ -19,6 +19,7 @@ field (ml/resnet/evaluate_real_photos.py).
 Run from server-python/ (needs SSL_CERT_FILE set to certifi's bundle on a
 python.org Python so ImageNet weights can download):
     .venv/bin/python -m ml.resnet.train_field_damage --pest RSB
+    .venv/bin/python -m ml.resnet.train_field_damage --pest BPH
 """
 
 import argparse
@@ -37,7 +38,7 @@ from tensorflow.keras.applications import resnet50
 from ml.config import WEIGHTS_DIR
 
 DATASETS = Path(__file__).resolve().parent.parent / "synthetic" / "datasets"
-PEST_DATASETS = {"RSB": DATASETS / "rsb_whitehead_sim"}
+PEST_DATASETS = {"RSB": DATASETS / "rsb_whitehead_sim", "BPH": DATASETS / "bph_hopperburn_sim"}
 DATA_DIR = PEST_DATASETS["RSB"]
 BATCH_SIZE = 32
 CELL_AFFECTED_MIN_PCT = 0.2  # a cell "has damage" when at least this share of it is covered
@@ -110,7 +111,7 @@ def best_threshold(y: np.ndarray, p: np.ndarray) -> float:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pest", choices=["RSB"], required=True)
+    ap.add_argument("--pest", choices=["RSB", "BPH"], required=True)
     ap.add_argument("--backbone", choices=list(BACKBONES), default="resnet50")
     ap.add_argument("--input-size", type=int, default=160)
     ap.add_argument("--head-epochs", type=int, default=12)
