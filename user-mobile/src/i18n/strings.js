@@ -176,6 +176,7 @@ export const translations = {
     scanResultOutlookPestCountToday: 'Tinatayang bilang ng peste ngayon',
     scanResultOutlookPestCountOn: 'Tinatayang bilang ng peste sa {date}',
     scanResultOutlookStaysSame: 'Nananatiling {risk} sa loob ng 14 araw',
+    scanResultHighPossible: 'Posibleng umabot sa High ang peste sa {n} araw. Silipin ang bukid sa mga araw na iyon bago mag-spray.',
     scanResultDamageTitle: 'May nakitang posibleng pinsala ng stem borer',
     scanResultDamageBody:
       'Walang insektong nakita, pero may pinsalang kahawig ng whitehead sa larawan: humigit-kumulang {severity}% ng larawan ang apektado at {spread}% ng bahagi ang may pinsala. Tantiya lamang ito ng AI. Pakikumpirma sa teknolohista.',
@@ -491,6 +492,7 @@ export const translations = {
     scanResultOutlookPestCountToday: 'Forecast pest count today',
     scanResultOutlookPestCountOn: 'Forecast pest count on {date}',
     scanResultOutlookStaysSame: 'Stays {risk} for all 14 days',
+    scanResultHighPossible: 'The pest could reach High on {n} day(s). Check your field on those days before spraying.',
     scanResultDamageTitle: 'Possible stem borer damage found',
     scanResultDamageBody:
       'No insect was seen, but the photo shows damage that looks like whiteheads: about {severity}% of the photo is affected and {spread}% of the area shows damage. This is an AI estimate only. Please have a technologist confirm it.',

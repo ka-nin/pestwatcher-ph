@@ -86,6 +86,8 @@ function FieldAssessmentCard({ assessment, t, showDisclaimer = true, photo }) {
   // "Stays X for all 14 days" only when the forecast risk never changes —
   // a quick read of the day strip's own risk_level values, nothing new.
   const allSameRisk = daily && daily.length > 0 && daily.every((d) => d.risk_level === daily[0].risk_level);
+  // Days where the forecast itself is below High but the top of its range reaches it: a prompt to scout.
+  const highPossibleDays = daily ? daily.filter((d) => d.high_possible && d.risk_level !== 'High').length : 0;
 
   return (
     <section className="scan-result-signal field-assessment-card">
@@ -177,7 +179,7 @@ function FieldAssessmentCard({ assessment, t, showDisclaimer = true, photo }) {
               <button
                 key={d.date}
                 type="button"
-                className={`field-assessment-day-btn ${RISK_CLASS[d.risk_level]}${i === selectedDayIndex ? ' is-selected' : ''}`}
+                className={`field-assessment-day-btn ${RISK_CLASS[d.risk_level]}${i === selectedDayIndex ? ' is-selected' : ''}${d.high_possible && d.risk_level !== 'High' ? ' high-possible' : ''}`}
                 onClick={() => setSelectedDayIndex(i)}
                 aria-label={dayLabel(d.date, d.is_measured, t)}
               />
@@ -187,6 +189,11 @@ function FieldAssessmentCard({ assessment, t, showDisclaimer = true, photo }) {
             <span>{dayLabel(daily[0].date, daily[0].is_measured, t)}</span>
             <span>{dayLabel(daily[daily.length - 1].date, false, t)}</span>
           </div>
+          {highPossibleDays > 0 && (
+            <p className="field-assessment-note field-assessment-high-possible">
+              {t('scanResultHighPossible').replace('{n}', highPossibleDays)}
+            </p>
+          )}
           {selectedDay && (
             <p className="field-assessment-outlook-count">
               {t(selectedDay.is_measured ? 'scanResultOutlookPestCountToday' : 'scanResultOutlookPestCountOn').replace(

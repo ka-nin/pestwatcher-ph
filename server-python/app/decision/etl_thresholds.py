@@ -55,3 +55,18 @@ def derive_risk_level(pest: str, growth_stage_bucket: GrowthStageBucket, predict
     if predicted_value >= band.high_min:
         return "High"
     return "Medium"
+
+
+def high_possible(pest: str, growth_stage_bucket: GrowthStageBucket, upper_bound: float | None) -> bool | None:
+    """Early warning, kept SEPARATE from the risk level: True when the top of the forecast's 80%
+    band reaches the High threshold, i.e. High is plausible even though the central forecast is
+    below it. It asks for scouting, not spraying; the risk level stays the Table 2 reading of the
+    central forecast. None when there is no band (the ensemble runs are not installed).
+
+    Why: the central forecast is pulled toward the common Low windows, so on its own it caught only
+    10 of 132 High BPH test windows. With this warning 60 of 132 are caught (61% on validation),
+    at the cost of flagging 6.6% of truly Low windows (ml/weights/bph/bilstm_bph_early_warning.json).
+    The band was calibrated before this rule existed, so nothing was tuned to produce these numbers."""
+    if upper_bound is None:
+        return None
+    return upper_bound >= PEST_THRESHOLDS[pest][growth_stage_bucket].high_min

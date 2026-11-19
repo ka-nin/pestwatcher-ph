@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   fetchModelInsights,
   type FeatureComparisonResponse,
+  type FormulaAblationRow,
   type ModelInsightsResponse,
   type PredictionPointDto,
   type ResnetRegressionMetrics,
@@ -1024,6 +1025,57 @@ function FeatureComparisonSection({ data, unit }: { data: FeatureComparisonRespo
   )
 }
 
+function FormulaAblationSection({ rows }: { rows: FormulaAblationRow[] | undefined }) {
+  if (!rows || rows.length === 0) return null
+  return (
+    <section className="panel mi-panel">
+      <div className="panel-head">
+        <div>
+          <div className="panel-title">What the hand-computed formulas add on their own</div>
+          <div className="panel-subtitle">
+            Both sides get the same information and differ only in GDD, CRF, HP, WSI, the trends, VPD and diurnal range
+          </div>
+        </div>
+      </div>
+      <div className="mi-table-wrap">
+        <table className="mi-table">
+          <thead>
+            <tr>
+              <th>Same inputs on both sides</th>
+              <th>Metric</th>
+              <th>With formulas</th>
+              <th>Without formulas</th>
+              <th>Test</th>
+              <th>p-value</th>
+              <th>Significant (α=0.05)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={`${row.comparison}-${row.metric}`}>
+                <td>
+                  {row.comparison} ({row.n_folds}-fold)
+                </td>
+                <td>{row.metric.toUpperCase()}</td>
+                <td>{row.with_formulas.toFixed(3)}</td>
+                <td>{row.without_formulas.toFixed(3)}</td>
+                <td>{row.test}</td>
+                <td>{row.p_value.toFixed(4)}</td>
+                <td className={row.significant ? 'bad' : undefined}>{row.significant ? 'Yes' : 'No'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mi-note">
+        No difference here is significant: the formulas did not measurably improve the forecast once the model also
+        had the growth stage. The framework's gain over the raw baseline (table above) comes from the growth stage and
+        the verified report. That is why the deployed model takes raw weather and learns these quantities itself.
+      </p>
+    </section>
+  )
+}
+
 function BilstmTab({ data }: { data: ModelInsightsResponse }) {
   const [pest, setPest] = useState<PestCode>('BPH')
   const info = data.bilstm[pest]
@@ -1103,6 +1155,7 @@ function BilstmTab({ data }: { data: ModelInsightsResponse }) {
       </section>
 
       <FeatureComparisonSection data={info.featureComparison} unit={u.unit} />
+      <FormulaAblationSection rows={info.formulaAblation} />
 
       <section className="panel mi-panel">
         <div className="panel-head">

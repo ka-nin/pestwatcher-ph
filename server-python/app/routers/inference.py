@@ -10,7 +10,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from app.config import get_settings
 from app.data.municipalities import municipality_coordinates
-from app.decision.etl_thresholds import derive_risk_level
+from app.decision.etl_thresholds import derive_risk_level, high_possible
 from app.decision.outlook import growth_outlook, project_affected_area, project_by_forecast_ratio, spread_summary
 from app.decision.report_anchor import find_lagged_observation
 from app.preprocessing.damage_pattern import CELL_AFFECTED_MIN_PCT, HopperburnReading, read_photo
@@ -164,6 +164,7 @@ def _project_field_assessment_days(result: FieldAssessmentResponse, trajectory: 
                 spread_pct=spread_series[i] if i > 0 else result.cells_affected_pct,
                 affected_hectares=hectares_series[i] if i > 0 else result.affected_hectares,
                 affected_area_m2=area_m2_series[i] if i > 0 else result.affected_area_m2,
+                high_possible=point.high_possible,
             )
         )
     return days
@@ -818,6 +819,7 @@ def _build_trajectory(
                 adjusted_by_reports=lagged_features[2] == 1.0,
                 predicted_low=result.low,
                 predicted_high=result.high,
+                high_possible=high_possible(pest, growth_stage_bucket, result.high),
             )
         )
 

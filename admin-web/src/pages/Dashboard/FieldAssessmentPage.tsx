@@ -123,6 +123,7 @@ function FieldAssessmentPage({ user }: FieldAssessmentPageProps) {
           spread_pct: null,
           affected_hectares: null,
           affected_area_m2: null,
+          high_possible: p.high_possible ?? null,
         }))
       : null)
   const forecastOnly = !result?.daily && daily !== null
@@ -279,9 +280,20 @@ function FieldAssessmentPage({ user }: FieldAssessmentPageProps) {
               >
                 <span className="fa-day-label">{dayLabel(d.date, d.is_measured)}</span>
                 <span className={`fa-day-risk fa-day-risk-${RISK_TONE[d.risk_level]}`}>{d.risk_level}</span>
+                {d.high_possible && d.risk_level !== 'High' && (
+                  <span className="fa-day-warning" title="The top of the forecast range reaches the High threshold: scout this field">
+                    High possible
+                  </span>
+                )}
               </button>
             ))}
           </div>
+          {daily.some((d) => d.high_possible && d.risk_level !== 'High') && (
+            <p className="fa-caveat">
+              "High possible": the forecast itself is below the High threshold, but the top of its 80% range reaches
+              it. Scout the field on those days; the risk level still follows the ETL (Table 2).
+            </p>
+          )}
         </section>
       )}
 

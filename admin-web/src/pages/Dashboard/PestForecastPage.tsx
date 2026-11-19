@@ -213,6 +213,11 @@ function PestForecastPage({ user }: PestForecastPageProps) {
                     </div>
                     <span className="forecast-breakdown-value">
                       {meta.format(p.predicted_value)}
+                      {p.high_possible && p.risk_level !== 'High' && (
+                        <span className="forecast-breakdown-warning" title="The top of the forecast range reaches the High threshold: scout">
+                          {' '}· High possible
+                        </span>
+                      )}
                       {p.projected_affected_ha != null && (
                         <span className="forecast-breakdown-area" title="Projected affected area, assuming it grows with the forecast">
                           {' '}· ~{p.projected_affected_ha} ha

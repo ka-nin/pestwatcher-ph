@@ -52,6 +52,9 @@ class TrajectoryPoint(BaseModel):
     # 80% confidence band from the ensemble of runs; None when the extra runs are not installed.
     predicted_low: float | None = None
     predicted_high: float | None = None
+    # Early warning: the top of the band reaches the High threshold (app/decision/etl_thresholds.py's
+    # high_possible). A prompt to scout, separate from risk_level. None without a band.
+    high_possible: bool | None = None
     # Projected hectares affected on this day (app/decision/outlook.py's
     # project_affected_area): the latest verified area scaled by the forecast.
     # A projection under a stated assumption, None without a verified area.
@@ -112,6 +115,7 @@ class FieldAssessmentDay(BaseModel):
     spread_pct: float | None = None  # share of grid cells containing damage
     affected_hectares: float | None = None  # only with a field size on record
     affected_area_m2: float | None = None  # estimated from the photo's own geometry, scaled like affected_hectares
+    high_possible: bool | None = None  # TrajectoryPoint.high_possible for this day
 
 
 class FieldAssessmentResponse(BaseModel):

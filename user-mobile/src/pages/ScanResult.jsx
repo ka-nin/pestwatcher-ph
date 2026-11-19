@@ -168,6 +168,7 @@ export default function ScanResult() {
         )
       : null;
     const hasForecast = isDamage && inference.forecast?.points?.length > 0;
+    const damageHighPossibleDays = (inference?.forecast?.points || []).filter((p) => p.high_possible && p.risk_level !== 'High').length;
     const title = isHealthy
       ? t('scanResultHealthyTitle')
       : isDamage
@@ -227,6 +228,9 @@ export default function ScanResult() {
             <div className={`scan-result-next risk-${worstRisk.toLowerCase()}`}>
               <RiskBadge level={worstRisk.toLowerCase()} label={RISK_LABEL[worstRisk.toLowerCase()][language]} />
               <p>{t('scanResultDamageNext' + damageSuffix)}</p>
+              {worstRisk !== 'High' && damageHighPossibleDays > 0 && (
+                <p className="scan-result-high-possible">{t('scanResultHighPossible').replace('{n}', damageHighPossibleDays)}</p>
+              )}
             </div>
           )}
           {isDamage && (
@@ -302,6 +306,7 @@ export default function ScanResult() {
   const entry = pestGuide.find((p) => p.id === guideId) || pestGuide[0];
 
   const forecastRisk = forecast?.risk_level?.toLowerCase() || null;
+  const highPossibleDays = (trajectory || []).filter((p) => p.high_possible && p.risk_level !== 'High').length;
   const bucket = GROWTH_BUCKET[growthStage] || 'Vegetative';
   const stageThresholds = etlThresholds[guideId]?.[bucket];
   const measurement = forecast?.predicted_value ?? null;
@@ -417,6 +422,12 @@ export default function ScanResult() {
                 <RiskBadge level={forecastRisk} label={RISK_LABEL[forecastRisk][language]} />
               </div>
               <p className="scan-result-summary">{RISK_SUMMARY[forecastRisk][language]}</p>
+              {/* Forecast below High, but the top of its range reaches it on some days: a prompt to scout. */}
+              {forecastRisk !== 'high' && highPossibleDays > 0 && (
+                <p className="scan-result-summary scan-result-high-possible">
+                  {t('scanResultHighPossible').replace('{n}', highPossibleDays)}
+                </p>
+              )}
             </>
           )}
 

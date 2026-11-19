@@ -1,0 +1,55 @@
+{
+  "pest": "RSB",
+  "rule": "high_possible = top of the 80% band >= the Table 2 High threshold; risk_level unchanged",
+  "band_file": "bilstm_rsb_ensemble.json",
+  "splits": {
+    "val": {
+      "windows": 1567,
+      "current_high": {
+        "high_caught": 0,
+        "high_total": 15,
+        "recall": 0.0,
+        "flags": 0,
+        "precision": 0.0,
+        "flagged_truly_low": 0,
+        "low_total": 1366,
+        "false_alarm_on_low": 0.0
+      },
+      "high_possible": {
+        "high_caught": 12,
+        "high_total": 15,
+        "recall": 0.8,
+        "flags": 78,
+        "precision": 0.154,
+        "flagged_truly_low": 53,
+        "low_total": 1366,
+        "false_alarm_on_low": 0.039
+      },
+      "band_coverage": 0.8
+    },
+    "test": {
+      "windows": 1597,
+      "current_high": {
+        "high_caught": 0,
+        "high_total": 4,
+        "recall": 0.0,
+        "flags": 0,
+        "precision": 0.0,
+        "flagged_truly_low": 0,
+        "low_total": 1438,
+        "false_alarm_on_low": 0.0
+      },
+      "high_possible": {
+        "high_caught": 0,
+        "high_total": 4,
+        "recall": 0.0,
+        "flags": 68,
+        "precision": 0.0,
+        "flagged_truly_low": 43,
+        "low_total": 1438,
+        "false_alarm_on_low": 0.03
+      },
+      "band_coverage": 0.755
+    }
+  }
+}

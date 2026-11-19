@@ -271,3 +271,12 @@
     grid-template-columns: 1fr;
   }
 }
+
+.fa-day-warning {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(180, 60, 30, 0.12);
+  color: #a3401f;
+}

@@ -152,6 +152,8 @@ export interface TrajectoryPoint {
   // 80% confidence band from the ensemble of runs (null when the extra runs are not installed).
   predicted_low?: number | null
   predicted_high?: number | null
+  // Early warning: the top of the band reaches the High threshold. Asks for scouting; risk_level is unchanged.
+  high_possible?: boolean | null
   // Projected hectares affected that day (null without a verified area).
   projected_affected_ha?: number | null
 }
@@ -257,6 +259,7 @@ export interface FieldAssessmentDay {
   affected_hectares: number | null
   // Photo-geometry estimate scaled like affected_hectares; used when no field size is known.
   affected_area_m2: number | null
+  high_possible?: boolean | null
 }
 
 export async function assessFieldPhoto(
@@ -715,6 +718,19 @@ export interface BilstmInsights {
   predictions: { n: number; points: PredictionPointDto[] } | null
   shap: { sample_size: number; features: ShapFeatureDto[] } | null
   featureComparison: FeatureComparisonResponse | null
+  // Tests where both configurations get the same information and differ only in the formulas.
+  formulaAblation?: FormulaAblationRow[]
+}
+
+export interface FormulaAblationRow {
+  comparison: string
+  n_folds: number
+  metric: 'rmse' | 'mae'
+  with_formulas: number
+  without_formulas: number
+  test: string
+  p_value: number
+  significant: boolean
 }
 
 export interface GridEvalRowDto {

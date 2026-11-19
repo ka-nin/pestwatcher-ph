@@ -283,6 +283,9 @@ function TrajectoryChart({
             <i style={{ background: riskFill[active.risk_level] }} />
             {active.risk_level} risk · {etlPercent}% of ETL
           </span>
+          {active.high_possible && active.risk_level !== 'High' && (
+            <span className="trajectory-tooltip-range">High possible: the top of the range reaches the High threshold. Scout.</span>
+          )}
         </div>
       )}
     </div>

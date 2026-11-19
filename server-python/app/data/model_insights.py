@@ -30,6 +30,46 @@ def _read_json(path: Path) -> Any | None:
         return None
 
 
+# What the hand-computed formulas (GDD, CRF, HP, WSI, trends, VPD, diurnal range) add on their own:
+# each test gives both configurations the SAME information and differs only in the formulas, unlike
+# the framework-vs-raw table, where the framework also gets growth stage and the verified report.
+FORMULA_ABLATIONS = [
+    (
+        "bilstm_{key}_seq_only_comparison.json", "mean_engineered", "mean_seq_only",
+        "Weather + growth stage, with vs without formulas",
+    ),
+    (
+        "bilstm_{key}_framework_comparison_plain_10fold.json", "mean_lagged_fresh", "mean_plain_fresh",
+        "Weather + growth stage + verified report, with vs without formulas",
+        "plain_fresh_vs_lagged_fresh",
+    ),
+]
+
+
+def _formula_ablation(folder: Path, key: str) -> list[dict[str, Any]]:
+    rows = []
+    for file_name, with_key, without_key, label, *pair in FORMULA_ABLATIONS:
+        data = _read_json(folder / file_name.format(key=key))
+        if data is None:
+            continue
+        significance = data["significance"][pair[0]] if pair else data["significance"]
+        for metric in ("rmse", "mae"):
+            result = significance.get(metric)
+            if result is None:
+                continue
+            rows.append({
+                "comparison": label,
+                "n_folds": data["n_folds"],
+                "metric": metric,
+                "with_formulas": result[with_key],
+                "without_formulas": result[without_key],
+                "test": result["test"],
+                "p_value": result["p_value"],
+                "significant": result["significant"],
+            })
+    return rows
+
+
 def _modified_date(path: Path) -> str | None:
     try:
         return datetime.fromtimestamp(path.stat().st_mtime).date().isoformat()
@@ -92,6 +132,7 @@ def build_model_insights() -> dict[str, Any]:
             "predictions": _read_json(folder / f"bilstm_{key}_test_predictions.json"),
             "shap": _read_json(folder / f"bilstm_{key}_shap_summary.json"),
             "featureComparison": _read_json(folder / f"bilstm_{key}_feature_comparison.json"),
+            "formulaAblation": _formula_ablation(folder, key),
         }
 
     bph_folder = PEST_PARAMS["BPH"].bilstm_weights_path.parent

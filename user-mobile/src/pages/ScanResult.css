@@ -514,3 +514,8 @@
   text-align: center;
   color: var(--color-text);
 }
+
+.scan-result-high-possible {
+  color: #a3401f;
+  font-weight: 600;
+}

@@ -1,0 +1,55 @@
+{
+  "pest": "BPH",
+  "rule": "high_possible = top of the 80% band >= the Table 2 High threshold; risk_level unchanged",
+  "band_file": "bilstm_bph_ensemble.json",
+  "splits": {
+    "val": {
+      "windows": 1567,
+      "current_high": {
+        "high_caught": 11,
+        "high_total": 137,
+        "recall": 0.08,
+        "flags": 14,
+        "precision": 0.786,
+        "flagged_truly_low": 1,
+        "low_total": 1292,
+        "false_alarm_on_low": 0.001
+      },
+      "high_possible": {
+        "high_caught": 84,
+        "high_total": 137,
+        "recall": 0.613,
+        "flags": 233,
+        "precision": 0.361,
+        "flagged_truly_low": 114,
+        "low_total": 1292,
+        "false_alarm_on_low": 0.088
+      },
+      "band_coverage": 0.8
+    },
+    "test": {
+      "windows": 1597,
+      "current_high": {
+        "high_caught": 10,
+        "high_total": 132,
+        "recall": 0.076,
+        "flags": 23,
+        "precision": 0.435,
+        "flagged_truly_low": 3,
+        "low_total": 1290,
+        "false_alarm_on_low": 0.002
+      },
+      "high_possible": {
+        "high_caught": 60,
+        "high_total": 132,
+        "recall": 0.455,
+        "flags": 211,
+        "precision": 0.284,
+        "flagged_truly_low": 85,
+        "low_total": 1290,
+        "false_alarm_on_low": 0.066
+      },
+      "band_coverage": 0.787
+    }
+  }
+}
