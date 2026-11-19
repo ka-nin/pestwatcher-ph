@@ -95,6 +95,19 @@ function FieldAssessmentPage({ user }: FieldAssessmentPageProps) {
   const pestName = scan?.pest_detected === 'BPH' ? 'Brown Planthopper (BPH)' : scan?.pest_detected === 'RSB' ? 'Rice Stem Borer (RSB)' : null
   const daily = result?.daily ?? null
   const selectedDay: FieldAssessmentDay | null = daily?.[selectedDayIndex] ?? null
+
+  // The backend only scales the photo's AGGREGATE severity/spread per day — it has
+  // no per-cell projection. Re-derive the same scale factor the server already
+  // applied to severity_pct (rather than recomputing the BiLSTM ratio/cap client
+  // side) and apply it uniformly to every cell, so the overlay's existing spatial
+  // pattern dims/brightens together with the day picker instead of inventing a new
+  // spatial prediction. cell_has_damage stays fixed to today's reading: the model
+  // never judged which cells will cross the damage threshold on a future day.
+  const cellScale =
+    !selectedDay || selectedDay.is_measured || !result?.pct_affected
+      ? 1
+      : (selectedDay.severity_pct ?? 0) / result.pct_affected
+  const scaledCellValues = result ? result.cell_values.flat().map((v) => v * cellScale) : []
   return (
     <>
       <section className="panel forecast-summary-panel">
@@ -169,7 +182,7 @@ function FieldAssessmentPage({ user }: FieldAssessmentPageProps) {
                   className="fa-overlay"
                   style={{ gridTemplateColumns: `repeat(${result!.cols}, 1fr)`, gridTemplateRows: `repeat(${result!.rows}, 1fr)` }}
                 >
-                  {result!.cell_values.flat().map((v, i) => (
+                  {scaledCellValues.map((v, i) => (
                     <div key={i} className="fa-cell" style={{ background: cellColour(v, result!.cell_has_damage.flat()[i]) }} title={`${v.toFixed(2)}% of this cell`}>
                       {result!.cell_has_damage.flat()[i] && <span>{v.toFixed(1)}%</span>}
                     </div>
@@ -178,7 +191,12 @@ function FieldAssessmentPage({ user }: FieldAssessmentPageProps) {
               )}
             </div>
           )}
-          {previewUrl && ok && <p className="fa-legend"><i /> Cells the model judges to contain damage</p>}
+          {previewUrl && ok && (
+            <p className="fa-legend">
+              <i /> Cells the model judges to contain damage
+              {selectedDay && !selectedDay.is_measured && ' — shading scaled to the selected day\'s projection, same cells as today\'s photo'}
+            </p>
+          )}
         </section>
       </div>
 

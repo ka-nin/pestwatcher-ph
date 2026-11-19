@@ -62,12 +62,17 @@ export async function fetchPestForecastExplanation(municipality, pest, growthSta
 // municipality/growthStage are optional: without them the backend still
 // classifies the photo, it just skips the 14-day BiLSTM forecast that
 // normally rides along in the same response (see
-// app/routers/inference.py's /image endpoint).
-export async function submitImageInference(imageBlob, municipality, growthStage) {
+// app/routers/inference.py's /image endpoint). fieldSizeHa (hectares) is
+// also optional — collected on ScanCapture BEFORE the scan runs, since it
+// changes the affected-area math the result comes back with; without it,
+// the backend falls back to estimating the field size from the photo's own
+// metadata when available.
+export async function submitImageInference(imageBlob, municipality, growthStage, fieldSizeHa) {
   const formData = new FormData();
   formData.append('file', imageBlob, 'scan.jpg');
   if (municipality) formData.append('municipality', municipality);
   if (growthStage) formData.append('growth_stage', growthStage);
+  if (fieldSizeHa != null) formData.append('field_size_ha', String(fieldSizeHa));
   const res = await fetch(`${API_BASE_URL}/api/inference/image`, {
     method: 'POST',
     body: formData,

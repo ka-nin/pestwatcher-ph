@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
-import { Camera, X, AlertCircle, ImagePlus } from 'lucide-react';
+import { Camera, Check, X, AlertCircle, ImagePlus } from 'lucide-react';
 import ScreenHeader from '../components/ScreenHeader';
 import { submitImageInference } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -24,6 +24,12 @@ export default function ScanCapture() {
   const [cameraStatus, setCameraStatus] = useState('starting'); // starting | live | denied | unsupported
   const [analyzing, setAnalyzing] = useState(false);
   const [scanError, setScanError] = useState('');
+  // Collected here, BEFORE the scan, because it's an INPUT to the affected-area
+  // math (app/routers/inference.py's /image endpoint), not something to type in
+  // after the result already came back — the result screen only ever displays
+  // what was actually submitted.
+  const [fieldSize, setFieldSize] = useState('');
+  const [fieldSizeUnit, setFieldSizeUnit] = useState('ha');
 
   useEffect(() => {
     if (mode !== 'camera' || preview) return undefined; // don't keep the camera running once a photo is captured
@@ -79,8 +85,11 @@ export default function ScanCapture() {
     async function runInference() {
       try {
         const blob = capturedBlobRef.current;
+        const typed = Number(fieldSize);
+        const hasTyped = fieldSize.trim() !== '' && Number.isFinite(typed) && typed > 0;
+        const fieldSizeHa = hasTyped ? (fieldSizeUnit === 'm2' ? typed / 10000 : typed) : null;
         const result = blob
-          ? await submitImageInference(blob, user?.municipality, growthStage)
+          ? await submitImageInference(blob, user?.municipality, growthStage, fieldSizeHa)
           : null;
         if (cancelled) return;
         navigate('/scan/result', { state: { inference: result, photo: blob } });
@@ -95,9 +104,10 @@ export default function ScanCapture() {
     return () => {
       cancelled = true;
     };
-    // user.municipality/growthStage are read once at submit time by design —
-    // this effect is gated on `analyzing` (a one-shot trigger from tapping
-    // the shutter), not meant to re-fire mid-upload if either changes.
+    // user.municipality/growthStage/fieldSize(Unit) are read once at submit
+    // time by design — this effect is gated on `analyzing` (a one-shot
+    // trigger from tapping the shutter), not meant to re-fire mid-upload if
+    // any of them change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analyzing, navigate]);
 
@@ -153,67 +163,128 @@ export default function ScanCapture() {
       <ScreenHeader title={t('scanCaptureTitle')} onBack={() => navigate('/home')} />
 
       <div className="scan-body">
-        <div className="scan-frame">
-          {preview ? (
-            <img src={preview} alt={t('scanCapturedAlt')} className="scan-frame-img" />
-          ) : mode === 'camera' && cameraStatus === 'live' ? (
-            <video ref={videoRef} autoPlay playsInline muted className="scan-frame-video" />
-          ) : mode === 'camera' && cameraStatus === 'starting' ? (
-            <div className="scan-frame-placeholder">
-              <Camera size={40} color="rgba(255,255,255,0.5)" />
-              <span className="scan-frame-status">{t('scanStarting')}</span>
-            </div>
-          ) : mode === 'camera' ? (
-            <div className="scan-frame-placeholder scan-frame-error">
-              <AlertCircle size={32} color="rgba(255,255,255,0.7)" />
-              <span className="scan-frame-status">
-                {cameraStatus === 'denied' ? t('scanCameraDenied') : t('scanCameraUnsupported')}
+        {mode === 'choosing' ? (
+          <div className="scan-setup">
+            <div className="scan-step">
+              <span className="scan-step-head">
+                <span className="scan-step-number">1</span>
+                <span className="scan-step-title">{t('scanStepFieldSize')}</span>
+                <span className="scan-step-badge">{t('scanFieldSizeOptionalBadge')}</span>
               </span>
+              <div className="scan-field-size-card">
+                <label htmlFor="scan-field-size-input">{t('scanFieldSizePrompt')}</label>
+                <div className="scan-field-size-row">
+                  <input
+                    id="scan-field-size-input"
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="any"
+                    placeholder={fieldSizeUnit === 'ha' ? 'e.g. 1.5' : 'e.g. 5000'}
+                    value={fieldSize}
+                    onChange={(e) => setFieldSize(e.target.value)}
+                  />
+                  <div className="scan-field-unit-toggle" role="group" aria-label={t('scanFieldSizeLabel')}>
+                    <button
+                      type="button"
+                      className={fieldSizeUnit === 'ha' ? 'is-active' : ''}
+                      onClick={() => setFieldSizeUnit('ha')}
+                    >
+                      {t('scanResultUnitHa')}
+                    </button>
+                    <button
+                      type="button"
+                      className={fieldSizeUnit === 'm2' ? 'is-active' : ''}
+                      onClick={() => setFieldSizeUnit('m2')}
+                    >
+                      m²
+                    </button>
+                  </div>
+                </div>
+                <p className="scan-field-size-hint">{t('scanFieldSizeHint')}</p>
+              </div>
             </div>
-          ) : mode === 'upload' ? (
-            <button className="scan-frame-placeholder scan-frame-placeholder-btn" onClick={chooseUpload}>
-              <ImagePlus size={40} color="rgba(255,255,255,0.5)" />
-              <span className="scan-frame-status">{t('scanUploadPrompt')}</span>
-            </button>
-          ) : (
-            <div className="scan-choice">
-              <p className="scan-choice-title">{t('scanChoiceTitle')}</p>
-              <button className="scan-choice-btn" onClick={chooseCamera}>
-                <span className="scan-choice-icon">
-                  <Camera size={22} />
-                </span>
-                <span>
+
+            <div className="scan-step">
+              <span className="scan-step-head">
+                <span className="scan-step-number">2</span>
+                <span className="scan-step-title">{t('scanStepAddPhoto')}</span>
+              </span>
+              <div className="scan-choice-cards">
+                <button className="scan-choice-card scan-choice-card-primary" onClick={chooseCamera}>
+                  <span className="scan-choice-card-icon">
+                    <Camera size={20} />
+                  </span>
                   <strong>{t('scanChoiceCameraTitle')}</strong>
                   <small>{t('scanChoiceCameraSubtitle')}</small>
-                </span>
-              </button>
-              <button className="scan-choice-btn" onClick={chooseUpload}>
-                <span className="scan-choice-icon">
-                  <ImagePlus size={22} />
-                </span>
-                <span>
+                </button>
+                <button className="scan-choice-card" onClick={chooseUpload}>
+                  <span className="scan-choice-card-icon">
+                    <ImagePlus size={20} />
+                  </span>
                   <strong>{t('scanChoiceUploadTitle')}</strong>
                   <small>{t('scanChoiceUploadSubtitle')}</small>
+                </button>
+              </div>
+            </div>
+
+            <div className="scan-accuracy">
+              <span className="scan-accuracy-title">{t('scanAccuracyTitle')}</span>
+              <div className="scan-accuracy-examples">
+                <span className="scan-example-chip scan-example-good">{t('scanTipGoodExample')}</span>
+                <span className="scan-example-chip scan-example-bad">{t('scanTipBadExample')}</span>
+              </div>
+              <div className="scan-accuracy-captions">
+                <span className="scan-accuracy-caption scan-accuracy-caption-good">
+                  <Check size={13} /> {t('scanGoodExampleCaption')}
                 </span>
+                <span className="scan-accuracy-caption scan-accuracy-caption-bad">
+                  <X size={13} /> {t('scanBadExampleCaption')}
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="scan-frame">
+            {preview ? (
+              <img src={preview} alt={t('scanCapturedAlt')} className="scan-frame-img" />
+            ) : mode === 'camera' && cameraStatus === 'live' ? (
+              <video ref={videoRef} autoPlay playsInline muted className="scan-frame-video" />
+            ) : mode === 'camera' && cameraStatus === 'starting' ? (
+              <div className="scan-frame-placeholder">
+                <Camera size={40} color="rgba(255,255,255,0.5)" />
+                <span className="scan-frame-status">{t('scanStarting')}</span>
+              </div>
+            ) : mode === 'camera' ? (
+              <div className="scan-frame-placeholder scan-frame-error">
+                <AlertCircle size={32} color="rgba(255,255,255,0.7)" />
+                <span className="scan-frame-status">
+                  {cameraStatus === 'denied' ? t('scanCameraDenied') : t('scanCameraUnsupported')}
+                </span>
+              </div>
+            ) : (
+              <button className="scan-frame-placeholder scan-frame-placeholder-btn" onClick={chooseUpload}>
+                <ImagePlus size={40} color="rgba(255,255,255,0.5)" />
+                <span className="scan-frame-status">{t('scanUploadPrompt')}</span>
               </button>
-            </div>
-          )}
+            )}
 
-          <canvas ref={canvasRef} hidden />
+            <canvas ref={canvasRef} hidden />
 
-          {preview && !analyzing && (
-            <button className="scan-frame-clear" onClick={retake} aria-label="Retake photo">
-              <X size={14} />
-            </button>
-          )}
+            {preview && !analyzing && (
+              <button className="scan-frame-clear" onClick={retake} aria-label="Retake photo">
+                <X size={14} />
+              </button>
+            )}
 
-          {analyzing && (
-            <div className="scan-analyzing-overlay">
-              <span className="scan-analyzing-spinner" />
-              <span className="scan-analyzing-text">{t('scanAnalyzingOverlayText')}</span>
-            </div>
-          )}
-        </div>
+            {analyzing && (
+              <div className="scan-analyzing-overlay">
+                <span className="scan-analyzing-spinner" />
+                <span className="scan-analyzing-text">{t('scanAnalyzingOverlayText')}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {mode !== 'choosing' && (
           <>

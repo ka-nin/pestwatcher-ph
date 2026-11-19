@@ -284,92 +284,165 @@
   flex-direction: column;
   height: 100%;
   background: var(--color-bg);
+}
+
+.scan-result-unavailable-header {
+  flex-shrink: 0;
   position: relative;
-  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 56px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.scan-result-unavailable-header h1 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.scan-result-unavailable-timestamp {
+  position: absolute;
+  right: 56px;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
 }
 
 .scan-result-unavailable-close {
   position: absolute;
-  top: 16px;
+  top: 50%;
   right: 16px;
+  transform: translateY(-50%);
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
   border: none;
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--color-bg);
   color: var(--color-text);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.scan-result-unavailable-body {
+.scan-result-unavailable-scroll {
   flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: safe center;
   text-align: center;
-  padding: 64px 20px 32px;
-  gap: 14px;
+  gap: 18px;
 }
 
-.scan-result-unavailable-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
+.scan-result-status-banner {
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.scan-result-status-banner.tone-ok {
+  background: var(--risk-low-bg);
+}
+
+.scan-result-status-banner.tone-warn {
+  background: var(--risk-medium-bg);
+}
+
+.scan-result-status-banner.tone-neutral {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.scan-result-status-badge {
+  align-self: flex-start;
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin-bottom: 4px;
-}
-
-.scan-result-unavailable-icon:empty {
-  display: none;
-}
-
-.scan-result-unavailable-icon.tone-ok {
-  background: var(--color-primary-light);
-  color: var(--color-primary-dark);
-}
-
-.scan-result-unavailable-icon.tone-warn {
-  background: color-mix(in srgb, var(--color-accent-orange) 18%, transparent);
-  color: var(--color-accent-orange);
-}
-
-.scan-result-unavailable-body h1 {
-  margin: 0;
-  font-size: var(--text-lg);
+  gap: 5px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.6);
   color: var(--color-text);
 }
 
-.scan-result-unavailable-body p {
+.scan-result-status-banner h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.scan-result-status-banner p {
   margin: 0;
   font-size: var(--text-sm);
-  line-height: 1.6;
+  line-height: 1.55;
+  color: var(--color-text);
+}
+
+.scan-result-status-banner strong {
+  font-weight: 700;
+}
+
+.scan-result-status-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
+.scan-result-unavailable-actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
+
 .scan-result-rescan-btn {
-  margin-top: 10px;
   padding: 13px 28px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: none;
-  background: var(--color-primary);
-  color: #fff;
   font-weight: 700;
   font-size: var(--text-base);
 }
 
+.scan-result-rescan-btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.scan-result-rescan-btn-secondary {
+  background: transparent;
+  color: var(--color-primary-dark);
+  border: 1px solid var(--color-primary);
+}
 
 /* The damage screen carries a card, a forecast and two buttons: keep them one width and one scale. */
-.scan-result-unavailable-body > section {
+.scan-result-unavailable-scroll > section,
+.scan-result-unavailable-scroll > .scan-result-next,
+.scan-result-unavailable-scroll > .scan-result-todo,
+.scan-result-unavailable-scroll > .scan-result-details {
   width: 100%;
   max-width: 380px;
 }
 
-.scan-result-unavailable-body > section h2 {
+.scan-result-unavailable-scroll > section h2 {
   margin: 6px 0 10px;
   font-size: var(--text-base);
   letter-spacing: 0.04em;
@@ -377,41 +450,24 @@
   color: var(--color-text);
 }
 
-.scan-result-unavailable-body .forecast-day-date {
+.scan-result-unavailable-scroll .forecast-day-date {
   font-size: var(--text-sm);
 }
 
-.scan-result-unavailable-body .forecast-legend {
+.scan-result-unavailable-scroll .forecast-legend {
   justify-content: center;
 }
 
-.scan-result-unavailable-body .scan-result-rescan-btn {
-  width: 100%;
-  max-width: 320px;
-  margin-top: 0;
-}
-
-/* Reporting is the main action; scanning again is the quieter one. */
-.scan-result-unavailable-body .scan-result-rescan-btn + .scan-result-rescan-btn {
-  background: transparent;
-  color: var(--color-primary);
-  box-shadow: inset 0 0 0 1.5px var(--color-primary);
-}
-
-
-/* Farmer view of the damage result: one risk line, three things to do, the numbers tucked away. */
+/* Farmer view of the damage result: one risk line, three things to do, the numbers tucked away
+   (under "Show details" below) until they're wanted. */
 .scan-result-next {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  width: 100%;
-  max-width: 340px;
 }
 
 .scan-result-todo {
-  width: 100%;
-  max-width: 340px;
   text-align: left;
   background: var(--color-primary-light);
   border-radius: 14px;
@@ -433,8 +489,6 @@
 }
 
 .scan-result-details {
-  width: 100%;
-  max-width: 380px;
   margin-top: 6px;
   text-align: left;
 }
