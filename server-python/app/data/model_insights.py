@@ -43,6 +43,11 @@ FORMULA_ABLATIONS = [
         "Weather + growth stage + verified report, with vs without formulas",
         "plain_fresh_vs_lagged_fresh",
     ),
+    (
+        "bilstm_{key}_repeated_comparison.json", "mean_engineered", "mean_seq_only",
+        "Weather + growth stage, with vs without formulas, 3 seeds averaged",
+        "engineered_vs_seq_only",
+    ),
 ]
 
 
@@ -52,7 +57,8 @@ def _formula_ablation(folder: Path, key: str) -> list[dict[str, Any]]:
         data = _read_json(folder / file_name.format(key=key))
         if data is None:
             continue
-        significance = data["significance"][pair[0]] if pair else data["significance"]
+        tests = data.get("significance") or data["seed_averaged_tests"]
+        significance = tests[pair[0]] if pair else tests
         for metric in ("rmse", "mae"):
             result = significance.get(metric)
             if result is None:
